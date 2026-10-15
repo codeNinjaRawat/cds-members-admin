@@ -1,0 +1,47 @@
+/* ============ Nightfall preset – indigo night over the hills (owner reference #2, 2026-10-13) ============
+   Full sidebar with a glowing active pill and attention counts, a renewal-season card, command-center overview.
+   Original artwork: layered hill silhouettes, soft haze and a few stars (no photos). */
+:root[data-preset="nightfall"][data-mode="dark"] {
+  --ink: #EEF1FF; --ink-2: #B3BAD8; --ink-3: #8F97BD;
+  --line: rgba(160, 175, 255, .1); --line-strong: rgba(170, 185, 255, .2);
+  --pane: rgba(16, 22, 56, .5); --pane-strong: rgba(12, 17, 44, .82); --pane-solid: #121838;
+  --field: rgba(255, 255, 255, .05); --field-line: rgba(170, 185, 255, .16);
+  --edge: rgba(170, 185, 255, .14); --sheen: rgba(200, 210, 255, .1);
+  --shadow: 0 26px 60px -30px rgba(0, 0, 10, .9);
+}
+:root[data-wall="mountains"] .wall { background: var(--wall-1); }
+:root[data-wall="mountains"] .wall::before { inset: 0; animation: none;
+  background:
+    radial-gradient(40% 30% at 22% 12%, color-mix(in srgb, var(--second) 30%, transparent), transparent 70%),
+    radial-gradient(45% 35% at 78% 18%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%),
+    radial-gradient(70% 40% at 50% 100%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--wall-1), var(--wall-2) 45%, var(--wall-3)); }
+:root[data-wall="mountains"] .wall::after { content: ""; position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000' preserveAspectRatio='xMidYMax slice'%3E%3Cdefs%3E%3ClinearGradient id='h1' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%236c78ff' stop-opacity='.35'/%3E%3Cstop offset='1' stop-color='%230a0f2e' stop-opacity='.9'/%3E%3C/linearGradient%3E%3ClinearGradient id='h2' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%234a4fb8' stop-opacity='.5'/%3E%3Cstop offset='1' stop-color='%23070b20'/%3E%3C/linearGradient%3E%3ClinearGradient id='h3' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23262a6e'/%3E%3Cstop offset='1' stop-color='%2305081a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='%23fff'%3E%3Ccircle cx='180' cy='90' r='1.2' opacity='.7'/%3E%3Ccircle cx='420' cy='160' r='.9' opacity='.5'/%3E%3Ccircle cx='760' cy='70' r='1.1' opacity='.6'/%3E%3Ccircle cx='1040' cy='140' r='.8' opacity='.5'/%3E%3Ccircle cx='1320' cy='60' r='1.3' opacity='.7'/%3E%3Ccircle cx='1500' cy='200' r='.9' opacity='.4'/%3E%3Ccircle cx='620' cy='240' r='.8' opacity='.4'/%3E%3Ccircle cx='260' cy='300' r='.7' opacity='.35'/%3E%3C/g%3E%3Cpath d='M0 640 C180 560 300 520 420 560 S640 470 780 520 1000 440 1180 500 1420 430 1600 480 V1000 H0Z' fill='url(%23h1)'/%3E%3Cpath d='M0 760 C160 690 320 660 460 700 S720 620 900 680 1160 600 1340 660 1520 630 1600 650 V1000 H0Z' fill='url(%23h2)'/%3E%3Cpath d='M0 860 C200 800 380 790 560 830 S900 770 1100 820 1400 780 1600 800 V1000 H0Z' fill='url(%23h3)'/%3E%3C/svg%3E");
+  background-size: cover; background-position: center bottom; }
+:root[data-mode="light"][data-wall="mountains"] .wall::after { opacity: .35; }
+
+/* sidebar: active pill glows, counts on the right */
+:root[data-preset="nightfall"] .side-link.active { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--second))); color: #fff;
+  box-shadow: 0 10px 26px -10px var(--accent), inset 0 1px 0 rgba(255, 255, 255, .25); }
+:root[data-preset="nightfall"] .side-link.active .ico { color: #fff; }
+:root[data-preset="nightfall"] .side-link.active::before { display: none; }
+.side-badge { margin-left: auto; min-width: 26px; padding: .05rem .45rem; border-radius: 999px; font-size: .7rem; font-weight: 700; text-align: center; background: var(--field); border: 1px solid var(--line); color: var(--ink-2); }
+.side-link.soon .side-badge { margin-left: auto; } .side-link.soon .side-badge + em { margin-left: .35rem; }
+.side-link.active .side-badge { background: rgba(255, 255, 255, .2); color: #fff; border-color: transparent; }
+:root[data-nav="rail"] .side-badge { display: none; }
+/* renewal-season card at the bottom of the full sidebar */
+.side-card { margin-top: auto; border-radius: 18px; padding: 1rem; display: grid; gap: .45rem; position: relative; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--second) 30%, transparent), color-mix(in srgb, var(--accent) 22%, transparent)); border: 1px solid var(--line-strong); }
+.side-card svg { color: var(--second); filter: drop-shadow(0 0 8px var(--second)); }
+.side-card b { font-size: .95rem; } .side-card p { font-size: .78rem; color: var(--ink-2); line-height: 1.45; }
+.side-card-btn { justify-self: start; background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
+.side-card + .side-foot { margin-top: .4rem; }
+:root[data-nav="rail"] .side-card { display: none; }
+
+:root[data-preset="nightfall"] .page-head h1 { font: 650 1.65rem/1.2 var(--font-body); font-variation-settings: normal; }
+:root[data-preset="nightfall"] .d-head h2 { font: 600 .95rem var(--font-body); }
+/* full sidebar never needs a scrollbar on laptop screens: planned modules fold away first */
+@media (min-width: 1081px) and (max-height: 1000px) { :root[data-nav="full"] .side-group:last-child { display: none; } }
+@media (min-width: 1081px) and (max-height: 840px) { :root[data-nav="full"] .side-card { display: none; } }
+@media (min-width: 1081px) { :root[data-nav="full"] .side-link { padding: .45rem .7rem; } :root[data-nav="full"] .side-group { gap: .05rem; } }

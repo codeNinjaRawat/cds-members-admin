@@ -1,0 +1,21 @@
+/* ============ Speed (owner 2026-10-13: "actions getting slow / stuck") ============
+   Frosted blur is the most expensive thing a browser paints, and it is re-painted on every scroll, hover and click.
+   Keep the real frosted blur on the shell (sidebar, top bar) and on floating menus and dialogs; content panels get a
+   deep tinted glass surface instead. Over the smooth wallpaper it looks the same, and pages stay smooth on laptops. */
+.glass-pane { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+:root[data-mode="dark"] .glass-pane { --pane: color-mix(in srgb, var(--pane-solid) 80%, transparent); }
+:root[data-mode="light"] .glass-pane { --pane: color-mix(in srgb, var(--pane-solid) 84%, transparent); }
+:root[data-glass="clear"][data-mode="dark"] .glass-pane { --pane: color-mix(in srgb, var(--pane-solid) 64%, transparent); }
+:root[data-glass="clear"][data-mode="light"] .glass-pane { --pane: color-mix(in srgb, var(--pane-solid) 70%, transparent); }
+/* the shell and floating layers stay frosted – smaller blur radius costs much less and looks the same */
+:root .glass-nav, :root .glass-float { --blur: 16px; }
+/* don't animate things that sit under blur */
+.glass-nav * { transition-property: color, background-color, border-color, opacity; }
+
+/* instant click feedback: thin bar at the top while the next page opens */
+.nav-progress { position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 1000; pointer-events: none; }
+.nav-progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent-ink), var(--gold, var(--second))); box-shadow: 0 0 10px var(--accent-ink); border-radius: 0 3px 3px 0; }
+.nav-progress.is-run span { animation: navp 8s cubic-bezier(.1, .7, .2, 1) forwards; }
+.nav-progress.is-done span { width: 100%; opacity: 0; transition: width .15s ease-out, opacity .25s .12s; }
+@keyframes navp { 0% { width: 0; } 10% { width: 45%; } 40% { width: 72%; } 100% { width: 92%; } }
+@media (prefers-reduced-motion: reduce) { .nav-progress.is-run span { animation: none; width: 70%; } }

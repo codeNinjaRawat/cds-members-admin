@@ -1,0 +1,71 @@
+/* ============ Obsidian preset – "one glass window on graphite" ============
+   Owner reference (2026-10-13): dark, neutral smoked glass; the whole app sits in ONE rounded glass window;
+   slim icon rail inside it; compact type; cyan data line with point markers; violet bars; quiet labels.
+   Scoped to data-preset="obsidian" so the other admin themes keep their own character. */
+:root[data-preset="obsidian"] { --data: #1D6FE0; --data-2: #6D4FD8; }
+:root[data-preset="obsidian"][data-mode="dark"] {
+  --ink: #EDEFF4; --ink-2: #A9AEBB; --ink-3: #8A90A0;
+  --line: rgba(255, 255, 255, .07); --line-strong: rgba(255, 255, 255, .14);
+  --pane: rgba(255, 255, 255, .035); --pane-strong: rgba(18, 19, 24, .82); --pane-solid: #17181E;
+  --field: rgba(255, 255, 255, .05); --field-line: rgba(255, 255, 255, .1);
+  --edge: rgba(255, 255, 255, .08); --sheen: rgba(255, 255, 255, .06);
+  --shadow: 0 24px 50px -30px rgba(0, 0, 0, .9);
+  --data: #5EE1F0; --data-2: #9B87F5; --accent-ink: #7DD3FC;
+}
+
+/* graphite wallpaper: dark glass shards, only a breath of color */
+:root[data-preset="obsidian"][data-wall="obsidian"] .wall::before {
+  background:
+    radial-gradient(30% 40% at 18% 25%, rgba(94, 225, 240, .08), transparent 70%),
+    radial-gradient(30% 40% at 85% 75%, rgba(155, 135, 245, .09), transparent 70%),
+    linear-gradient(150deg, var(--wall-1), var(--wall-2) 50%, var(--wall-3));
+}
+:root[data-preset="obsidian"][data-wall="obsidian"] .wall::after { opacity: 1; }
+
+/* the app window */
+@media (min-width: 1081px) {
+  :root[data-preset="obsidian"] body { overflow: hidden; }
+  :root[data-preset="obsidian"] .shell { height: calc(100vh - 32px); min-height: 0; margin: 16px; border-radius: 28px; overflow: hidden;
+    background: rgba(14, 15, 19, .55); border: 1px solid var(--edge); -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 50px 120px -40px #000; }
+  :root[data-preset="obsidian"][data-mode="light"] .shell { background: rgba(255, 255, 255, .5); box-shadow: inset 0 1px 0 #fff, 0 40px 100px -40px rgba(20, 30, 50, .35); }
+  :root[data-preset="obsidian"] .side { position: relative; top: 0; height: 100%; margin: 0; border-radius: 0; background: transparent; border: 0; box-shadow: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none; border-right: 1px solid var(--line); }
+  :root[data-preset="obsidian"][data-nav="rail"] .shell { grid-template-columns: 72px minmax(0, 1fr); }
+  :root[data-preset="obsidian"][data-nav="rail"] .side { width: 72px; }
+  :root[data-preset="obsidian"] .main-col { height: 100%; overflow-y: auto; padding: 14px 22px 28px; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+  :root[data-preset="obsidian"] .main-col::-webkit-scrollbar { width: 8px; } :root[data-preset="obsidian"] .main-col::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; }
+  :root[data-preset="obsidian"] .top { top: 0; background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: 0; padding: .2rem 0 .9rem; margin-bottom: .6rem; border-bottom: 1px solid var(--line); }
+}
+:root[data-preset="obsidian"] .top .search { background: var(--field); border-color: var(--field-line); max-width: 360px; min-height: 36px; }
+:root[data-preset="obsidian"] .side-link.active { background: rgba(255, 255, 255, .08); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+:root[data-preset="obsidian"][data-mode="light"] .side-link.active { background: rgba(0, 0, 0, .06); }
+:root[data-preset="obsidian"] .side-link.active .ico { color: var(--accent-ink); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent-ink) 70%, transparent)); }
+
+/* compact, quiet type */
+:root[data-preset="obsidian"] .page-head h1 { font: 650 1.6rem/1.2 var(--font-body); letter-spacing: -.01em; font-variation-settings: normal; }
+:root[data-preset="obsidian"] .page-intro { font-size: .86rem; margin-top: .25rem; }
+:root[data-preset="obsidian"] .panel-h, :root[data-preset="obsidian"] .d-head h2 { font: 600 .95rem var(--font-body); }
+:root[data-preset="obsidian"] .glass-pane, :root[data-preset="obsidian"] .d-card { border-radius: 18px; }
+:root[data-preset="obsidian"] .glass-pane { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+:root[data-preset="obsidian"][data-mode="dark"] .glass-pane::before { background: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 40%); }
+:root[data-preset="obsidian"] .date-chip { font-size: .82rem; font-weight: 600; color: var(--accent-ink); }
+
+/* data colors: cyan line with point markers, violet bars */
+:root[data-preset="obsidian"] .chart .line { stroke: var(--data); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--data) 70%, transparent)); }
+:root[data-preset="obsidian"] #sp-fill stop { stop-color: var(--data); }
+:root[data-preset="obsidian"] .chart .knob { stroke: var(--data); }
+:root[data-preset="obsidian"] .gbar-fill { background: linear-gradient(180deg, var(--data-2), color-mix(in srgb, var(--data-2) 20%, transparent)); box-shadow: 0 0 22px -6px var(--data-2); }
+:root[data-preset="obsidian"] .alloc-bar span { background: linear-gradient(90deg, color-mix(in srgb, var(--data) 40%, transparent), var(--data)); box-shadow: 0 0 10px color-mix(in srgb, var(--data) 60%, transparent); }
+:root[data-preset="obsidian"] .count { background: linear-gradient(135deg, rgba(94, 225, 240, .18), rgba(155, 135, 245, .22)); border: 1px solid var(--line-strong); color: var(--ink); }
+:root[data-preset="obsidian"] .d-kpi b { font: 650 1.6rem var(--font-body); }
+/* compact queue rows (one line of meta, smaller type) */
+:root[data-preset="obsidian"] .q-list { gap: .35rem; }
+:root[data-preset="obsidian"] .q-list li { padding: .45rem .7rem; border-radius: 12px; background: rgba(255, 255, 255, .03); }
+:root[data-preset="obsidian"][data-mode="light"] .q-list li { background: rgba(255, 255, 255, .6); }
+:root[data-preset="obsidian"] .q-list li div { grid-template-columns: auto 1fr; column-gap: .5rem; align-items: baseline; }
+:root[data-preset="obsidian"] .q-list b { font-size: .86rem; }
+:root[data-preset="obsidian"] .q-list small { grid-column: 1 / -1; font-size: .72rem; }
+:root[data-preset="obsidian"] .chip-row button { padding: .2rem .6rem; font-size: .74rem; }
+:root[data-preset="obsidian"] .d-kpi span { font-size: .74rem; }
+:root[data-preset="obsidian"] .strip dd { font-size: .9rem; }

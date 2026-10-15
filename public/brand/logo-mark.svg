@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="ISGH concept A – star and arch">
+  <title>Concept A – Star &amp; Arch</title>
+  <g fill="#0F4C4A">
+    <rect x="19" y="19" width="62" height="62" rx="4"/>
+    <rect x="19" y="19" width="62" height="62" rx="4" transform="rotate(45 50 50)"/>
+  </g>
+  <path d="M39 70 V50 Q39 35 50 28 Q61 35 61 50 V70 Z" fill="#F6EFD9"/>
+  <path d="M45 70 V55 Q45 47 50 43 Q55 47 55 55 V70 Z" fill="#C8A24A"/>
+</svg>

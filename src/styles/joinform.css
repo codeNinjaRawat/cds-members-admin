@@ -1,0 +1,48 @@
+/* ============ Join form builder ============ */
+.jfb { display: grid; gap: 1rem; }
+.jfb-switches { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .6rem 1.2rem; }
+.jfb-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: .7rem; }
+.jfb-steplist { display: grid; gap: .55rem; }
+.jfb-step { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .6rem; padding: .55rem .75rem; border-radius: 12px; background: var(--field); border: 1px solid var(--line); }
+.jfb-step b { font-size: .98rem; }
+.jfb-step small { flex-basis: 100%; color: var(--ink-3); font-size: .8rem; }
+.jfb-step.on { border-color: var(--accent-ink); box-shadow: 0 0 0 1px var(--accent-ink) inset; }
+:root[data-preset="luxe"] .jfb-step.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.jfb-kind { font-size: .66rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-3); }
+.jfb-kind.custom { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent-ink) 45%, transparent); }
+.jfb-pv { margin-left: auto; font-size: .8rem; }
+.jfb-core { display: flex; flex-wrap: wrap; gap: .35rem; padding-left: .8rem; }
+.jfb-chip { display: inline-flex; align-items: center; gap: .3rem; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-2); border-radius: 999px; padding: .2rem .65rem; font: 600 .8rem var(--font-body); cursor: pointer; }
+.jfb-chip.locked { color: var(--ink); }
+.jfb-chip.off { opacity: .55; text-decoration: line-through; }
+.jfb-chip[aria-expanded="true"] { border-color: var(--accent-ink); color: var(--accent-ink); }
+.jfb-lock { flex: none; opacity: .75; }
+.jfb-why { display: flex; gap: .4rem; align-items: center; font-size: .85rem; color: var(--ink-2); }
+.jfb-ownstep { display: grid; gap: .5rem; margin-left: 1.2rem; padding-left: .8rem; border-left: 2px solid color-mix(in srgb, var(--accent-ink) 45%, transparent); }
+.jfb-section { margin-left: .8rem; display: grid; gap: .5rem; padding: .75rem; border-radius: 14px; border: 1px dashed var(--line-strong); }
+.jfb-section.off { opacity: .6; }
+.jfb-section.has-err, .jfb-field.has-err { border-color: var(--bad); }
+.jfb-sec-head { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.jfb-sec-title { flex: 1 1 200px; font-weight: 700; }
+.jfb-sec-head .pill-select { max-width: 230px; }
+.jfb-tools, .jfb-ftools { display: inline-flex; gap: .3rem; align-items: center; }
+.jfb-sec-intro { font-size: .88rem; }
+.jfb-fields { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.jfb-field { border-radius: 10px; border: 1px solid var(--line); background: color-mix(in srgb, var(--field) 70%, transparent); padding: .35rem .5rem; }
+.jfb-field.off { opacity: .6; }
+.jfb-frow { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.jfb-type { font-size: .68rem; font-weight: 800; color: var(--ink-3); min-width: 82px; }
+.jfb-flabel { all: unset; cursor: pointer; font-weight: 600; flex: 1 1 200px; min-width: 0; }
+.jfb-flabel:hover { text-decoration: underline; text-underline-offset: 3px; }
+.jfb-flabel:focus-visible { outline: 2px solid var(--accent-ink); border-radius: 4px; }
+.jfb-tag { font-size: .66rem; font-weight: 800; padding: .08rem .45rem; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-2); }
+.jfb-tag.req { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.jfb-tag.rule { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent-ink) 45%, transparent); }
+.jfb-edit { margin-top: .5rem; padding: .9rem; border-radius: 14px; display: grid; gap: .7rem; }
+.jfb-rule { border: 1px solid var(--line); border-radius: 12px; padding: .6rem .7rem; margin: 0; }
+.jfb-rule legend { font-size: .78rem; font-weight: 800; color: var(--ink-2); padding: 0 .3rem; }
+.jfb-edit .field-row { grid-template-columns: 1fr 1fr; gap: .7rem; }
+.jfb-edit .field-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.jfb-add { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+@media (max-width: 700px) { .field-row.three { grid-template-columns: 1fr; } .jfb-section, .jfb-ownstep { margin-left: 0; } }
+.jfb-rule .field-row select, .jfb-rule .field-row input { width: 100%; }

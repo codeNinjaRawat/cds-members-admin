@@ -1,0 +1,158 @@
+/* ============ ISGH Admin – "working on glass" design system (A0) ============
+   Layers: wallpaper → navigation glass (strong) → panes (frosted) → fields (near-solid, always readable) → floating (modals, palette).
+   Rules (memory/18): text ≥ 4.5:1, blur ≤ 20px, max ~3 blurred layers, solid fallback, reduced transparency/motion respected. */
+:root {
+  --font-display: var(--font-bricolage, 'Bricolage Grotesque'), 'Segoe UI', system-ui, sans-serif;
+  --font-body: var(--font-public-sans, 'Public Sans'), 'Segoe UI', system-ui, sans-serif;
+  --accent: #0E5A45; --accent-ink: #0E5A45; --second: #E3A62B;
+  --wall-1: #CDE6DA; --wall-2: #F5E5C3; --wall-3: #BCD7E8;
+  --ink: #13241F; --ink-2: #3D514A; --ink-3: #5B6E67;
+  --line: rgba(19, 36, 31, .13); --line-strong: rgba(19, 36, 31, .24);
+  --pane: rgba(255, 255, 255, .58); --pane-strong: rgba(255, 255, 255, .8); --pane-solid: #FBFDFC;
+  --field: rgba(255, 255, 255, .92); --field-line: rgba(19, 36, 31, .22);
+  --edge: rgba(255, 255, 255, .7); --sheen: rgba(255, 255, 255, .55);
+  --shadow: 0 1px 1px rgba(19, 36, 31, .04), 0 18px 40px -26px rgba(19, 36, 31, .45);
+  --float-shadow: 0 40px 90px -30px rgba(10, 25, 20, .55);
+  --blur: 16px; --sat: 1.45;
+  --ok: #1B7A45; --warn: #8F5400; --bad: #B3261E;
+  --r-lg: 20px; --r: 12px; --r-sm: 8px;
+  --gap: 1.1rem; --pad: 1.3rem;
+  color-scheme: light;
+}
+:root[data-mode="dark"] {
+  --ink: #E6F0EC; --ink-2: #AFC2BB; --ink-3: #8EA39B;
+  --line: rgba(255, 255, 255, .1); --line-strong: rgba(255, 255, 255, .2);
+  --pane: rgba(16, 28, 26, .5); --pane-strong: rgba(16, 28, 26, .78); --pane-solid: #13201D;
+  --field: rgba(8, 16, 14, .62); --field-line: rgba(255, 255, 255, .18);
+  --edge: rgba(255, 255, 255, .1); --sheen: rgba(255, 255, 255, .07);
+  --shadow: 0 18px 44px -28px rgba(0, 0, 0, .8); --float-shadow: 0 40px 100px -30px rgba(0, 0, 0, .9);
+  --ok: #6FD39A; --warn: #F2B65A; --bad: #FF8F86;
+  color-scheme: dark;
+}
+:root[data-glass="clear"] { --pane: rgba(255, 255, 255, .4); --pane-strong: rgba(255, 255, 255, .7); --blur: 20px; }
+:root[data-mode="dark"][data-glass="clear"] { --pane: rgba(16, 28, 26, .34); --pane-strong: rgba(16, 28, 26, .66); }
+:root[data-glass="solid"] { --pane: var(--pane-solid); --pane-strong: var(--pane-solid); --blur: 0px; --sat: 1; }
+@media (prefers-reduced-transparency: reduce) { :root { --pane: var(--pane-solid) !important; --pane-strong: var(--pane-solid) !important; --blur: 0px !important; } }
+:root[data-density="compact"] { --gap: .75rem; --pad: .95rem; }
+:root[data-text="s"] { font-size: 15px; } :root[data-text="m"] { font-size: 16px; } :root[data-text="l"] { font-size: 17.5px; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--ink); font: 400 1rem/1.55 var(--font-body); background: var(--wall-2); min-height: 100vh; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.1; letter-spacing: -.01em; }
+p { margin: 0; }
+a { color: var(--accent-ink); text-underline-offset: 3px; }
+button { font: inherit; color: inherit; }
+code, .mono { font-family: ui-monospace, 'Cascadia Code', Menlo, monospace; font-size: .88em; }
+:focus-visible { outline: 2.5px solid var(--accent-ink); outline-offset: 2px; border-radius: 6px; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+img { max-width: 100%; display: block; }
+
+/* ---------- wallpaper ---------- */
+.wall { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--wall-2); contain: strict; }
+.wall::before { content: ""; position: absolute; inset: -20%;
+  background:
+    radial-gradient(40% 45% at 15% 20%, var(--wall-1), transparent 70%),
+    radial-gradient(45% 50% at 85% 15%, var(--wall-3), transparent 70%),
+    radial-gradient(50% 55% at 70% 90%, var(--wall-1), transparent 70%),
+    radial-gradient(40% 45% at 10% 95%, color-mix(in srgb, var(--accent) 22%, var(--wall-3)), transparent 70%); }
+/* Speed (owner 2026-10-13 "actions taking time"): the wallpaper no longer drifts. A moving background under
+   frosted panes forced the GPU to re-blur every pane on every frame, which made clicks and scrolling feel slow. */
+:root[data-wall="girih"] .wall::after { content: ""; position: absolute; inset: 0; opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.55' stroke-width='1'%3E%3Crect x='28' y='28' width='40' height='40'/%3E%3Crect x='28' y='28' width='40' height='40' transform='rotate(45 48 48)'/%3E%3Cpath d='M0 48h20M76 48h20M48 0v20M48 76v20'/%3E%3C/g%3E%3C/svg%3E"); }
+:root[data-mode="dark"][data-wall="girih"] .wall::after { opacity: .18; }
+:root[data-wall="dusk"] .wall { background: #1b2433; }
+:root[data-wall="dusk"] .wall::before { inset: -40px; animation: none; filter: blur(26px) saturate(1.2); transform: scale(1.1);
+  background: linear-gradient(color-mix(in srgb, var(--wall-1) 35%, transparent), color-mix(in srgb, var(--wall-3) 40%, transparent)),
+    url("https://images.pexels.com/photos/29781715/pexels-photo-29781715.jpeg?auto=compress&cs=tinysrgb&w=1600") center / cover; }
+:root[data-mode="light"][data-wall="dusk"] .wall::after { content: ""; position: absolute; inset: 0; background: rgba(255, 255, 255, .35); }
+:root[data-wall="plain"] .wall::before { background: linear-gradient(160deg, var(--wall-1), var(--wall-2)); animation: none; }
+
+/* ---------- glass surfaces ---------- */
+.glass-nav, .glass-pane, .glass-float {
+  background: var(--pane); border: 1px solid var(--edge);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat)); backdrop-filter: blur(var(--blur)) saturate(var(--sat));
+  box-shadow: inset 0 1px 0 var(--sheen), var(--shadow);
+}
+.glass-nav { background: var(--pane-strong); }
+.glass-float { background: var(--pane-strong); box-shadow: inset 0 1px 0 var(--sheen), var(--float-shadow); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-nav, .glass-pane, .glass-float { background: var(--pane-solid); }
+}
+/* the liquid-glass specular edge: a soft light line along the top of every pane */
+.glass-pane, .glass-float { position: relative; }
+.glass-pane::before, .glass-float::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(180deg, var(--sheen), transparent 38%); opacity: .55; mix-blend-mode: soft-light; }
+:root[data-glass="solid"] .glass-pane::before, :root[data-glass="solid"] .glass-float::before { display: none; }
+
+/* ---------- controls ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 40px; padding: 0 1rem; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--field); color: var(--ink); font-weight: 600; font-size: .93rem; cursor: pointer; text-decoration: none; white-space: nowrap;
+  transition: background-color .15s, border-color .15s, transform .1s; }
+.btn:hover:not(:disabled) { border-color: var(--accent-ink); }
+.btn:active:not(:disabled) { transform: scale(.97); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); box-shadow: 0 8px 20px -12px var(--accent); }
+.btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 86%, #000); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.ghost:hover:not(:disabled) { background: var(--pane); border-color: var(--line); }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+:root[data-mode="dark"] .btn.danger { color: #2a0503; }
+.danger-text { color: var(--bad) !important; }
+.btn.sm { min-height: 34px; padding: 0 .8rem; font-size: .85rem; }
+.btn[data-busy]::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.icon-btn { width: 40px; height: 40px; display: inline-grid; place-items: center; border-radius: 50%; border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--ink); }
+.icon-btn:hover { background: var(--pane); border-color: var(--line); }
+.icon-btn.sm { width: 32px; height: 32px; }
+.pill { display: inline-flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 700; padding: .2rem .7rem; border-radius: 999px; background: var(--pane-strong); border: 1px solid var(--line); }
+.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+.pill.good { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.pill.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 22%, transparent); }
+
+.seg { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 999px; background: var(--field); border: 1px solid var(--field-line); }
+.seg button { border: 0; background: transparent; border-radius: 999px; padding: .4rem .9rem; font-size: .88rem; font-weight: 600; cursor: pointer; color: var(--ink-2); }
+.seg button[aria-checked="true"] { background: var(--accent); color: var(--on-accent, #fff); }
+.seg-sm button { padding: .25rem .6rem; font-size: .8rem; }
+
+.switch { display: inline-flex; align-items: center; gap: .7rem; cursor: pointer; position: relative; }
+.switch input { position: absolute; opacity: 0; width: 44px; height: 26px; margin: 0; cursor: pointer; z-index: 1; }
+.switch .track { width: 44px; height: 26px; border-radius: 999px; background: var(--line-strong); position: relative; transition: background .2s; flex: none; }
+.switch .thumb { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0005; transition: transform .2s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track .thumb { transform: translateX(18px); }
+.switch input:focus-visible + .track { outline: 2.5px solid var(--accent-ink); outline-offset: 2px; }
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; animation-duration: .01ms !important; } }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent-ink); border-right-color: transparent; animation: spin .8s linear infinite; display: inline-block; }
+
+/* ---------- Obsidian: smoked glass at night (owner reference, 2026-10-13) ----------
+   Dark panes are tinted by the theme's own wall color, so every preset gets its own smoke. */
+:root[data-mode="dark"] {
+  --pane: color-mix(in srgb, var(--wall-2) 58%, rgba(255, 255, 255, .02));
+  --pane-strong: color-mix(in srgb, var(--wall-1) 80%, rgba(255, 255, 255, .03));
+  --field: color-mix(in srgb, var(--wall-1) 70%, rgba(255, 255, 255, .05));
+  --edge: rgba(255, 255, 255, .09);
+}
+:root[data-mode="dark"][data-glass="clear"] { --pane: color-mix(in srgb, var(--wall-2) 38%, rgba(255, 255, 255, .02)); }
+:root[data-mode="dark"][data-glass="solid"] { --pane: var(--wall-2); --pane-strong: var(--wall-1); }
+:root[data-wall="obsidian"] .wall { background: var(--wall-1); }
+:root[data-wall="obsidian"] .wall::before { inset: -10%;
+  background:
+    radial-gradient(28% 34% at 22% 30%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 70%),
+    radial-gradient(30% 36% at 78% 22%, color-mix(in srgb, var(--second) 30%, transparent), transparent 70%),
+    radial-gradient(34% 40% at 60% 85%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 72%),
+    linear-gradient(160deg, var(--wall-1), var(--wall-2) 55%, var(--wall-3)); }
+/* faceted dark-glass shards with a faint eight-point star – something for the panes to blur */
+:root[data-wall="obsidian"] .wall::after { content: ""; position: absolute; inset: 0; opacity: .9;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='1000' viewBox='0 0 1600 1000'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.07'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='b' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.05'/%3E%3Cstop offset='1' stop-color='%23000' stop-opacity='.25'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 0h520L300 380 0 300z' fill='url(%23a)'/%3E%3Cpath d='M1600 0v420l-360-120L1180 0z' fill='url(%23b)'/%3E%3Cpath d='M0 1000V640l420 140 140 220z' fill='url(%23b)'/%3E%3Cpath d='M1600 1000h-520l220-300 300 60z' fill='url(%23a)'/%3E%3Cpath d='M620 0h420L860 200z' fill='url(%23b)'/%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.06' stroke-width='1.2' transform='translate(1310 560)'%3E%3Crect x='-90' y='-90' width='180' height='180'/%3E%3Crect x='-90' y='-90' width='180' height='180' transform='rotate(45)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: cover; background-position: center; }
+:root[data-mode="light"][data-wall="obsidian"] .wall::after { opacity: .5; filter: invert(1); }
+
+/* in dark mode, panes glow faintly at the top edge (the "light catching the glass" moment) */
+:root[data-mode="dark"] .glass-pane::before, :root[data-mode="dark"] .glass-float::before { opacity: 1; mix-blend-mode: normal;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 30%); }

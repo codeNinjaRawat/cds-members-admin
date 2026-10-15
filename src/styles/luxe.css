@@ -1,0 +1,71 @@
+/* ============ Luxe – "Onyx and gold" (owner: luxury-grade, ultra-premium glass, 2026-10-13) ============
+   Onyx glass, champagne-gold hairline edges (gradient borders), a soft specular sheen, fine grain,
+   a refined display face for titles and figures. Gold buttons carry dark text (contrast 8+:1). */
+:root[data-preset="luxe"] { --font-display-luxe: var(--font-luxe, 'Fraunces'), Georgia, 'Times New Roman', serif; --gold: #C9A35C; --gold-hi: #F1D9A6; }
+:root[data-preset="luxe"][data-mode="dark"] {
+  --ink: #F4EFE6; --ink-2: #CBC2B3; --ink-3: #A0978A;
+  --line: rgba(227, 197, 138, .11); --line-strong: rgba(227, 197, 138, .24);
+  --pane: rgba(255, 248, 235, .035); --pane-strong: rgba(17, 15, 19, .86); --pane-solid: #141217;
+  --field: rgba(255, 248, 235, .045); --field-line: rgba(227, 197, 138, .2);
+  --edge: rgba(227, 197, 138, .2); --sheen: rgba(255, 240, 210, .09);
+  --shadow: 0 30px 70px -36px rgba(0, 0, 0, .95), 0 1px 0 rgba(255, 240, 210, .04);
+  --ok: #8FD3A8; --s1: #c98500; --s2: #3987e5; --accent-ink: #E3C58A;
+}
+:root[data-preset="luxe"][data-mode="light"] { --s1: #b07500; --s2: #2a78d6; --line-strong: rgba(150, 115, 50, .3); --edge: rgba(176, 138, 66, .35); }
+
+/* onyx silk wallpaper: deep black, two slow gold light sweeps, a whisper of the eight-point lattice, fine grain */
+:root[data-wall="silk"] .wall { background: var(--wall-1); }
+:root[data-wall="silk"] .wall::before { inset: -15%;
+  background:
+    radial-gradient(38% 30% at 20% 18%, rgba(201, 163, 92, .22), transparent 70%),
+    radial-gradient(34% 28% at 82% 78%, rgba(201, 163, 92, .16), transparent 70%),
+    radial-gradient(30% 26% at 70% 20%, rgba(127, 201, 184, .07), transparent 70%),
+    conic-gradient(from 210deg at 60% 40%, transparent, rgba(255, 230, 180, .05), transparent 30%),
+    linear-gradient(155deg, var(--wall-1), var(--wall-2) 50%, var(--wall-3)); }
+:root[data-wall="silk"] .wall::after { content: ""; position: absolute; inset: 0; opacity: .55;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .85 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23C9A35C' stroke-opacity='.06' stroke-width='.8'%3E%3Crect x='42' y='42' width='56' height='56'/%3E%3Crect x='42' y='42' width='56' height='56' transform='rotate(45 70 70)'/%3E%3Cpath d='M0 70h30M110 70h30M70 0v30M70 110v30'/%3E%3C/g%3E%3C/svg%3E"); }
+:root[data-mode="light"][data-wall="silk"] .wall::after { opacity: .7; }
+
+/* ultra-premium glass: gold hairline gradient edge + specular sheen + deep soft shadow */
+:root[data-preset="luxe"] .glass-pane, :root[data-preset="luxe"] .glass-nav, :root[data-preset="luxe"] .glass-float {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--pane), var(--pane)) padding-box,
+    linear-gradient(135deg, rgba(241, 217, 166, .55), rgba(201, 163, 92, .08) 32%, rgba(255, 255, 255, .03) 60%, rgba(201, 163, 92, .35)) border-box;
+  -webkit-backdrop-filter: blur(22px) saturate(1.25); backdrop-filter: blur(22px) saturate(1.25);
+  box-shadow: inset 0 1px 0 var(--sheen), inset 0 0 40px rgba(255, 240, 210, .02), var(--shadow);
+}
+:root[data-preset="luxe"] .glass-nav { background: linear-gradient(var(--pane-strong), var(--pane-strong)) padding-box, linear-gradient(160deg, rgba(241, 217, 166, .45), rgba(201, 163, 92, .06) 40%, rgba(201, 163, 92, .25)) border-box; }
+:root[data-preset="luxe"] .glass-float { background: linear-gradient(var(--pane-strong), var(--pane-strong)) padding-box, linear-gradient(135deg, rgba(241, 217, 166, .6), rgba(201, 163, 92, .1) 40%, rgba(201, 163, 92, .4)) border-box; }
+:root[data-preset="luxe"][data-mode="dark"] .glass-pane::before { opacity: 1; mix-blend-mode: normal; background: radial-gradient(120% 60% at 0% 0%, rgba(255, 236, 200, .07), transparent 55%); }
+
+/* refined type: display face for titles and figures, generous tracking on small labels */
+:root[data-preset="luxe"] .page-head h1 { font-family: var(--font-display-luxe); font-weight: 500; font-size: 2rem; letter-spacing: -.01em; font-variation-settings: "opsz" 72, "SOFT" 50; }
+:root[data-preset="luxe"] .cc-greet { font-family: var(--font-body); }
+:root[data-preset="luxe"] :is(.cc-kv b, .d-kpi b, .kpi b, .count b, .cc-total b, .donut-total) { font-family: var(--font-display-luxe); font-weight: 500; letter-spacing: 0; }
+:root[data-preset="luxe"] .donut-total { fill: var(--ink); }
+:root[data-preset="luxe"] .d-head h2, :root[data-preset="luxe"] .panel-h { font-family: var(--font-body); font-weight: 600; letter-spacing: .01em; }
+:root[data-preset="luxe"] .side-brand b { font-family: var(--font-display-luxe); font-weight: 500; font-size: 1.2rem; }
+
+/* gold accents */
+:root[data-preset="luxe"] .btn.primary { background: linear-gradient(180deg, var(--gold-hi), var(--gold)); border-color: rgba(241, 217, 166, .6); color: #17120A; box-shadow: 0 10px 26px -12px rgba(201, 163, 92, .8), inset 0 1px 0 rgba(255, 255, 255, .5); }
+:root[data-preset="luxe"] .side-link.active, :root[data-preset="luxe"] .sub-link.active { background: linear-gradient(90deg, rgba(201, 163, 92, .2), rgba(201, 163, 92, .04)); color: var(--ink); }
+:root[data-preset="luxe"] .side-link.active::before, :root[data-preset="luxe"] .sub-link.active::before { background: linear-gradient(var(--gold-hi), var(--gold)); box-shadow: 0 0 10px rgba(201, 163, 92, .8); }
+:root[data-preset="luxe"] .side-link.active .ico, :root[data-preset="luxe"] .side-link.parent.is-current .ico { color: var(--gold-hi); }
+:root[data-preset="luxe"] .side-badge { background: rgba(201, 163, 92, .14); border-color: rgba(201, 163, 92, .35); color: var(--gold-hi); }
+:root[data-preset="luxe"] .avatar, :root[data-preset="luxe"] .cc-people .av { background: linear-gradient(135deg, var(--gold-hi), var(--gold)); color: #17120A; }
+:root[data-preset="luxe"] .env { background: rgba(201, 163, 92, .14); border-color: rgba(201, 163, 92, .45); color: var(--gold-hi); }
+:root[data-preset="luxe"] .cc-ico, :root[data-preset="luxe"] .sg-mark { background: radial-gradient(circle at 30% 25%, rgba(255, 236, 200, .35), rgba(201, 163, 92, .12) 60%); color: var(--gold-hi); border: 1px solid rgba(241, 217, 166, .4); box-shadow: 0 0 24px -8px rgba(201, 163, 92, .9); }
+:root[data-preset="luxe"] .cc-kpi { --kc: #D9B56F; }
+:root[data-preset="luxe"] .side-card { background: linear-gradient(160deg, rgba(201, 163, 92, .2), rgba(201, 163, 92, .03)); border-color: rgba(201, 163, 92, .35); }
+:root[data-preset="luxe"] .side-card svg { color: var(--gold-hi); filter: drop-shadow(0 0 8px var(--gold)); }
+:root[data-preset="luxe"] .gbar-fill { background: linear-gradient(180deg, var(--gold-hi), rgba(201, 163, 92, .15)); box-shadow: 0 0 18px -6px var(--gold); }
+:root[data-preset="luxe"] .pipe-bar span, :root[data-preset="luxe"] .alloc-bar span { background: linear-gradient(90deg, rgba(201, 163, 92, .35), var(--gold-hi)); }
+:root[data-preset="luxe"] .cc-suggest { border-color: rgba(201, 163, 92, .4); }
+:root[data-preset="luxe"] .live-pill i, :root[data-preset="luxe"] .cc-status i.on { background: var(--gold-hi); box-shadow: 0 0 8px var(--gold); }
+:root[data-preset="luxe"] .seg button[aria-checked="true"], :root[data-preset="luxe"] .chip-row button[aria-pressed="true"] { background: linear-gradient(180deg, var(--gold-hi), var(--gold)); color: #17120A; }
+:root[data-preset="luxe"] :focus-visible { outline-color: var(--gold-hi); }
+:root[data-preset="luxe"]:not([data-nav="rail"]) .tree .sub.glass-float { background: none; border: 0; border-left: 1px solid rgba(201, 163, 92, .3); box-shadow: none; }
+@media (min-width: 1081px) { :root[data-preset="luxe"][data-nav="rail"] .tree .sub.glass-float { background: linear-gradient(#141217f2, #141217f2) padding-box, linear-gradient(135deg, rgba(241, 217, 166, .6), rgba(201, 163, 92, .1) 40%, rgba(201, 163, 92, .4)) border-box; } }
