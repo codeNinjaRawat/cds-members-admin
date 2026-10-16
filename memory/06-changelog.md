@@ -282,3 +282,9 @@
 - Side column: working body (seats filled), coming up at the masjid, work-queue counts, the role's page links.
 - Tests: masjid.spec +1 (records agree across cards, attention items, secretary sees no Zakat line and cannot manage
   the body); 2 selectors updated. Admin suite 185/185; tsc clean.
+
+## 2026-10-16 – No personal names anywhere
+- Owner direction: no real names in the product, demo data, tests or notes. The demo Owner is now "Mohammad (demo)"
+  (admin id `owner`, email owner@example.org / owner@isgh.org); the demo official "Junaid Akhtar" is "Junaid Siddiqui".
+  Applied across admin, web, saas, BE notes, memory files, e2e and white-box tests and the demo store (rename.sh).
+  Admin 185/185, saas 15/15, web 143/143, white-box all green; tsc clean (admin, web).
