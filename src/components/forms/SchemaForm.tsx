@@ -21,7 +21,8 @@ export function SchemaForm({ schema, value, onChange, path = [], issues, only, o
   const info = inspect(schema);
   if (info.kind !== 'object') return <Field name={String(path.at(-1) ?? 'value')} schema={schema} value={value} onChange={onChange} path={path} issues={issues} depth={0} />;
   const obj = (value ?? {}) as Record<string, unknown>;
-  const keys = Object.keys(info.shape!).filter((k) => (!only || only.includes(k)) && !omit?.includes(k) && !k.startsWith('_'));
+  // with `only`, fields show in the order given there (so a screen can put the most-used settings first)
+  const keys = (only ? only.filter((k) => k in info.shape!) : Object.keys(info.shape!)).filter((k) => !omit?.includes(k) && !k.startsWith('_'));
   return (
     <div className="sf">
       {keys.map((k) => (

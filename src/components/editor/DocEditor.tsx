@@ -4,6 +4,8 @@
  * publish (with "what changed" + optional note), discard, history (load an older version into the draft),
  * reset to built-in content, and an optional live preview next to the form.
  */
+import { useAccess } from '@/lib/access/use-access';
+import { permissionForDoc, PERMISSIONS, type Permission } from '@/lib/access/access';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { REGISTRY, type DocKey } from '@/lib/store/registry';
 import { useDoc, type Path } from '@/lib/store/use-doc';
@@ -19,11 +21,18 @@ const ago = (iso: string | null) => {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, previewPaths, children, aside }: {
+export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, previewPaths, children, aside, actions = true, publishPermission }: {
+  /** Screens where another permission may publish this document (the server checks the change itself, e.g. /team). */
+  publishPermission?: Permission;
   storeKey: DocKey; title: string; intro: string; scope?: string[]; preview?: boolean; previewPaths?: string[];
+  /** false on screens that do not edit this document (e.g. Communication › Messages): no Publish bar there. */
+  actions?: boolean;
   children: (doc: DocApi<T>, previewRef: React.RefObject<PreviewHandle | null>) => ReactNode; aside?: ReactNode;
 }) {
   const doc = useDoc<T>(storeKey);
+  const access = useAccess();
+  const needs = publishPermission ?? permissionForDoc(storeKey);
+  const mayPublish = access.can(needs);
   const previewRef = useRef<PreviewHandle>(null);
   const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState('');
@@ -56,19 +65,20 @@ export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, pr
         <div>
           <h1>{title}</h1>
           <p className="page-intro">{intro}</p>
-          <p className="page-status">
+          {actions ? <p className="page-status">
             {doc.meta?.source === 'published'
               ? <><span className="dot ok" aria-hidden="true" />Published version {doc.meta.version}, {ago(doc.meta.publishedAt)}{doc.meta.by ? ` by ${doc.meta.by}` : ''}</>
-              : <><span className="dot" aria-hidden="true" />Website is using its built-in content</>}
+              : <><span className="dot" aria-hidden="true" />{REGISTRY[storeKey].preview.length ? 'Website is using its built-in content' : 'Using the built-in settings – nothing published yet'}</>}
             {doc.dirty && <span className="pill warn">Unpublished changes</span>}
-          </p>
+            {!mayPublish && <span className="pill view-only" title={`Needs “${PERMISSIONS[needs].label}”`}>View only – {access.role?.name ?? 'your role'} cannot publish this</span>}
+          </p> : doc.dirty ? <p className="page-status"><span className="pill warn">Unpublished changes on another tab</span></p> : null}
         </div>
-        <div className="page-actions">
+        {actions && <div className="page-actions">
           <button type="button" className="btn ghost" onClick={() => setHistory(true)}>History</button>
           <button type="button" className="btn ghost" disabled={!doc.dirty} onClick={doc.discard}>Discard changes</button>
-          <button type="button" className="btn primary" disabled={!doc.dirty || problems.length > 0 || otherProblems > 0 || doc.busy !== null}
+          <button type="button" className="btn primary" disabled={!mayPublish || !doc.dirty || problems.length > 0 || otherProblems > 0 || doc.busy !== null}
             onClick={() => setConfirm(true)} title={problems.length ? 'Fix the problems first' : undefined}>Publish</button>
-        </div>
+        </div>}
       </header>
 
       {doc.restored && <p className="glass-pane notice" role="status">We restored changes you had not published yet. <button className="linkish" onClick={doc.discard}>Discard them</button></p>}
@@ -79,13 +89,13 @@ export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, pr
           {doc.flash.text.startsWith('Someone published') && <button className="btn sm" onClick={() => void doc.publish(note || undefined, true)}>Publish mine anyway</button>}
         </div>
       )}
-      {problems.length > 0 && (
+      {actions && problems.length > 0 && (
         <div className="glass-pane notice error" role="alert">
           <b>{problems.length === 1 ? '1 thing to fix before publishing' : `${problems.length} things to fix before publishing`}</b>
           <ul>{problems.slice(0, 6).map(([p, m]) => <li key={p}><a href={`#f-${p.replace(/\./g, '-').replace(/[^a-zA-Z0-9-]/g, '_')}`}>{p.split('.').map((x) => /^\d+$/.test(x) ? `#${Number(x) + 1}` : labelFor(x)).join(' › ')}</a>: {m}</li>)}</ul>
         </div>
       )}
-      {otherProblems > 0 && <p className="glass-pane notice error">This document has {otherProblems} problem(s) on another screen. Fix them there first.</p>}
+      {actions && otherProblems > 0 && <p className="glass-pane notice error">This document has {otherProblems} problem(s) on another screen. Fix them there first.</p>}
 
       <div className="page-grid">
         <div className="editor-col">{children(doc, previewRef)}</div>

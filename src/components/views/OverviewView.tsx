@@ -10,6 +10,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { DOC_KEYS, REGISTRY, type DocKey } from '@/lib/store/registry';
 import { useAppearance } from '@/lib/appearance/appearance';
 import { CommandCenter } from './CommandCenter';
+import { MasjidHome, ZoneHome } from './MasjidHome';
+import { useAccess } from '@/lib/access/use-access';
 
 /* ---------------- demo data ---------------- */
 type Status = 'New' | 'ID check' | 'Needs info' | 'Approved';
@@ -34,13 +36,17 @@ const FUNDS = [ // validated categorical palette (dataviz reference slots 1–4)
   { f: 'Cemetery', v: 24900, dark: '#c98500', light: '#eda100' },
 ];
 const GIVING_MONTHS = [{ m: 'May', v: 41 }, { m: 'Jun', v: 38 }, { m: 'Jul', v: 22 }, { m: 'Aug', v: 25 }, { m: 'Sep', v: 31 }, { m: 'Oct', v: 36 }]; // $k
-const EDIT: Record<DocKey, string> = { 'site-config': '/website/menus', home: '/website/home', 'membership-settings': '/membership', giving: '/website/giving', pages: '/website/pages', news: '/website/news', themes: '/website/theme', 'join-form': '/membership/form' };
+const EDIT: Record<DocKey, string> = { 'sign-in': '/settings/sign-in', fundraising: '/fundraising?tab=campaigns', 'finance-settings': '/finance?tab=rules', 'prayer-times': '/prayer-times?tab=settings', officials: '/officials?tab=rules', benefits: '/benefits?tab=rules', 'donation-settings': '/donations/settings', 'zakat-settings': '/zakat/settings', 'org-structure': '/zones', integrations: '/settings/integrations', 'admin-access': '/settings/admins', 'site-config': '/website/menus', home: '/website/home', 'membership-settings': '/membership', giving: '/website/giving', pages: '/website/pages', news: '/website/news', themes: '/website/theme', 'join-form': '/membership/form', events: '/events', groups: '/groups', communication: '/communication', 'org-config': '/settings/configuration' };
 const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const days = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
 
 /** Overview: layout follows My appearance › Overview layout (focus | command). */
 export function OverviewView() {
   const [a] = useAppearance();
+  const access = useAccess();
+  // M5: the home page follows the dashboard (role) the person is working in
+  if (access.ready && access.me && access.role?.centerScoped) return <MasjidHome key={`${access.me.id}-${access.dashIndex}`} />;
+  if (access.ready && access.me && access.role?.zoneScoped) return <ZoneHome key={`${access.me.id}-${access.dashIndex}`} />;
   return a.dash === 'command' ? <CommandCenter /> : <FocusOverview />;
 }
 
@@ -210,14 +216,14 @@ function Spline({ data, unit, peakNote }: { data: Pt[]; unit: string; peakNote?:
   );
 }
 
-export function Bars({ data, format }: { data: Pt[]; format: (v: number) => string }) {
+export function Bars({ data, format, highlight }: { data: Pt[]; format: (v: number) => string; highlight?: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(...data.map((d) => d.value));
   return (
     <figure className="chart">
       <div className="gbars" role="img" aria-label={data.map((d) => `${d.label} ${format(d.value)}`).join(', ')}>
         {data.map((d, i) => (
-          <div key={`${d.label}-${i}`} className="gbar" tabIndex={0} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} aria-label={`${d.label}: ${format(d.value)}`}>
+          <div key={`${d.label}-${i}`} className={`gbar${i === highlight ? ' now' : ''}`} tabIndex={0} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} aria-label={`${d.label}: ${format(d.value)}`}>
             <div className="gbar-track"><div className="gbar-fill" style={{ height: `${(d.value / max) * 100}%` }}>{hover === i && <span className="gbar-tip">{format(d.value)}</span>}</div></div>
             <span>{d.label}</span>
           </div>

@@ -5,6 +5,7 @@
 import { getDoc, getHistory, publishDoc, resetDoc, storeEnabled } from '@/lib/store/server-store';
 import { isDocKey } from '@/lib/store/registry';
 import { tenantForHost } from '@/lib/platform/platform-store';
+import { actorName, canManageAdmins, denyPublish, fourEyesProblem, teamProblem } from '@/lib/access/server-access';
 
 /** SaaS: which organization this admin address belongs to (Host header only). */
 const org = (req: Request) => tenantForHost(req.headers.get('host')).tenant;
@@ -40,11 +41,14 @@ export async function PUT(req: Request, { params }: Ctx) {
   if (!allowed() || !sameOrigin(req)) return deny();
   const t = org(req); if (!t) return noOrg();
   if (t.status === 'suspended' || t.status === 'cancelled') return locked(t.status);
+  const no = denyPublish(req, t.slug, key); if (no) return no;          // A10: role check (BE: every endpoint)
   const text = await req.text();
   if (text.length > 2_000_000) return Response.json({ error: 'This document is too large (2 MB max). Use smaller images.' }, { status: 413 });
   let body: { data: unknown; baseVersion?: number; note?: string };
   try { body = JSON.parse(text); } catch { return Response.json({ error: 'Invalid JSON.' }, { status: 400 }); }
-  const r = publishDoc(key, { ...body, by: 'Akhter Alam (demo)' }, t.slug);
+  if (key === 'integrations') { const fe = fourEyesProblem(req, t.slug, body.data); if (fe) return Response.json({ error: fe }, { status: 409 }); }
+  if (key === 'admin-access') { const tp = teamProblem(req, t.slug, body.data); if (tp) return Response.json({ error: tp, permission: 'admins.manage' }, { status: 403 }); }
+  const r = publishDoc(key, { ...body, by: actorName(req, t.slug) }, t.slug);
   return r.ok ? Response.json(r) : Response.json(r, { status: r.status });
 }
 
@@ -54,6 +58,8 @@ export async function DELETE(req: Request, { params }: Ctx) {
   if (!allowed() || !sameOrigin(req)) return deny();
   const t = org(req); if (!t) return noOrg();
   if (t.status === 'suspended' || t.status === 'cancelled') return locked(t.status);
+  const no = denyPublish(req, t.slug, key); if (no) return no;
+  if (key === 'admin-access' && !canManageAdmins(req, t.slug)) return Response.json({ error: 'Only the organization admin can reset the admin list.' }, { status: 403 });
   resetDoc(key, t.slug);
   return Response.json({ ok: true });
 }

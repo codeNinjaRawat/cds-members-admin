@@ -138,3 +138,42 @@ main:focus { outline: none; }
 .pf-closed { max-width: 640px; }
 .welcome-card { max-width: 640px; margin: 2rem auto; }
 .welcome-steps { display: grid; gap: .45rem; padding-left: 1.2rem; }
+
+/* A10 acting-as (demo) */
+.top .acting select { max-width: 230px; font-size: .8rem; }
+@media (max-width: 900px) { .top .acting { display: none; } }
+.no-access { max-width: 640px; }
+/* M4 dashboard switcher (the roles this person holds) */
+.top .dash-switch select { max-width: 280px; font-size: .8rem; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+@media (max-width: 900px) { .top .dash-switch select { max-width: 150px; } }
+.search span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.search kbd { white-space: nowrap; }
+.top .search { min-width: 2.75rem; }
+@media (max-width: 1500px) { .top:has(.dash-switch) .search span, .top:has(.dash-switch) .search kbd { display: none; } .top:has(.dash-switch) .search { flex: 0 0 auto; padding: 0 .8rem; } }
+/* Audit 2026-10-16: nothing may push the page sideways on a phone – wide tables and tab bars scroll inside themselves */
+main :where(div, section, article, ol, ul, li, header, form, fieldset, aside, nav, details, dl, figure) { min-width: 0; }
+main .table-wrap { max-width: 100%; overflow-x: auto; }
+main { overflow-x: clip; }
+@media (max-width: 700px) { main .row-actions, main .page-actions { flex-wrap: wrap; } main .acc-warns li, main .notice li { overflow-wrap: anywhere; } }
+/* Audit 2026-10-16: sidebar sections (People · Masjids · Money · Governance · Website · Admin) */
+.side-sec { list-style: none; margin: .85rem 0 .2rem; padding: 0 .75rem; font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); opacity: .8; }
+.side-sec:first-child { margin-top: .2rem; }
+:root[data-nav="rail"] .side-sec { margin: .4rem auto; padding: 0; width: 28px; height: 1px; background: var(--line); font-size: 0; opacity: 1; }
+/* rail: one icon per section; the flyout lists the section's groups in columns */
+@media (min-width: 1081px) {
+  :root[data-nav="rail"] .rail-fly { min-width: 0; width: max-content; max-width: min(46rem, calc(100vw - 9rem)); max-height: calc(100vh - 2rem); overflow-y: auto; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); column-gap: .6rem; }
+  :root[data-nav="rail"] .node:hover > .rail-fly, :root[data-nav="rail"] .node:focus-within > .rail-fly { display: grid; }
+  :root[data-nav="rail"] .rail-fly .sub-title { grid-column: 1 / -1; }
+  :root[data-nav="rail"] .rail-sec.up > .rail-fly { top: auto; bottom: -6px; }
+  :root[data-nav="rail"] .rail-group { display: grid; align-content: start; gap: 1px; padding: .2rem 0 .4rem; }
+  :root[data-nav="rail"] .rail-group > ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+  :root[data-nav="rail"] .rail-group-h { font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: .3rem .6rem .2rem; }
+  :root[data-nav="rail"] .rail-fly::after { display: none; }
+  :root[data-nav="rail"] .rail-sec::after { content: ""; position: absolute; left: 100%; top: 0; bottom: 0; width: 16px; } /* hover bridge */
+  :root[data-nav="rail"] .rail-sec { position: relative; }
+}
+@media (min-width: 1081px) {
+  :root[data-nav="rail"] .rail-fly { background: var(--pane-solid) !important; -webkit-backdrop-filter: none; backdrop-filter: none; justify-items: stretch; }
+  :root[data-nav="rail"] .rail-fly .sub-link { justify-content: flex-start; text-align: left; width: 100%; }
+  :root[data-nav="rail"] .rail-fly ul { justify-items: stretch; }
+}

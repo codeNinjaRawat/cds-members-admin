@@ -8,6 +8,13 @@
  *   or marriage) – Life members are exempt · residency (zone + Islamic Center) set · not resigned or expelled.
  */
 
+import { DEFAULT_LIFECYCLE, mockMembershipSettings, type Lifecycle, type Plan } from '@/lib/content/membership';
+import { coverageOfYear, duesCoverVote, standingOn, type Standing } from '@/lib/content/renewal';
+import { csvCell, fieldsFor, showValue, type FieldValues } from '@/lib/community/member-records';
+import type { ProfileField } from '@/lib/community/org-config';
+import type { Prefs } from '@/lib/community/campaigns';
+import { currentAdminName } from '@/lib/access/audit';
+
 export type PlanId = 'single' | 'family' | 'life' | 'associate';
 export type ZoneId = 'n' | 'nw' | 'sw' | 's' | 'se';
 export type Payment = { year: number; paidOn: string; amountCents: number; method: 'card' | 'check' | 'cash'; payer: 'self' | 'spouse' | 'parent' | 'other'; ref: string };
@@ -19,13 +26,22 @@ export type Member = {
   idCheck: 'verified' | 'pending' | 'not_started'; standing: 'good' | 'resigned' | 'expelled';
   spouseId?: string; payments: Payment[]; notes: { at: string; by: string; text: string }[]; audit: AuditEntry[];
   commitment: 'programs' | 'contribution' | 'volunteer';
+  /** Extra profile fields (Admin › Configuration › Profile fields), by field ID. */
+  extra?: FieldValues;
+  /** Archived records are kept for history but hidden from lists, cannot sign in and never vote. */
+  archived?: { on: string; reason: string; by: string };
+  /** Staff decided these look-alike records are different people. */
+  notDuplicateOf?: string[];
+  source?: 'import';
+  /** Email / text choices (website › Email preferences). Missing = the demo default from prefsOf(). */
+  prefs?: Prefs;
 };
-export type Status = 'pending' | 'active' | 'life' | 'expired' | 'resigned' | 'expelled';
+export type Status = 'pending' | 'active' | 'life' | 'expired' | 'resigned' | 'expelled' | 'archived';
 
 export const ZONES: Record<ZoneId, string> = { n: 'North', nw: 'Northwest', sw: 'Southwest', s: 'South', se: 'Southeast' };
 export const PLANS: Record<PlanId, { name: string; cents: number }> = { single: { name: 'Single', cents: 2500 }, family: { name: 'Family', cents: 4000 }, life: { name: 'Life', cents: 100000 }, associate: { name: 'Associate', cents: 2500 } };
 export const centersOf = (z: ZoneId) => [1, 2, 3, 4].map((n) => `${ZONES[z]} Islamic Center ${n}`);
-export const STATUS_LABEL: Record<Status, string> = { pending: 'Pending approval', active: 'Active', life: 'Life', expired: 'Not renewed', resigned: 'Resigned', expelled: 'Expelled' };
+export const STATUS_LABEL: Record<Status, string> = { pending: 'Pending approval', active: 'Active', life: 'Life', expired: 'Not renewed', resigned: 'Resigned', expelled: 'Expelled', archived: 'Archived' };
 export const COMMITMENT_LABEL = { programs: 'Takes part in an ISGH program', contribution: 'Contributes at least 1% of yearly income', volunteer: 'Volunteers in approved activities' };
 
 /** Current membership year for eligibility (record date June 30). Renewals for next year open Nov 1. */
@@ -84,7 +100,7 @@ export function demoMembers(): Member[] {
         payments.push({ year: y, paidOn: iso(y, m, 1 + Math.floor(r() * 28)), amountCents: PLANS[plan].cents, method: r() < .8 ? 'card' : r() < .6 ? 'check' : 'cash', payer, ref: `DUES-${y}-${pad(i, 4)}` });
       }
     }
-    const n = Math.floor(r() * 4) + 1;
+    void r(); const n = demoCenterNo(zone, zip);            // M1: the home masjid follows the ZIP code (service areas)
     out.push({
       id: `HOU-${200000 + i * 37 + Math.floor(r() * 30)}`, first, last,
       email: `${first}.${last}${i % 7 === 0 ? i : ''}@example.com`.toLowerCase(),
@@ -104,6 +120,14 @@ export function demoMembers(): Member[] {
   Object.assign(out[0], { first: 'Aisha', last: 'Rahman', email: 'aisha@example.com', plan: 'family', standing: 'good', idCheck: 'verified' });
   Object.assign(out[1], { first: 'Imran', last: 'Siddiqui', email: 'member@example.com', plan: 'life', standing: 'good', idCheck: 'verified', approvedOn: '2012-04-18', joined: 2012,
     payments: [{ year: 2012, paidOn: '2012-04-18', amountCents: 100000, method: 'check', payer: 'self', ref: 'LIFE-0001' }] });
+  // real member lists rarely share an email or phone – keep the demo honest so duplicate checks only flag true look-alikes
+  const seenE = new Set<string>(), seenP = new Set<string>();
+  out.forEach((m, i) => {
+    if (seenE.has(m.email)) m.email = m.email.replace('@', `${i}@`);
+    seenE.add(m.email);
+    if (seenP.has(m.phone) && !(m.spouseId && out.find((x) => x.id === m.spouseId)?.phone === m.phone)) m.phone = `${m.phone.slice(0, 5)} 555-${pad(1000 + i, 4)}`;
+    seenP.add(m.phone);
+  });
   cache = out;
   return out;
 }
@@ -112,34 +136,71 @@ export function demoMembers(): Member[] {
 export const sexOf = (first: string): 'm' | 'f' => (FIRST_F.includes(first) ? 'f' : 'm');
 export const fullName = (m: Member) => `${m.first} ${m.last}`;
 export const initials = (m: Member) => (m.first[0] + m.last[0]).toUpperCase();
+/** M1 demo: which of the zone's 4 masjids serves a ZIP (round-robin over the zone's ZIP list – same as mockOrgStructure). */
+export function demoCenterNo(zone: ZoneId, zip: string) { const i = AREA[zone].flatMap((a) => a.zips).indexOf(zip.slice(0, 5)); return i < 0 ? 1 : (i % 4) + 1; }
+/** Zone for a ZIP code we know (demo map); null when the ZIP is outside the service area or unknown. */
+export function zoneForZip(zip: string): ZoneId | null {
+  for (const z of Object.keys(AREA) as ZoneId[]) if (AREA[z].some((a) => a.zips.includes(zip.slice(0, 5)))) return z;
+  return null;
+}
+/** Contact choices. Demo default (stable per member): almost all get email, about a third agreed to texts, a few left newsletters or appeals. */
+export function prefsOf(m: Member): Prefs {
+  if (m.prefs) return m.prefs;
+  let h = 0; for (const ch of m.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const optOut: Prefs['optOut'] = [];
+  if (h % 11 === 0) optOut.push('newsletter');
+  if (h % 13 === 0) optOut.push('fundraising');
+  return { email: h % 29 !== 0, sms: h % 3 === 0, optOut };
+}
 export const centerOf = (m: Member) => m.centerOverride?.center ?? m.center;
 export const lastPayment = (m: Member) => m.payments.reduce<Payment | null>((a, p) => (!a || p.paidOn > a.paidOn ? p : a), null);
 export function ageOn(dob: string, on: string) { const [y, mo, d] = dob.split('-').map(Number); const [Y, M, D] = on.split('-').map(Number); return Y - y - (M < mo || (M === mo && D < d) ? 1 : 0); }
 
 export function statusOf(m: Member, year = YEAR): Status {
+  if (m.archived) return 'archived';
   if (m.standing !== 'good') return m.standing;
   if (!m.approvedOn) return 'pending';
   if (m.plan === 'life') return 'life';
   return m.payments.some((p) => p.year === year) ? 'active' : 'expired';
 }
 
+/* ---------- renewal engine (shared contract lib/content/renewal.ts) ---------- */
+/** The published plan behind a member's plan ID (admin › Membership rules). Unknown IDs fall back to a non-voting yearly plan. */
+export function planDef(m: Pick<Member, 'plan'>, plans: Plan[] = mockMembershipSettings.plans): Plan {
+  return plans.find((p) => p.id === m.plan) ?? { ...mockMembershipSettings.plans[0], id: m.plan, name: PLANS[m.plan]?.name ?? m.plan, votingEligible: false };
+}
+/** Paid-through date from the latest dues year on record (null for Life or never paid). */
+export function paidThroughOf(m: Member, plans?: Plan[]): string | null {
+  const plan = planDef(m, plans);
+  if (plan.term === 'lifetime' || !m.payments.length) return null;
+  return coverageOfYear(plan, Math.max(...m.payments.map((p) => p.year))).through;
+}
+/** Renewal status on a day (Active · Renewal due · Grace · Overdue · Lapsed …) from the plan's renewal date and the lifecycle rules. */
+export function renewalOf(m: Member, today: string, plans?: Plan[], lc: Lifecycle = mockMembershipSettings.lifecycle ?? DEFAULT_LIFECYCLE): Standing {
+  return standingOn(planDef(m, plans), lc, paidThroughOf(m, plans), today);
+}
+
 export type Check = { id: string; label: string; ok: boolean; reason: string; fix?: 'approve' | 'payment' | 'center' };
-export function eligibility(m: Member, year = YEAR): { eligible: boolean; checks: Check[]; summary: string } {
+export function eligibility(m: Member, year = YEAR, plans?: Plan[]): { eligible: boolean; checks: Check[]; summary: string } {
   const rd = recordDate(year);
   const age = ageOn(m.dob, rd);
+  const plan = planDef(m, plans);
   const pay = m.payments.find((p) => p.year === year);
-  const life = m.plan === 'life' && m.payments.some((p) => p.amountCents >= 100000);
+  const life = plan.term === 'lifetime' && m.payments.some((p) => p.amountCents >= plan.priceCents);
+  // Bylaws: own dues must COVER the record date and be paid ON OR BEFORE it (works for calendar-year and fixed-date renewals)
+  const dues = duesCoverVote(plan, pay ? { paidThrough: coverageOfYear(plan, pay.year).through, paidOn: pay.paidOn } : null, rd);
+  const canVote = plan.votingEligible && plan.memberClass !== 'associate';
   const checks: Check[] = [
     { id: 'approved', label: 'Application approved by the Board', ok: !!m.approvedOn, reason: m.approvedOn ? `Approved ${fmtDate(m.approvedOn)}` : 'Waiting for Board approval', fix: m.approvedOn ? undefined : 'approve' },
-    { id: 'muslim', label: 'Voting member class (not Associate)', ok: m.plan !== 'associate', reason: m.plan === 'associate' ? 'Associate members support ISGH but do not vote (Constitution Art. III)' : 'Natural member' },
+    { id: 'muslim', label: 'Voting member class (not Associate)', ok: canVote, reason: plan.memberClass === 'associate' ? 'Associate members support ISGH but do not vote (Constitution Art. III)' : canVote ? 'Natural member' : `The ${plan.name} plan does not include a vote` },
     { id: 'age', label: `18 or older on ${fmtDate(rd)}`, ok: age >= 18, reason: `Age ${age} on the record date` },
     life
       ? { id: 'dues', label: `Dues for ${year}`, ok: true, reason: 'Life member – no yearly dues' }
-      : { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: !!pay && pay.paidOn <= rd && pay.payer !== 'other',
-          reason: !pay ? `No ${year} dues on record` : pay.paidOn > rd ? `Paid ${fmtDate(pay.paidOn)} – after the record date (renews membership, no vote this year)` : pay.payer === 'other' ? 'Paid by someone who is not a relative – the Bylaws need own dues or a relative by blood or marriage' : `Paid ${fmtDate(pay.paidOn)}${pay.payer === 'self' ? '' : ` by ${pay.payer}`}`,
+      : { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: !!pay && (dues.ok || !canVote) && pay.paidOn <= rd && pay.payer !== 'other',
+          reason: !pay ? `No ${year} dues on record` : pay.paidOn > rd ? `Paid ${fmtDate(pay.paidOn)} – after the record date (renews membership, no vote this year)` : canVote && !dues.ok ? dues.reason : pay.payer === 'other' ? 'Paid by someone who is not a relative – the Bylaws need own dues or a relative by blood or marriage' : `Paid ${fmtDate(pay.paidOn)}${pay.payer === 'self' ? '' : ` by ${pay.payer}`}`,
           fix: !pay ? 'payment' : undefined },
     { id: 'residency', label: 'Lives in a zone and has an Islamic Center', ok: !!centerOf(m), reason: `${ZONES[m.zone]} zone · ${centerOf(m)}${m.centerOverride ? ' (approved change)' : ''}`, fix: 'center' },
-    { id: 'standing', label: 'In good standing', ok: m.standing === 'good', reason: m.standing === 'good' ? 'No resignation or expulsion' : m.standing === 'resigned' ? 'Resigned – must apply again' : 'Expelled (ethics) – must apply again' },
+    { id: 'standing', label: 'In good standing', ok: m.standing === 'good' && !m.archived, reason: m.archived ? `Archived ${fmtDate(m.archived.on)} – restore the record first` : m.standing === 'good' ? 'No resignation or expulsion' : m.standing === 'resigned' ? 'Resigned – must apply again' : 'Expelled (ethics) – must apply again' },
   ];
   const eligible = checks.every((c) => c.ok);
   const first = checks.find((c) => !c.ok);
@@ -156,13 +217,26 @@ const EDITS = 'isgh-admin-member-edits';
 type Edits = Record<string, Partial<Member>>;
 const readEdits = (): Edits => { try { return JSON.parse(localStorage.getItem(EDITS) || '{}'); } catch { return {}; } };
 export const MEMBERS_EVENT = 'isgh:members';
+const IMPORTS = 'isgh-admin-member-imports';
+const readImports = (): Member[] => { try { return JSON.parse(localStorage.getItem(IMPORTS) || '[]'); } catch { return []; } };
 export function membersWithEdits(): Member[] {
   const e = typeof window === 'undefined' ? {} : readEdits();
-  return demoMembers().map((m) => (e[m.id] ? { ...m, ...e[m.id] } : m));
+  const all = [...demoMembers(), ...(typeof window === 'undefined' ? [] : readImports())];
+  return all.map((m) => (e[m.id] ? { ...m, ...e[m.id] } : m));
+}
+/** Add imported members (demo: this browser only; live: POST /admin/members/import after the same checks on the server). */
+export function addImportedMembers(list: Member[]) {
+  try { localStorage.setItem(IMPORTS, JSON.stringify([...readImports(), ...list])); } catch { /* storage full */ }
+  window.dispatchEvent(new Event(MEMBERS_EVENT));
+}
+/** Next free member ID for imports (HOU-9xxxxx so they never clash with existing numbers). */
+export function nextImportId(existing: { id: string }[], n = 0) {
+  const max = existing.filter((m) => /^HOU-9\d{5}$/.test(m.id)).reduce((a, m) => Math.max(a, Number(m.id.slice(4))), 900000);
+  return `HOU-${max + 1 + n}`;
 }
 export function saveMember(m: Member, action: string, detail: string) {
   const e = readEdits();
-  const audit = [...m.audit, { at: new Date().toISOString(), by: 'Akhter Alam', action, detail }];
+  const audit = [...m.audit, { at: new Date().toISOString(), by: currentAdminName(), action, detail }];
   const { id, ...rest } = { ...m, audit };
   e[id] = rest;
   try { localStorage.setItem(EDITS, JSON.stringify(e)); } catch { /* storage full */ }
@@ -175,12 +249,16 @@ export function restoreMemberEdit(id: string, snap: Partial<Member> | null) {
   try { localStorage.setItem(EDITS, JSON.stringify(e)); } catch { /* */ }
   window.dispatchEvent(new Event(MEMBERS_EVENT));
 }
-export function resetMemberEdits() { try { localStorage.removeItem(EDITS); } catch { /* */ } window.dispatchEvent(new Event(MEMBERS_EVENT)); }
+export function resetMemberEdits() { try { localStorage.removeItem(EDITS); localStorage.removeItem(IMPORTS); } catch { /* */ } window.dispatchEvent(new Event(MEMBERS_EVENT)); }
 
 /* ---------- CSV export (current view only) ---------- */
-export function toCsv(rows: Member[]) {
-  const head = ['Member ID', 'First name', 'Last name', 'Email', 'Phone', 'Plan', 'Zone', 'Islamic Center', 'Status', `Voting ${YEAR}`, 'Last paid'];
-  const q = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  const lines = rows.map((m) => { const lp = lastPayment(m); return [m.id, m.first, m.last, m.email, m.phone, PLANS[m.plan].name, ZONES[m.zone], centerOf(m), STATUS_LABEL[statusOf(m)], eligibility(m).eligible ? 'Yes' : 'No', lp ? fmtDate(lp.paidOn) : ''].map((x) => q(String(x))).join(','); });
-  return [head.join(','), ...lines].join('\r\n');
+/**
+ * Spreadsheet-safe CSV (cells that would run as formulas are neutralized). Extra profile fields are added as columns;
+ * admin-only fields only when `adminOnly` is asked for (they can hold ID numbers). File fields are never exported.
+ */
+export function toCsv(rows: Member[], fields: ProfileField[] = [], adminOnly = false) {
+  const extra = (adminOnly ? fields : fieldsFor(fields, 'member')).filter((f) => f.type !== 'file');
+  const head = ['Member ID', 'First name', 'Last name', 'Email', 'Phone', 'Plan', 'Zone', 'Islamic Center', 'Status', `Voting ${YEAR}`, 'Last paid', ...extra.map((f) => f.label)];
+  const lines = rows.map((m) => { const lp = lastPayment(m); return [m.id, m.first, m.last, m.email, m.phone, PLANS[m.plan].name, ZONES[m.zone], centerOf(m), STATUS_LABEL[statusOf(m)], eligibility(m).eligible ? 'Yes' : 'No', lp ? fmtDate(lp.paidOn) : '', ...extra.map((f) => (m.extra?.[f.id] === undefined ? '' : showValue(f, m.extra[f.id])))].map(csvCell).join(','); });
+  return [head.map(csvCell).join(','), ...lines].join('\r\n');
 }

@@ -28,10 +28,13 @@ export function useDoc<T = unknown>(key: DocKey) {
       const r = await fetch(`/api/store/${key}`, { cache: 'no-store' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
+      // Older saved documents may miss fields added later: let the schema fill the defaults.
+      const up = (v: unknown) => { const p = REGISTRY[key].schema.safeParse(v); return p.success ? p.data : v; };
+      j.data = up(j.data);
       let draft = j.data, restored = false;
       try {
         const saved = localStorage.getItem(draftKey(key));
-        if (saved) { const d = JSON.parse(saved); if (d.baseVersion === j.version && !same(d.data, j.data)) { draft = d.data; restored = true; } }
+        if (saved) { const d = JSON.parse(saved); if (d.baseVersion === j.version && !same(d.data, j.data)) { draft = up(d.data); restored = true; } }
       } catch { /* ignore */ }
       setS({ status: 'ready', meta: { version: j.version, publishedAt: j.publishedAt, by: j.by, source: j.source }, base: j.data, draft, restored });
     } catch (e) {
@@ -64,7 +67,7 @@ export function useDoc<T = unknown>(key: DocKey) {
     const r = schema.safeParse(checked);
     if (r.success) return {};
     const out: Issues = {};
-    for (const i of r.error.issues) { const p = i.path.join('.'); if (!out[p]) out[p] = i.message; }
+    for (const i of r.error.issues) { const p = i.path.join('.'); out[p] = !out[p] ? i.message : out[p].includes(i.message) ? out[p] : `${out[p]} ${i.message}`; }
     return out;
   }, [checked, s.status, schema]);
 

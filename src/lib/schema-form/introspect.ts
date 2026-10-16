@@ -95,6 +95,22 @@ const LABELS: Record<string, string> = {
   logoLight: 'Logo for light backgrounds', logoDark: 'Logo for dark backgrounds', logoAlt: 'Logo text alternative', faviconIco: 'Favicon (.ico)', appleTouchIcon: 'Apple touch icon',
   ogImage: 'Share image (1200×630)', themeColor: 'Browser bar color', version: 'Version', startsAt: 'Show from', endsAt: 'Show until', walletImage: 'Wallet tile photo',
   stockPhoto: 'This is a stock photo', verifiedBy: 'Verified by', updatedAt: 'Last updated', featured: 'Featured', sample: 'Sample (demo) item',
+  // WildApricot-style options (events, groups, communication, configuration, renewals)
+  guestPriceCents: 'Price per guest', planIds: 'Plans', groupIds: 'Groups', onlineUrl: 'Online link', daysBefore: 'Days before',
+  ccAdmins: 'Copy every email to', replyTo: 'Reply-to email', fromName: 'From name', quietHours: 'Quiet hours (no texts)', consentText: 'Consent text',
+  selfService: 'Members can do it themselves', editProfile: 'Edit their profile', cancelAutoRenew: 'Turn off automatic renewal', downloadReceipts: 'Download receipts',
+  phoneImage: 'Card image for phones', pdf: 'Printable PDF card', wallet: 'Apple Wallet and Google Wallet', checkPendingStatus: 'Check payments wait to clear',
+  coverFees: 'Ask members to cover card fees', payLater: 'Pay later (invoice)', ach: 'Bank transfer (ACH)', adminTwoStep: 'Admins must use 2-step sign-in',
+  sessionMinutes: 'Sign out after (minutes idle)', idDocuments: 'Photo ID files', keepDays: 'Keep for (days)', needConsent: 'Ask for consent first', startPage: 'Page after sign-in',
+  memberEditable: 'Members can edit it', inDirectory: 'Show in the member directory', maxUses: 'Uses allowed', endsOn: 'Last day', selfRenew: 'Members renew online',
+  graceDays: 'Grace period (days after the renewal date)', graceAction: 'At the end of the grace period', overdueDays: 'Overdue after (days)', overdueAction: 'When overdue',
+  overdueLevel: 'Move to plan', voidInvoice: 'Void the unpaid renewal invoice', setPendingRenewal: 'Set status to “Pending renewal”', createInvoice: 'Create the renewal invoice',
+  termPrices: 'Price for paying several years at once', bundle: 'Household (bundle)', maxMembers: 'People in the household', anchorDate: 'Renewal date (MM-DD)',
+  aheadLimitDays: 'Can renew this many days early', allowLevelChange: 'Members can change plan', prorate: 'Charge less for a part year', duplicateCheck: 'Warn about possible duplicates',
+  showPast: 'Show past events', defaultReminderDays: 'Default reminder (days before)', joinPolicy: 'Who can add people', showInProfile: 'Show on member profiles',
+  leadersCanEmail: 'Leaders can email the group', pageAccess: 'Can be used to limit pages and events', memberIds: 'Members (IDs)', refund: 'Refund when someone cancels in time', feeCents: 'Fee kept (cents)', typeCounts: 'Registered per type (demo)', startsOn: 'First day', oncePerPerson: 'Once per person', achPercent: 'Bank transfer fee (%)', achCapCents: 'Bank transfer fee cap (cents)', payLaterDays: 'Pay-later invoices due after (days)', match: 'People must match', include: 'Always in (member IDs)', exclude: 'Never in (member IDs)', groupEmailsByLeaders: 'Group leaders can send emails',
+  invoicePrefix: 'Invoice number prefix', receiptNote: 'Note on receipts', refundPolicy: 'Refund policy', showCenter: 'Show the Islamic Center', showPhone: 'Show phone', showEmail: 'Show email',
+  showPhoto: 'Show photo', showRenewal: 'Show renewal date', optIn: 'Members must opt in', audience: 'Who can see it', registered: 'Registered (demo)', waiting: 'On the waitlist (demo)',
 };
 export function labelFor(key: string): string {
   if (LABELS[key]) return LABELS[key];
@@ -103,6 +119,7 @@ export function labelFor(key: string): string {
 }
 
 const HINTS: Record<string, string> = {
+  match: 'All rules: people must match every rule. Any rule: one is enough (for example renewal due OR in grace).', include: 'Exceptions – these people are in even if the rule says no.', exclude: 'Exceptions – these people are never in, even if the rule matches.',
   href: 'A page on this site, like /about, or a full link starting with https://',
   alt: 'Say what the photo shows. Required for people using screen readers.',
   focal: 'Which part of the photo to keep in view when cropped, like "50% 30%" (left-right, top-bottom).',
@@ -116,6 +133,14 @@ const HINTS: Record<string, string> = {
   sample: 'Sample items are labeled on the site and hidden when "Show sample items" is off.',
   consent: 'Personal stories need written consent or must be anonymized.',
   privacy: 'Anonymized cases never show names, faces or addresses.',
+  anchorDate: 'ISGH renews everyone on December 15 (WildApricot). Leave empty for the calendar year.',
+  aheadLimitDays: '0 = any time. WildApricot calls this “Limit renewals”.',
+  graceDays: 'Members can still renew without losing anything during this time.',
+  overdueDays: 'Counted from the renewal date. Must be on or after the grace period.',
+  capacity: '0 = no limit.', limit: '0 = no limit for this type.', waitlist: 'When the event is full, people can join a waitlist and get the next free spot.',
+  footer: 'Bulk email must include your postal address (CAN-SPAM).', percent: 'Shown as an optional extra at checkout, e.g. 3% to cover card fees.',
+  maxUses: '0 = no limit.', keepDays: 'After this many days the ID image is deleted; the “verified” mark stays.',
+  checkPendingStatus: 'Members paying by check show as “Check – waiting to clear” until an admin marks it received.',
 };
 export const hintFor = (key: string) => HINTS[key];
 

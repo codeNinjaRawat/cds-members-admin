@@ -4,12 +4,14 @@
  * who is a member, who can vote, adults who could join, children turning 18 before the record date.
  * Used in Member 360° (tab) and on Members › Family trees (search + outreach list). DEMO data.
  */
+import { useMasjidFilter } from '@/lib/access/masjid-filter';
+import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { FamilyTree } from '@/components/family/FamilyTree';
 import { badgeFor, eighteenth, fmtDate, fullName, insights, lifeYears, relationTo } from '@/lib/family/family';
 import { familyFor, NEXT_RECORD_DATE, TODAY } from '@/lib/family/admin-family';
-import { demoMembers, fullName as memberName, saveMember, ZONES, type Member } from '@/lib/members/members';
+import { centerOf, demoMembers, fullName as memberName, saveMember, ZONES, type Member } from '@/lib/members/members';
 import { useMembers } from './MembersView';
 
 export function MemberFamily({ m, members }: { m: Member; members: Member[] }) {
@@ -51,11 +53,13 @@ export function MemberFamily({ m, members }: { m: Member; members: Member[] }) {
 
 /** Members › Family trees: find a member, see their family; outreach list of families with adults who can join. */
 export function FamiliesView({ search = '' }: { search?: string }) {
-  const members = useMembers() ?? demoMembers();
+  const all = useMembers() ?? demoMembers();
+  const mf = useMasjidFilter();
+  const members = useMemo(() => all.filter((x) => mf.keep(x.zone, centerOf(x), x.zip)), [all, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const initial = new URLSearchParams(search).get('member');
-  const [id, setId] = useState<string>(initial && members.some((x) => x.id === initial) ? initial : members.find((x) => x.email === 'aisha@example.com')!.id);
+  const [id, setId] = useState<string>(initial && all.some((x) => x.id === initial) ? initial : all.find((x) => x.email === 'aisha@example.com')!.id);
   const [q, setQ] = useState('');
-  const m = members.find((x) => x.id === id)!;
+  const m = all.find((x) => x.id === id) ?? members[0] ?? all[0];
   const hits = q.trim().length < 2 ? [] : members.filter((x) => `${memberName(x)} ${x.id} ${x.email}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8);
   const outreach = useMemo(() => members.filter((x) => x.standing === 'good').map((x) => {
     const f = familyFor(x, members);
@@ -78,6 +82,7 @@ export function FamiliesView({ search = '' }: { search?: string }) {
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M20 20l-4-4" stroke="currentColor" strokeWidth="2" /></svg>
             <span className="sr-only">Find a member</span>
             <input className="in" type="search" placeholder="Find a member by name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
+            <MasjidPicker />
           </label>
           {hits.length > 0 && <ul className="fam-hits" aria-label="Matches">{hits.map((h) => <li key={h.id}><button type="button" onClick={() => pick(h.id)}><b>{memberName(h)}</b><small>{h.id} · {ZONES[h.zone]}</small></button></li>)}</ul>}
           <h2 className="wq-h3">Families to reach</h2>
@@ -92,7 +97,7 @@ export function FamiliesView({ search = '' }: { search?: string }) {
         </aside>
         <div className="fam-main">
           <div className="fam-who glass-pane"><b>{memberName(m)}</b><span>{m.id} · {ZONES[m.zone]}</span><Link className="btn sm" href={`/members/${m.id}`}>Open Member 360°</Link></div>
-          <MemberFamily key={m.id} m={m} members={members} />
+          <MemberFamily key={m.id} m={m} members={all} />
         </div>
       </div>
     </div>

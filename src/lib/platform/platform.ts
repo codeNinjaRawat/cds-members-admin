@@ -12,7 +12,7 @@
 import { z } from 'zod';
 
 /* ---------------- modules ---------------- */
-export const MODULES = ['website', 'membership', 'members', 'giving', 'joinForm', 'queues', 'families', 'idScan', 'sms', 'reports', 'elections', 'customDomain', 'api'] as const;
+export const MODULES = ['website', 'membership', 'members', 'giving', 'events', 'joinForm', 'queues', 'families', 'idScan', 'sms', 'reports', 'elections', 'customDomain', 'api'] as const;
 export type Module = (typeof MODULES)[number];
 /** Always on – an organization cannot run without them. */
 export const CORE_MODULES: Module[] = ['website', 'membership', 'members'];
@@ -21,6 +21,7 @@ export const MODULE_INFO: Record<Module, { label: string; help: string }> = {
   membership: { label: 'Membership plans and rules', help: 'Plans, dues, voting rules, pledge and consents.' },
   members: { label: 'Members', help: 'Member list, Member 360°, exports.' },
   giving: { label: 'Giving', help: 'Donate pages, impact stories, needs.' },
+  events: { label: 'Events', help: 'Events with registration types, guests, waitlist, reminders; member- and group-only events.' },
   joinForm: { label: 'Join form builder', help: 'Own questions, steps and show-only-if rules on the sign-up form.' },
   queues: { label: 'Work queues', help: 'Applications, photo ID checks, center changes, duplicates, payments.' },
   families: { label: 'Family trees', help: 'Households and relatives on the member portal and in the admin.' },
@@ -244,8 +245,8 @@ export const defaultPlans: PlansDoc = {
   trialDays: 30,
   annualNote: 'Pay yearly, get 2 months free',
   plans: [
-    { id: 'starter', name: 'Starter', tagline: 'One masjid getting online', priceMonthly: 4900, priceAnnual: 49000, limits: { members: 500, centers: 1, admins: 3, sms: 0 }, modules: ['website', 'membership', 'members', 'giving'], highlight: false, hidden: false },
-    { id: 'growth', name: 'Growth', tagline: 'Busy communities with several programs', priceMonthly: 14900, priceAnnual: 149000, limits: { members: 5000, centers: 10, admins: 10, sms: 2000 }, modules: ['website', 'membership', 'members', 'giving', 'joinForm', 'queues', 'families', 'idScan', 'sms', 'reports'], highlight: true, hidden: false },
+    { id: 'starter', name: 'Starter', tagline: 'One masjid getting online', priceMonthly: 4900, priceAnnual: 49000, limits: { members: 500, centers: 1, admins: 3, sms: 0 }, modules: ['website', 'membership', 'members', 'giving', 'events'], highlight: false, hidden: false },
+    { id: 'growth', name: 'Growth', tagline: 'Busy communities with several programs', priceMonthly: 14900, priceAnnual: 149000, limits: { members: 5000, centers: 10, admins: 10, sms: 2000 }, modules: ['website', 'membership', 'members', 'giving', 'events', 'joinForm', 'queues', 'families', 'idScan', 'sms', 'reports'], highlight: true, hidden: false },
     { id: 'network', name: 'Network', tagline: 'Societies with many centers and elections', priceMonthly: 39900, priceAnnual: 399000, limits: { members: 0, centers: 0, admins: 25, sms: 10000 }, modules: [...MODULES], highlight: false, hidden: false },
   ],
 };

@@ -49,12 +49,15 @@ export const mockSiteConfig: SiteConfig = {
         { label: 'Find my center', href: '/centers/find', description: 'Your address decides your zone and center.' },
         { label: 'All 22 centers', href: '/centers', description: 'Addresses, contacts and programs.' },
         { label: 'The five zones', href: '/centers/zones', description: 'How Greater Houston is organized.' },
+        { label: 'Leadership', href: '/leadership', description: 'Who serves you – find your representatives by ZIP.' },
+        { label: 'Prayer times', href: '/prayer-times', description: 'Adhan, iqamah and Jumu’ah at every center.' },
       ],
     },
     {
       label: 'Give',
       children: [
         { label: 'Give', href: '/give', description: 'Zakat, Sadaqah and why we give.' },
+        { label: 'Campaigns', href: '/campaigns', description: 'Goals the community is raising for now.' },
         { label: 'Who still needs help', href: '/needs', description: 'Verified cases you can help today.' },
         { label: 'How we helped', href: '/impact', description: 'Real programs and stories, with sources.' },
       ],
@@ -79,7 +82,7 @@ export const mockSiteConfig: SiteConfig = {
         { label: 'Give', href: '/give' }, { label: 'Who still needs help', href: '/needs' }, { label: 'How we helped', href: '/impact' } ] },
       { title: 'About ISGH', links: [
         { label: 'About us', href: '/about' }, { label: 'Constitution and Bylaws', href: '/constitution-bylaws' },
-        { label: 'Annual reports', href: '/reports' }, { label: 'The five zones', href: '/centers/zones' } ] },
+        { label: 'Annual reports', href: '/reports' }, { label: 'Leadership', href: '/leadership' }, { label: 'The five zones', href: '/centers/zones' } ] },
       { title: 'Help and feedback', links: [
         { label: 'FAQ', href: '/faq' }, { label: 'Contact us', href: '/contact' },
         { label: 'Rate your experience', href: '/feedback' }, { label: 'File a complaint', href: '/complaints' },

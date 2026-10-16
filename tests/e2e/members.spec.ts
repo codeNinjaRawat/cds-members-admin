@@ -57,7 +57,7 @@ test('sort and paging', async ({ page }) => {
 test('bulk select → export CSV of the selection', async ({ page }) => {
   await page.getByLabel('Select all on this page').check();
   await expect(page.getByText('25 selected')).toBeVisible();
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export selected' }).click()]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export selected' }).click().then(() => page.getByRole('button', { name: 'Download CSV' }).click())]);
   const csv = await (await dl.createReadStream()).toArray().then((c) => Buffer.concat(c).toString('utf8'));
   expect(csv.split('\r\n')).toHaveLength(26);
   expect(csv.split('\r\n')[0]).toContain('Member ID,First name,Last name');

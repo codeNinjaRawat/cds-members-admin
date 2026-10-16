@@ -69,3 +69,8 @@
 :root[data-preset="luxe"] :focus-visible { outline-color: var(--gold-hi); }
 :root[data-preset="luxe"]:not([data-nav="rail"]) .tree .sub.glass-float { background: none; border: 0; border-left: 1px solid rgba(201, 163, 92, .3); box-shadow: none; }
 @media (min-width: 1081px) { :root[data-preset="luxe"][data-nav="rail"] .tree .sub.glass-float { background: linear-gradient(#141217f2, #141217f2) padding-box, linear-gradient(135deg, rgba(241, 217, 166, .6), rgba(201, 163, 92, .1) 40%, rgba(201, 163, 92, .4)) border-box; } }
+/* light mode: gold on ivory needs the deep gold so icons and badges stay readable */
+:root[data-preset="luxe"][data-mode="light"] .cc-ico, :root[data-preset="luxe"][data-mode="light"] .sg-mark { color: #7a5518; border-color: rgba(122, 85, 24, .35); background: radial-gradient(circle at 30% 25%, rgba(255, 246, 225, .9), rgba(201, 163, 92, .28) 70%); box-shadow: 0 6px 18px -10px rgba(122, 85, 24, .8); }
+:root[data-preset="luxe"][data-mode="light"] .cc-kpi { --kc: #A87B2D; }
+:root[data-preset="luxe"][data-mode="light"] .env { color: #6b4a12; border-color: rgba(122, 85, 24, .45); background: rgba(201, 163, 92, .18); }
+:root[data-preset="luxe"][data-mode="light"] .side-badge { color: #5c3f0e; background: rgba(201, 163, 92, .3); border-color: rgba(122, 85, 24, .35); }

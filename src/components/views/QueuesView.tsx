@@ -4,6 +4,8 @@
  * List on the left, the case on the right with the rule it is judged by; decisions apply at once with Undo.
  * Arrow keys or J/K move through the list. DEMO: decisions saved in this browser + member audit log.
  */
+import { useMasjidFilter } from '@/lib/access/masjid-filter';
+import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
@@ -19,7 +21,8 @@ const ME = 'Akhter Alam';
 type Filter = 'open' | 'mine' | 'overdue' | 'done';
 type Ask = null | { kind: 'decline' | 'info' | 'board'; caseIds?: string[] };
 type Undo = { text: string; caseIds: string[]; prev: Record<string, Decision | undefined>; members: Record<string, ReturnType<typeof snapshotMemberEdit>> };
-const CASES = buildCases(demoMembers()); // deterministic → same on server and client
+const CASES = buildCases(demoMembers());
+export const allCases = () => CASES; // deterministic → same on server and client
 
 export function useQueueState() {
   const [s, setS] = useState<QueueState>({ decisions: {}, assignee: {} });
@@ -57,7 +60,9 @@ export function QueuesView({ search = '' }: { search?: string }) {
     window.dispatchEvent(new Event('isgh:tab'));
   };
 
-  const inTab = useMemo(() => CASES.filter((c) => c.queue === tab), [tab]);
+  const mf = useMasjidFilter();
+  const visible = useMemo(() => CASES.filter((c) => { const m = byId.get(c.memberId); return !m || mf.keep(m.zone, centerOf(m), m.zip); }), [byId, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const inTab = useMemo(() => visible.filter((c) => c.queue === tab), [tab, visible]);
   const list = useMemo(() => inTab.filter((c) => {
     const open = isOpen(c, qs);
     if (filter === 'done') return !open;
@@ -67,8 +72,8 @@ export function QueuesView({ search = '' }: { search?: string }) {
     return true;
   }).sort((a, b) => daysWaiting(b) - daysWaiting(a)), [inTab, qs, filter]);
   const sel = list.find((c) => c.id === selId) ?? list[0] ?? null;
-  const counts = openCounts(qs);
-  const overdue = (q: QueueId) => CASES.filter((c) => c.queue === q && isOpen(c, qs) && sla(c).tone === 'late').length;
+  const counts = Object.fromEntries(QUEUES.map((q) => [q.id, visible.filter((c) => c.queue === q.id && isOpen(c, qs)).length])) as Record<QueueId, number>;
+  const overdue = (q: QueueId) => visible.filter((c) => c.queue === q && isOpen(c, qs) && sla(c).tone === 'late').length;
 
   /* ---------- deciding ---------- */
   const decide = useCallback((cases: Case[], d: Omit<Decision, 'by' | 'at'>, memberChange?: (m: Member) => [Partial<Member>, string, string] | null, text?: string) => {
@@ -142,6 +147,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
                 {f === 'open' ? 'Open' : f === 'mine' ? 'Assigned to me' : f === 'overdue' ? 'Overdue' : 'Done'}
               </button>
             ))}
+            <MasjidPicker className="chip-select" />
           </div>
           {tab === 'applications' && filter === 'open' && ready.length > 0 && (
             <div className="wq-batch">

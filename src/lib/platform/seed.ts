@@ -6,7 +6,7 @@
  */
 import type { Tenant } from './platform';
 
-export type SeedKey = 'site-config' | 'home' | 'membership-settings' | 'giving' | 'pages' | 'news' | 'themes' | 'join-form';
+export type SeedKey = 'site-config' | 'home' | 'membership-settings' | 'giving' | 'pages' | 'news' | 'themes' | 'join-form' | 'events' | 'groups' | 'communication' | 'org-config' | 'benefits' | 'officials' | 'org-structure' | 'prayer-times' | 'finance-settings' | 'fundraising' | 'sign-in';
 type Profile = Pick<Tenant, 'slug' | 'name' | 'shortName' | 'city' | 'state' | 'address' | 'phone' | 'email' | 'template' | 'usage' | 'createdOn'>;
 
 /** Replace ISGH's names in every text (never inside links, images or ids). */
@@ -53,6 +53,18 @@ export function seedFor<T>(key: SeedKey, isghDefault: T, t: Profile): T {
       return out as T;
     }
     case 'news': return [] as T;
+    case 'events': return { ...v, events: [] } as T;                                   // no ISGH events for another organization
+    case 'groups': return { ...v, groups: v.groups.filter((g: { kind: string; id: string }) => g.kind === 'automatic' || g.id === 'volunteers').map((g: { leaders: string[] }) => ({ ...g, leaders: [] })) } as T;
+    case 'communication':
+      v.sender = { ...v.sender, fromName: `${t.shortName} Membership`, replyTo: t.email, footer: `${t.name} · ${t.address || `${t.city}, ${t.state}`} · You get this because you are a ${t.shortName} member.` };
+      return v;
+    case 'org-config': v.discounts = { enabled: false, codes: [] }; return v;
+    case 'org-structure': return { zones: [{ id: 'main', name: t.city || 'Main', areas: '', director: { name: '', email: '' }, termEnds: '', zips: [], active: true }], centers: [] } as T;
+    case 'fundraising': return { campaigns: [], pages: [], website: { enabled: false } } as T;
+    case 'finance-settings': return { ...v, accounts: [], budgets: [], openingCents: {}, plan: { approvedOn: '' }, audit: { ...v.audit, presentedOn: '' } } as T;
+    case 'prayer-times': return { ...v, centers: [], special: [], location: { ...v.location, label: t.city } } as T; // starter: Houston coordinates until the organization sets its own
+    case 'officials': return { ...v, holders: [], website: { ...v.website, enabled: false } } as T; // ISGH's officials are ISGH's own
+    case 'benefits': return { ...v, enabled: false, partners: [], offers: [] } as T; // ISGH's partners are ISGH's own
     case 'giving': v.impact = []; v.needs = []; v.totals = []; return v;
     case 'membership-settings':
       v.serviceArea = { states: [t.state], label: `${t.city} area` };

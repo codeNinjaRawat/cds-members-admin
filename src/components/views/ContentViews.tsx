@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react';
 import type { SiteConfig } from '@/lib/site-config/schema';
 import type { Giving } from '@/lib/content/giving';
-import type { MembershipSettings } from '@/lib/content/membership';
+import { ISGH_WILDAPRICOT_LEVELS, DEFAULT_LIFECYCLE, type MembershipSettings } from '@/lib/content/membership';
+import { UseIsghLevels } from './CommunityViews';
+import { RenewalPreview } from './RenewalPreview';
 import type { Page } from '@/lib/content/pages';
 import { PageSchema } from '@/lib/content/pages';
 import { DocEditor, Modal, type DocApi } from '@/components/editor/DocEditor';
@@ -206,9 +208,10 @@ export function MembershipView() {
       intro="Dues, plans and the Bylaws rules the join form follows. Defaults come from the ISGH Constitution and Bylaws; change them when the Board decides.">
       {(doc) => (
         <Tabs label="Membership settings" tabs={[
-          { id: 'plans', label: 'Plans and dues', badge: countIssues(doc.issues, ['plans', 'year']), render: () => <Panel intro="Bylaws minimums: Single $25, Family $40 per year. Multi-year discount up to 25%."><ScopedForm doc={doc} storeKey="membership-settings" only={['year', 'plans']} /></Panel> },
+          { id: 'plans', label: 'Plans and dues', badge: countIssues(doc.issues, ['plans', 'year']), render: () => <Panel intro="Bylaws minimums: Single $25, Family $40 per year. Multi-year discount up to 25%. Each plan can also have WildApricot-style options: a household size, fixed prices for 3 or 5 years, a renewal date and automatic renewal."><div className="row-actions"><UseIsghLevels onUse={() => doc.setDraft((d) => ({ ...d, plans: structuredClone(ISGH_WILDAPRICOT_LEVELS), lifecycle: d.lifecycle ?? DEFAULT_LIFECYCLE }))} /></div><ScopedForm doc={doc} storeKey="membership-settings" only={['year', 'plans']} /></Panel> },
+          { id: 'renewals', label: 'Renewals and reminders', badge: countIssues(doc.issues, ['lifecycle']), render: () => <Panel intro="What happens before and after each renewal date: reminder emails, invoices, the grace period and what to do when someone does not renew. The emails themselves are in Communication › System emails."><ScopedForm doc={doc} storeKey="membership-settings" only={['lifecycle']} /><RenewalPreview settings={doc.draft} /></Panel> },
           { id: 'voting', label: 'Voting and area', badge: countIssues(doc.issues, ['recordDate', 'timezone', 'minVotingAge', 'minMemberAge', 'serviceArea']), render: () => <Panel intro="Bylaws Art. I §2–3: age 18+, own dues paid by June 30, lives in the service area."><ScopedForm doc={doc} storeKey="membership-settings" only={['recordDate', 'timezone', 'minVotingAge', 'minMemberAge', 'serviceArea']} /></Panel> },
-          { id: 'join', label: 'Join form', badge: countIssues(doc.issues, ['commitments', 'pledge', 'consents', 'payerRelationships', 'otp']), render: () => <Panel intro="Changing the pledge or consent text? Also change its version, so we know who agreed to which text."><ScopedForm doc={doc} storeKey="membership-settings" only={['commitments', 'pledge', 'consents', 'payerRelationships', 'otp']} /></Panel> },
+          { id: 'join', label: 'Pledge and consents', badge: countIssues(doc.issues, ['commitments', 'pledge', 'consents', 'payerRelationships', 'otp']), render: () => <Panel intro="Changing the pledge or consent text? Also change its version, so we know who agreed to which text."><ScopedForm doc={doc} storeKey="membership-settings" only={['commitments', 'pledge', 'consents', 'payerRelationships', 'otp']} /></Panel> },
           { id: 'switches', label: 'Switches', badge: countIssues(doc.issues, ['flags']), render: () => <Panel><ScopedForm doc={doc} storeKey="membership-settings" only={['flags']} /></Panel> },
         ]} />
       )}

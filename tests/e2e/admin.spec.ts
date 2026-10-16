@@ -46,10 +46,11 @@ test.describe('shell', () => {
     await page.goto('/');
     await page.keyboard.press('Control+k');
     await page.getByRole('combobox', { name: 'Find a setting or page' }).fill('zakat');
-    await expect(page.locator('#cmdk-list').getByRole('option').first()).toContainText('Giving');
+    await expect(page.locator('#cmdk-list').getByRole('option').first()).toContainText('Zakat and Sadaqah dashboard');   // page names first
+    await expect(page.locator('#cmdk-list')).toContainText('Giving page');                                      // keywords still find it
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\/website\/giving(\?tab=\w+)?$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Giving');
+    await expect(page).toHaveURL(/\/zakat\?tab=overview$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Zakat and Sadaqah');
   });
 
   test('my appearance: theme, dark mode and glass persist after reload', async ({ page }) => {
@@ -146,7 +147,7 @@ test.describe('website controls', () => {
     await page.getByLabel('Highlight', { exact: true }).fill('#C0392B');
     const frame = page.frameLocator('iframe[title="Website preview"]');
     await expect(frame.locator('#site-header')).toBeVisible({ timeout: 10000 });
-    await expect.poll(async () => page.frames().find((f) => f.url().includes(process.env.SITE_PORT ?? '3000'))?.evaluate(() => document.getElementById('isgh-theme-preview')?.textContent?.includes('#C0392B')), { timeout: 8000 }).toBe(true);
+    await expect.poll(async () => page.frames().find((f) => f.url().includes('4321'))?.evaluate(() => document.getElementById('isgh-theme-preview')?.textContent?.includes('#C0392B')), { timeout: 8000 }).toBe(true);
   });
 
   test('pages: create a new page, add a block, publish', async ({ page }) => {

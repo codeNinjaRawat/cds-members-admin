@@ -4,29 +4,36 @@
  * View, filters, sort and page live in the address so a link can be shared. DEMO data (320 members, no API).
  * Live: same UI over GET /admin/members?view=&q=&zone=&plan=&status=&sort=&page= (server paging, role scopes A10).
  */
+import { UNROUTED, useMasjidFilter } from '@/lib/access/masjid-filter';
 import Link from 'next/link';
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   centerOf, centersOf, demoMembers, digits, eligibility, fmtDate, fullName, initials, lastPayment, MEMBERS_EVENT, membersWithEdits, PLANS, recordDate,
-  STATUS_LABEL, statusOf, toCsv, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId,
+  renewalOf, STATUS_LABEL, statusOf, toCsv, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId,
 } from '@/lib/members/members';
+import { useOrgConfig } from '@/lib/members/use-org-config';
+import { useAccess } from '@/lib/access/use-access';
+import { logAudit } from '@/lib/access/audit';
+import { MemberImport } from './MemberImport';
+import { idPurgeDue } from '@/lib/community/org-config';
 
 type Row = { m: Member; status: Status; vote: ReturnType<typeof eligibility>; paid: string };
 const VIEWS = [
-  { id: 'all', label: 'All members', test: (_: Row) => true },
+  { id: 'all', label: 'All members', test: (r: Row) => r.status !== 'archived' },
   { id: 'voters', label: `Can vote ${YEAR}`, test: (r: Row) => r.vote.eligible },
   { id: 'pending', label: 'Pending approval', test: (r: Row) => r.status === 'pending' },
   { id: 'not-renewed', label: 'Not renewed', test: (r: Row) => r.status === 'expired' },
   { id: 'id-check', label: 'Photo ID to check', test: (r: Row) => r.m.idCheck !== 'verified' && r.m.standing === 'good' },
   { id: 'life', label: 'Life members', test: (r: Row) => r.status === 'life' },
+  { id: 'archived', label: 'Archived', test: (r: Row) => r.status === 'archived' },
 ] as const;
 type ViewId = (typeof VIEWS)[number]['id'];
 type SortKey = 'name' | 'plan' | 'zone' | 'status' | 'paid';
 const SIZES = [25, 50, 100];
-const ST_CLASS: Record<Status, string> = { active: 'st-active', life: 'st-approved', pending: 'st-board-review', expired: 'st-needs-info', resigned: 'st-muted', expelled: 'st-bad' };
+const ST_CLASS: Record<Status, string> = { active: 'st-active', life: 'st-approved', pending: 'st-board-review', expired: 'st-needs-info', resigned: 'st-muted', expelled: 'st-bad', archived: 'st-muted' };
 
-type Q = { view: ViewId; q: string; zone: '' | ZoneId; plan: '' | PlanId; status: '' | Status; center: string; sort: SortKey; dir: 'asc' | 'desc'; page: number; size: number };
-const DEFAULT_Q: Q = { view: 'all', q: '', zone: '', plan: '', status: '', center: '', sort: 'name', dir: 'asc', page: 1, size: 25 };
+type Q = { view: ViewId; q: string; zone: '' | ZoneId; plan: '' | PlanId; status: '' | Status; center: string; sort: SortKey; dir: 'asc' | 'desc'; page: number; size: number; peek: string };
+const DEFAULT_Q: Q = { view: 'all', q: '', zone: '', plan: '', status: '', center: '', sort: 'name', dir: 'asc', page: 1, size: 25, peek: '' };
 function readQ(search = typeof window === 'undefined' ? '' : window.location.search): Q {
   const p = new URLSearchParams(search); const q = { ...DEFAULT_Q };
   for (const k of Object.keys(DEFAULT_Q) as (keyof Q)[]) { const v = p.get(k); if (v != null) (q as Record<string, unknown>)[k] = typeof DEFAULT_Q[k] === 'number' ? Number(v) || DEFAULT_Q[k] : v; }
@@ -44,10 +51,16 @@ export function useMembers() {
 export function MembersView({ search = '' }: { search?: string }) {
   const members = useMembers();
   const [q, setQState] = useState<Q>(() => readQ(search));
+  const mf = useMasjidFilter();
   const [sel, setSel] = useState<string[]>([]);
   const [toast, setToast] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const cfg = useOrgConfig();
+  const [dialog, setDialog] = useState<null | { kind: 'export'; only?: string[] } | { kind: 'import' }>(null);
   useEffect(() => { const on = () => setQState(readQ()); window.addEventListener('popstate', on); window.addEventListener('isgh:tab', on);
     return () => { window.removeEventListener('popstate', on); window.removeEventListener('isgh:tab', on); }; }, []);
+  // the shared "Viewing" masjid fills the zone / center filters when the address has none; choices here are shared back
+  useEffect(() => { if (mf.narrowed && !q.zone && !q.center) setQ({ zone: mf.zone, center: mf.masjid === UNROUTED ? '' : mf.masjid }); }, [mf.zone, mf.masjid]); // eslint-disable-line react-hooks/exhaustive-deps
   const setQ = useCallback((patch: Partial<Q>) => setQState((cur) => {
     const next = { ...cur, ...patch, page: 'page' in patch ? patch.page! : 1 };
     const u = new URL(window.location.href); u.search = '';
@@ -58,7 +71,8 @@ export function MembersView({ search = '' }: { search?: string }) {
   }), []);
   const needle = useDeferredValue(q.q);
 
-  const rows: Row[] = useMemo(() => (members ?? []).map((m) => { const lp = lastPayment(m); return { m, status: statusOf(m), vote: eligibility(m), paid: lp?.paidOn ?? '' }; }), [members]);
+  const access = useAccess();
+  const rows: Row[] = useMemo(() => (members ?? []).filter((m) => access.inScope(m.zone, centerOf(m), m.zip)).map((m) => { const lp = lastPayment(m); return { m, status: statusOf(m), vote: eligibility(m), paid: lp?.paidOn ?? '' }; }), [members, access.ready, access.me?.id, access.dashIndex]);
   const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, rows.filter(v.test).length])) as Record<ViewId, number>, [rows]);
 
   const filtered = useMemo(() => {
@@ -78,9 +92,10 @@ export function MembersView({ search = '' }: { search?: string }) {
   const allShown = shown.length > 0 && shown.every((r) => sel.includes(r.m.id));
   const flash = (t: string) => { setToast(t); window.setTimeout(() => setToast(''), 3500); };
 
-  const exportCsv = (only?: string[]) => {
+  const exportCsv = (only?: string[], adminOnly = false) => {
+    logAudit({ area: 'export', action: 'Members exported', detail: `${only ? only.length : filtered.length} rows, view “${q.view}”${adminOnly ? ', with admin-only fields' : ''}` });
     const list = (only ? filtered.filter((r) => only.includes(r.m.id)) : filtered).map((r) => r.m);
-    const blob = new Blob([toCsv(list)], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([toCsv(list, cfg.members.fields, adminOnly)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `isgh-members-${q.view}-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
     flash(`Exported ${list.length.toLocaleString('en-US')} member${list.length === 1 ? '' : 's'} to CSV.`);
@@ -92,37 +107,44 @@ export function MembersView({ search = '' }: { search?: string }) {
       </button>
     </th>
   );
-  const kpi = (id: ViewId, label: string, note: string) => (
-    <button type="button" className={`m-kpi glass-pane${q.view === id ? ' on' : ''}`} onClick={() => setQ({ view: id })} aria-pressed={q.view === id}>
-      <span>{label}</span><b>{members ? counts[id].toLocaleString('en-US') : '–'}</b><small>{note}</small>
-    </button>
-  );
+  const filterChips: { key: keyof Q; label: string }[] = [
+    ...(q.zone ? [{ key: 'zone' as const, label: `Zone: ${ZONES[q.zone]}` }] : []),
+    ...(q.center ? [{ key: 'center' as const, label: q.center }] : []),
+    ...(q.plan ? [{ key: 'plan' as const, label: `Plan: ${PLANS[q.plan].name}` }] : []),
+    ...(q.status ? [{ key: 'status' as const, label: `Status: ${STATUS_LABEL[q.status]}` }] : []),
+  ];
+  const peekIdx = q.peek ? filtered.findIndex((r) => r.m.id === q.peek) : -1;
+  const peekRow = peekIdx >= 0 ? filtered[peekIdx] : q.peek ? rows.find((r) => r.m.id === q.peek) : undefined;
+  const openPeek = (id: string) => setQ({ peek: id, page });
+  const purgeDue = (() => { const keep = cfg.security.idDocuments.keepDays; const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    return { keep, n: (members ?? []).filter((m) => m.idCheck === 'verified' && idPurgeDue(m.approvedOn, keep, today)).length }; })();
 
   return (
-    <div className="page members">
-      <header className="page-head">
+    <div className={`page members${peekRow ? ' has-peek' : ''}`}>
+      <header className="page-head m-head-row">
         <div>
-          <h1>Members</h1>
-          <p className="page-intro">Find anyone in seconds and see if they can vote in {YEAR} – and why. Record date {fmtDate(recordDate(YEAR))}. Demo data, 320 members.</p>
+          <h1>Members <span className="m-total">{members ? rows.filter((r) => r.status !== 'archived').length.toLocaleString('en-US') : ''}</span></h1>
+          <p className="page-intro">Voting record date {fmtDate(recordDate(YEAR))} · demo data</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => exportCsv()} disabled={!filtered.length}>Export this view</button>
+          {purgeDue.n > 0 && (
+            <details className="m-notices">
+              <summary className="btn ghost"><span className="m-dot" aria-hidden="true" />1 notice</summary>
+              <div className="m-pop glass-float" role="note">
+                <p className="notice id-purge">{purgeDue.n.toLocaleString('en-US')} photo ID file{purgeDue.n === 1 ? ' is' : 's are'} past the {purgeDue.keep}-day keep period (Settings › Configuration › Security). The BE deletes the files nightly and keeps only “verified on (date) by (admin)”.</p>
+              </div>
+            </details>
+          )}
+          {access.can('members.archive') && <button className="btn" onClick={() => setDialog({ kind: 'import' })}>Import</button>}
+          {access.can('members.contact') && <button className="btn" onClick={() => setDialog({ kind: 'export' })} disabled={!filtered.length}>Export this view</button>}
         </div>
       </header>
-
-      <div className="m-kpis">
-        {kpi('all', 'All members', 'on record')}
-        {kpi('voters', `Can vote in ${YEAR}`, 'meet every Bylaws rule')}
-        {kpi('not-renewed', 'Not renewed', `no ${YEAR} dues yet`)}
-        {kpi('pending', 'Pending approval', 'waiting for the Board')}
-        {kpi('id-check', 'Photo ID to check', 'before approval')}
-      </div>
 
       <section className="m-table glass-pane" aria-labelledby="m-h">
         <h2 id="m-h" className="sr-only">Member list</h2>
         <div className="m-views" role="tablist" aria-label="Saved views">
           {VIEWS.map((v) => (
-            <button key={v.id} role="tab" type="button" aria-selected={q.view === v.id} className="m-view" onClick={() => setQ({ view: v.id })}>
+            <button key={v.id} role="tab" type="button" aria-selected={q.view === v.id} className="m-view" onClick={() => setQ({ view: v.id, peek: '' })}>
               {v.label}<span>{members ? counts[v.id] : ''}</span>
             </button>
           ))}
@@ -133,25 +155,44 @@ export function MembersView({ search = '' }: { search?: string }) {
             <span className="sr-only">Search members</span>
             <input className="in" type="search" placeholder="Name, email, phone, member ID or ZIP" value={q.q} onChange={(e) => setQ({ q: e.target.value })} />
           </label>
-          <select className="in pill-select" aria-label="Zone" value={q.zone} onChange={(e) => setQ({ zone: e.target.value as Q['zone'], center: '' })}>
-            <option value="">All zones</option>{(Object.keys(ZONES) as ZoneId[]).map((z) => <option key={z} value={z}>{ZONES[z]}</option>)}
-          </select>
-          <select className="in pill-select" aria-label="Islamic Center" value={q.center} onChange={(e) => setQ({ center: e.target.value })} disabled={!q.zone}>
-            <option value="">{q.zone ? 'All centers' : 'Pick a zone first'}</option>{q.zone && centersOf(q.zone).map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <select className="in pill-select" aria-label="Plan" value={q.plan} onChange={(e) => setQ({ plan: e.target.value as Q['plan'] })}>
-            <option value="">All plans</option>{(Object.keys(PLANS) as PlanId[]).map((p) => <option key={p} value={p}>{PLANS[p].name}</option>)}
-          </select>
-          <select className="in pill-select" aria-label="Status" value={q.status} onChange={(e) => setQ({ status: e.target.value as Q['status'] })}>
-            <option value="">Any status</option>{(Object.keys(STATUS_LABEL) as Status[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-          </select>
-          {(q.q || q.zone || q.plan || q.status) && <button className="linkish" onClick={() => setQ({ q: '', zone: '', plan: '', status: '', center: '' })}>Clear filters</button>}
+          <button type="button" className={`btn m-filter-btn${filterChips.length ? ' on' : ''}`} aria-expanded={showFilters} aria-controls="m-filter-panel" onClick={() => setShowFilters((x) => !x)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+            Filters{filterChips.length ? <span className="m-badge">{filterChips.length}</span> : null}
+          </button>
         </div>
+        {showFilters && (
+          <div className="m-filter-panel" id="m-filter-panel">
+            <label className="sf-field"><span className="sf-label">Zone</span>
+              <select className="in" aria-label="Zone" value={q.zone} onChange={(e) => { setQ({ zone: e.target.value as Q['zone'], center: '' }); if (e.target.value) mf.setZone(e.target.value as ZoneId); else mf.clear(); }}>
+                <option value="">All zones</option>{(Object.keys(ZONES) as ZoneId[]).map((z) => <option key={z} value={z}>{ZONES[z]}</option>)}
+              </select></label>
+            <label className="sf-field"><span className="sf-label">Islamic Center</span>
+              <select className="in" aria-label="Islamic Center" value={q.center} onChange={(e) => { setQ({ center: e.target.value }); if (e.target.value) mf.setMasjid(e.target.value); else mf.setZone(q.zone as ZoneId); }} disabled={!q.zone}>
+                <option value="">{q.zone ? 'All centers' : 'Pick a zone first'}</option>{q.zone && centersOf(q.zone).map((c) => <option key={c}>{c}</option>)}
+              </select></label>
+            <label className="sf-field"><span className="sf-label">Plan</span>
+              <select className="in" aria-label="Plan" value={q.plan} onChange={(e) => setQ({ plan: e.target.value as Q['plan'] })}>
+                <option value="">All plans</option>{(Object.keys(PLANS) as PlanId[]).map((p) => <option key={p} value={p}>{PLANS[p].name}</option>)}
+              </select></label>
+            <label className="sf-field"><span className="sf-label">Status</span>
+              <select className="in" aria-label="Status" value={q.status} onChange={(e) => setQ({ status: e.target.value as Q['status'] })}>
+                <option value="">Any status</option>{(Object.keys(STATUS_LABEL) as Status[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+              </select></label>
+          </div>
+        )}
+        {(filterChips.length > 0 || q.q) && (
+          <div className="m-chips" aria-label="Active filters">
+            {filterChips.map((c) => (
+              <button key={c.key} type="button" className="m-chip" aria-label={`Remove filter ${c.label}`} onClick={() => { if (c.key === 'zone') mf.clear(); if (c.key === 'center') mf.setZone(q.zone as ZoneId); setQ(c.key === 'zone' ? { zone: '', center: '' } : { [c.key]: '' } as Partial<Q>); }}>{c.label}<span aria-hidden="true">×</span></button>
+            ))}
+            <button className="linkish" onClick={() => { mf.clear(); setQ({ q: '', zone: '', plan: '', status: '', center: '' }); }}>Clear filters</button>
+          </div>
+        )}
 
         {sel.length > 0 && (
           <div className="m-bulk" role="region" aria-label="Selected members">
             <b>{sel.length} selected</b>
-            <button className="btn sm" onClick={() => exportCsv(sel)}>Export selected</button>
+            {access.can('members.contact') && <button className="btn sm" onClick={() => setDialog({ kind: 'export', only: sel })}>Export selected</button>}
             <button className="btn sm" onClick={() => flash(`Demo: a renewal reminder would go to ${sel.length} member${sel.length === 1 ? '' : 's'} (email and SMS adapters come later).`)}>Send renewal reminder</button>
             <button className="linkish" onClick={() => setSel([])}>Clear selection</button>
           </div>
@@ -164,21 +205,22 @@ export function MembersView({ search = '' }: { search?: string }) {
             <thead>
               <tr>
                 <th scope="col" className="m-check"><input type="checkbox" aria-label="Select all on this page" checked={allShown} onChange={() => setSel((s) => allShown ? s.filter((id) => !shown.some((r) => r.m.id === id)) : Array.from(new Set([...s, ...shown.map((r) => r.m.id)])))} /></th>
-                {sortBtn('name', 'Member')}{sortBtn('plan', 'Plan')}{sortBtn('zone', 'Zone and center')}{sortBtn('status', 'Status')}
-                <th scope="col">Voting {YEAR}</th>{sortBtn('paid', 'Last paid')}<th scope="col">Phone</th>
+                {sortBtn('name', 'Member')}{sortBtn('status', 'Status')}
+                <th scope="col">Vote {YEAR}</th>{sortBtn('plan', 'Plan')}{sortBtn('zone', 'Zone')}{sortBtn('paid', 'Last paid')}
               </tr>
             </thead>
             <tbody>
               {shown.map(({ m, status, vote, paid }) => (
-                <tr key={m.id} className={sel.includes(m.id) ? 'is-sel' : undefined}>
+                <tr key={m.id} className={[sel.includes(m.id) ? 'is-sel' : '', q.peek === m.id ? 'is-peek' : ''].join(' ').trim() || undefined}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest('input,a,button')) return; openPeek(m.id); }}>
                   <td className="m-check"><input type="checkbox" aria-label={`Select ${fullName(m)}`} checked={sel.includes(m.id)} onChange={() => setSel((s) => s.includes(m.id) ? s.filter((x) => x !== m.id) : [...s, m.id])} /></td>
-                  <td data-label="Member"><Link className="m-who" href={`/members/${m.id}`}><span className="m-av" aria-hidden="true">{initials(m)}</span><span><b>{fullName(m)}</b><small>{m.id} · {m.email}</small></span></Link></td>
-                  <td data-label="Plan">{PLANS[m.plan].name}</td>
-                  <td data-label="Zone"><span className="m-zone">{ZONES[m.zone]}<small>{centerOf(m)}</small></span></td>
+                  <td data-label="Member"><a className="m-who" href={`/members/${m.id}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); openPeek(m.id); }}>
+                    <span className="m-av" aria-hidden="true">{initials(m)}</span><span><b>{fullName(m)}</b><small>{m.id}</small></span></a></td>
                   <td data-label="Status"><span className={`st ${ST_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
-                  <td data-label={`Voting ${YEAR}`}><span className={`m-vote ${vote.eligible ? 'yes' : 'no'}`} title={vote.summary}>{vote.eligible ? 'Yes' : 'No'}<small>{vote.eligible ? '' : vote.summary}</small></span></td>
+                  <td data-label={`Vote ${YEAR}`}><span className={`m-vote ${vote.eligible ? 'yes' : 'no'}`} title={vote.summary}><i aria-hidden="true">{vote.eligible ? '✓' : '–'}</i>{vote.eligible ? 'Yes' : 'No'}</span></td>
+                  <td data-label="Plan">{PLANS[m.plan].name}</td>
+                  <td data-label="Zone"><span className="m-zone" title={centerOf(m)}>{ZONES[m.zone]}</span></td>
                   <td data-label="Last paid" className="num">{paid ? fmtDate(paid) : '—'}</td>
-                  <td data-label="Phone" className="num"><a href={`tel:+1${digits(m.phone)}`}>{m.phone}</a></td>
                 </tr>
               ))}
             </tbody>
@@ -192,7 +234,76 @@ export function MembersView({ search = '' }: { search?: string }) {
           <button className="btn sm" disabled={page >= pages} onClick={() => setQ({ page: page + 1 })}>Next</button>
         </footer>
       </section>
+      {peekRow && <MemberPeek row={peekRow} contact={access.can('members.contact')} canPay={access.can('payments.record')}
+        pos={peekIdx >= 0 ? `${peekIdx + 1} of ${filtered.length.toLocaleString('en-US')}` : ''}
+        onPrev={peekIdx > 0 ? () => setQ({ peek: filtered[peekIdx - 1].m.id, page: Math.floor((peekIdx - 1) / q.size) + 1 }) : undefined}
+        onNext={peekIdx >= 0 && peekIdx < filtered.length - 1 ? () => setQ({ peek: filtered[peekIdx + 1].m.id, page: Math.floor((peekIdx + 1) / q.size) + 1 }) : undefined}
+        onClose={() => setQ({ peek: '', page })} />}
       {toast && <p className="m-toast glass-float" role="status">{toast}</p>}
+      {dialog?.kind === 'export' && <ExportDialog count={dialog.only ? dialog.only.length : filtered.length} hasAdminOnly={cfg.members.fields.some((f) => f.access === 'admins' && f.type !== 'file')}
+        onClose={() => setDialog(null)} onExport={(adminOnly) => { exportCsv(dialog.only, adminOnly); setDialog(null); }} />}
+      {dialog?.kind === 'import' && members && <MemberImport members={members} cfg={cfg} onClose={() => setDialog(null)} onDone={(n) => { logAudit({ area: 'members', action: 'Members imported', detail: `${n} new records (Pending approval)` }); setDialog(null); flash(`Imported ${n.toLocaleString('en-US')} member${n === 1 ? '' : 's'}. They wait for Board approval.`); }} />}
     </div>
+  );
+}
+
+/** Quick look: the facts staff need most, without leaving the list. The full record stays one click away. */
+function MemberPeek({ row, contact, canPay, pos, onPrev, onNext, onClose }: { row: Row; contact: boolean; canPay: boolean; pos: string; onPrev?: () => void; onNext?: () => void; onClose: () => void }) {
+  const { m, status, vote, paid } = row;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const ren = renewalOf(m, today);
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => { ref.current?.focus(); }, [m.id]);
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.closest('input,select,textarea,dialog')) return;
+      if (e.key === 'Escape') onClose(); else if (e.key === 'ArrowDown' && onNext) { e.preventDefault(); onNext(); } else if (e.key === 'ArrowUp' && onPrev) { e.preventDefault(); onPrev(); } };
+    window.addEventListener('keydown', on); return () => window.removeEventListener('keydown', on);
+  }, [onClose, onNext, onPrev]);
+  const payable = canPay && m.plan !== 'life' && !!m.approvedOn && status !== 'archived';
+  return (
+    <aside ref={ref} tabIndex={-1} className="m-peek glass-float" aria-label={`Quick look: ${fullName(m)}`}>
+      <div className="m-peek-top">
+        <span className="m-peek-pos">{pos}</span>
+        <span className="m-peek-nav">
+          <button type="button" className="icon-btn" aria-label="Previous member" disabled={!onPrev} onClick={onPrev}><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="2" /></svg></button>
+          <button type="button" className="icon-btn" aria-label="Next member" disabled={!onNext} onClick={onNext}><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" /></svg></button>
+          <button type="button" className="icon-btn" aria-label="Close quick look" onClick={onClose}><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" /></svg></button>
+        </span>
+      </div>
+      <div className="m-peek-who">
+        <span className="m-av lg" aria-hidden="true">{initials(m)}</span>
+        <div><h2>{fullName(m)}</h2><p>{m.id} · {PLANS[m.plan].name} plan</p></div>
+      </div>
+      <p className="m-peek-status"><span className={`st ${ST_CLASS[status]}`}>{STATUS_LABEL[status]}</span>
+        <span className={`m-vote ${vote.eligible ? 'yes' : 'no'}`}><i aria-hidden="true">{vote.eligible ? '✓' : '–'}</i>{vote.eligible ? `Can vote in ${YEAR}` : `Cannot vote in ${YEAR}`}</span></p>
+      {!vote.eligible && <p className="m-peek-why">{vote.summary}</p>}
+      <dl className="m-peek-facts">
+        <div><dt>Zone and center</dt><dd>{ZONES[m.zone]} · {centerOf(m)}</dd></div>
+        <div><dt>{ren.paidThrough ? 'Paid through' : 'Last paid'}</dt><dd>{ren.paidThrough ? fmtDate(ren.paidThrough) : paid ? fmtDate(paid) : 'No payments yet'}</dd></div>
+        <div><dt>Member since</dt><dd>{m.joined}</dd></div>
+        {contact && <div><dt>Email</dt><dd><a href={`mailto:${m.email}`}>{m.email}</a></dd></div>}
+        {contact && <div><dt>Mobile</dt><dd><a href={`tel:+1${digits(m.phone)}`}>{m.phone}</a></dd></div>}
+      </dl>
+      <div className="m-peek-actions">
+        <Link className="btn primary" href={`/members/${m.id}`}>Open full profile</Link>
+        {payable && <Link className="btn" href={`/members/${m.id}?do=payment`}>Record payment</Link>}
+      </div>
+      <p className="m-peek-hint">↑ ↓ to move · Esc to close</p>
+    </aside>
+  );
+}
+
+function ExportDialog({ count, hasAdminOnly, onClose, onExport }: { count: number; hasAdminOnly: boolean; onClose: () => void; onExport: (adminOnly: boolean) => void }) {
+  const [adminOnly, setAdminOnly] = useState(false);
+  const open = (el: HTMLDialogElement | null) => { if (el && !el.open) el.showModal(); };
+  return (
+    <dialog ref={open} className="modal glass-float" aria-label="Export to CSV" onClose={onClose} onCancel={onClose}>
+      <form method="dialog" className="m-form" onSubmit={(e) => { e.preventDefault(); onExport(adminOnly); }}>
+        <h2>Export to CSV</h2>
+        <p>{count.toLocaleString('en-US')} member{count === 1 ? '' : 's'}. Includes contact details, plan, status, voting and the extra profile fields members can see. The file opens safely in Excel (no formulas run).</p>
+        {hasAdminOnly && <label className="check"><input type="checkbox" checked={adminOnly} onChange={(e) => setAdminOnly(e.target.checked)} /> <span>Also include admin-only fields (sensitive – for example ID numbers). Keep the file private.</span></label>}
+        <div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary">Download CSV</button></div>
+      </form>
+    </dialog>
   );
 }

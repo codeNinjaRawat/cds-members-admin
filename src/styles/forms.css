@@ -62,3 +62,10 @@ select.in { padding-right: 2rem; }
 .sf-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .sf-upload:focus-within { outline: 2.5px solid var(--accent-ink); outline-offset: 2px; }
 @media (max-width: 640px) { .sf-image { grid-template-columns: 1fr; } .sf-inline { grid-template-columns: 1fr; } .brand-row { grid-template-columns: 1fr; } }
+
+/* Dropdowns: a solid background so the open list is readable on every system. Chrome on Windows paints the open
+   list with the select's own background – the see-through glass field made it white text on white (looked broken). */
+select, select.in, select.pill-select { background-color: color-mix(in srgb, var(--pane-solid) 90%, var(--ink)); color: var(--ink); }
+select option, select optgroup { background-color: var(--pane-solid); color: var(--ink); }
+select option:disabled { color: var(--ink-3); }
+select:disabled { opacity: .55; cursor: not-allowed; }

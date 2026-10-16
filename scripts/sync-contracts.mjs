@@ -16,9 +16,9 @@ const dst = path.resolve(here, '../src/lib');
 const copy = (from, to) => writeFileSync(to, readFileSync(from));
 const FILES = [
   'site-config/schema.ts', 'site-config/mock-site-config.ts',
-  'content/home.ts', 'content/pages.ts', 'content/membership.ts', 'content/giving.ts',
+  'content/home.ts', 'content/pages.ts', 'content/membership.ts', 'content/renewal.ts', 'content/giving.ts',
   'theme/theme-css.ts', 'theme/default-themes.json',
-  'family/family.ts', 'family/demo-family.ts', 'join/form-def.ts', 'platform/seed.ts',
+  'family/family.ts', 'family/demo-family.ts', 'join/form-def.ts', 'platform/seed.ts', 'community/events.ts', 'community/groups.ts', 'community/communication.ts', 'community/org-config.ts', 'community/member-records.ts', 'community/campaigns.ts', 'community/payments.ts', 'community/org-structure.ts', 'community/zakat.ts', 'community/donations.ts', 'community/benefits.ts', 'community/officials.ts', 'community/prayer.ts', 'community/minutes.ts', 'community/finance.ts', 'community/fundraising.ts', 'community/event-ops.ts', 'community/access.ts', 'community/sign-in.ts', 'community/officials-access.ts',
 ];
 /** Shared UI pieces (same code in both apps). */
 const UI = ['family/FamilyTree.tsx'];

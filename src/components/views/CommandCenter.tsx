@@ -5,9 +5,13 @@
  * recent members, application pipeline, dues and gifts by month. Side column: today's tasks, recent
  * activity, suggestions. DEMO numbers (live: /admin/stats). Palettes validated with the dataviz checker.
  */
+import { useAccess } from '@/lib/access/use-access';
+import { useMembers } from './MembersView';
+import { statusOf, ZONES as ZONE_NAMES, type ZoneId } from '@/lib/members/members';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Bars, Donut, TableView } from './OverviewView';
+import { YearRibbon } from './YearRibbon';
 
 const MONTHS = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
 const RENEW = [40, 96, 612, 488, 401, 523, 891, 1467, 96, 71, 64, 58];
@@ -43,6 +47,19 @@ const ACTIVITY = [
 ];
 
 export function CommandCenter() {
+  const access = useAccess();
+  const firstName = (access.me?.name ?? 'Admin').replace(/\s*\(demo\)$/, '');
+  // the member numbers follow the member records (demo: 320 records) – the rest are demo trends until the BE exists
+  const members = (useMembers() ?? []).filter((m) => !m.archived);
+  const current = members.filter((m) => ['active', 'life'].includes(statusOf(m)));
+  const pending = members.filter((m) => statusOf(m) === 'pending').length;
+  const kpis = KPIS.map((k) => {
+    if (!members.length) return k;
+    if (k.id === 'members') return { ...k, value: current.length.toLocaleString('en-US'), spark: k.spark.map((v) => Math.round((v / 4812) * current.length)) };
+    if (k.id === 'apps') return { ...k, label: 'Waiting for the Board', value: String(pending), note: 'applications' };
+    return k;
+  });
+  const zones = members.length ? (Object.keys(ZONE_NAMES) as ZoneId[]).map((z) => ({ f: ZONE_NAMES[z], v: current.filter((m) => m.zone === z).length })).sort((a, b) => b.v - a.v) : ZONES;
   const [done, setDone] = useState<string[]>([]);
   useEffect(() => { try { setDone(JSON.parse(localStorage.getItem('isgh-admin-tasks') || '[]')); } catch { /* */ } }, []);
   const toggle = (id: string) => setDone((d) => { const n = d.includes(id) ? d.filter((x) => x !== id) : [...d, id]; try { localStorage.setItem('isgh-admin-tasks', JSON.stringify(n)); } catch { /* */ } return n; });
@@ -55,21 +72,18 @@ export function CommandCenter() {
     <div className="page cc">
       <header className="page-head">
         <div>
-          <h1 suppressHydrationWarning>Assalamu alaikum, Akhter <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
-          <p className="page-intro">Here is what needs you today across membership, giving and the website. Demo numbers.</p>
+          <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
+          <p className="page-intro">What needs you today across membership, giving and the website. Demo numbers.</p>
         </div>
-        <div className="page-actions">
-          <span className="date-pill" suppressHydrationWarning>
-            <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v4M16 3v4M3 9h18M5 5h14v16H5z" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>
-            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' })}
-          </span>
-        </div>
+        <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' })}</p>
       </header>
+
+      <YearRibbon />
 
       <div className="cc-grid">
         <div className="cc-main">
           <div className="cc-kpis">
-            {KPIS.map((k, i) => (
+            {kpis.map((k, i) => (
               <section key={k.id} className={`cc-kpi glass-pane k${i}`}>
                 <i className="cc-ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24"><path d={k.icon} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></i>
                 <span className="cc-kl">{k.label}</span>
@@ -85,26 +99,19 @@ export function CommandCenter() {
               <div className="d-head"><h2 id="tr-h">Renewals and new members <small>last 12 months</small></h2>
                 <ul className="cc-legend"><li><i className="s1" aria-hidden="true" />Renewals</li><li><i className="s2" aria-hidden="true" />New members</li></ul></div>
               <TwoLine a={RENEW} b={NEW} labels={MONTHS} />
+              <dl className="cc-facts">
+                <div><dt>Busiest month</dt><dd>{MONTHS[RENEW.indexOf(Math.max(...RENEW))]} · {Math.max(...RENEW).toLocaleString('en-US')} renewals</dd></div>
+                <div><dt>Renewals in 12 months</dt><dd>{RENEW.reduce((a, b) => a + b, 0).toLocaleString('en-US')}</dd></div>
+                <div><dt>New members in 12 months</dt><dd>{NEW.reduce((a, b) => a + b, 0).toLocaleString('en-US')}</dd></div>
+              </dl>
             </section>
             <section className="d-card glass-pane cc-zones" aria-labelledby="z-h">
               <div className="d-head"><h2 id="z-h">Members by zone</h2></div>
-              <div className="z5"><Donut rows={ZONES} center="active members" money={false} /></div>
+              <div className="z5"><Donut rows={zones} center="active members" money={false} /></div>
             </section>
           </div>
 
           <div className="cc-row3">
-            <section className="d-card glass-pane" aria-labelledby="rm-h">
-              <div className="d-head"><h2 id="rm-h">Recent members</h2><span className="soon-link" title="Members module (A3)">View all · A3</span></div>
-              <ul className="cc-people">
-                {RECENT.map((r) => (
-                  <li key={r.n}><span className="av" aria-hidden="true">{r.i}</span>
-                    <div><b>{r.n}</b><small>{r.plan} · {r.zone}</small></div>
-                    <span className={`st st-${r.st.toLowerCase().replace(/\s/g, '-')}`}>{r.st}</span>
-                    <div className="amt"><b>{r.amt}</b><small>{r.when}</small></div>
-                  </li>
-                ))}
-              </ul>
-            </section>
             <section className="d-card glass-pane" aria-labelledby="pp-h">
               <div className="d-head"><h2 id="pp-h">Application pipeline <small>this month</small></h2></div>
               <ul className="pipe">
@@ -113,14 +120,32 @@ export function CommandCenter() {
                     <div className="pipe-bar"><span className={`p${i}`} style={{ width: `${(p.n / PIPE[0].n) * 100}%` }} /></div></li>
                 ))}
               </ul>
+              <p className="cc-note">{PIPE[0].n - PIPE[PIPE.length - 1].n} people are still on their way – most wait for the photo ID check.</p>
               <TableView rows={PIPE.map((p) => [p.s, String(p.n)])} head={['Stage', 'People']} />
             </section>
-            <section className="d-card glass-pane" aria-labelledby="mm-h">
-              <div className="d-head"><h2 id="mm-h">Dues and gifts by month <small>thousand dollars</small></h2></div>
-              <div className="cc-bars"><Bars data={MONEY.map((x) => ({ label: x.m, value: x.v }))} format={(v) => `$${v}k`} /></div>
-              <div className="cc-total"><span>Last 12 months</span><b>${MONEY.reduce((s, x) => s + x.v, 0)}k</b><em className="up">↑ 9% vs prior year</em></div>
+            <section className="d-card glass-pane cc-money" aria-labelledby="mm-h">
+              <div className="d-head"><h2 id="mm-h">Dues and gifts by month <small>thousand dollars</small></h2>
+                <div className="cc-total"><span>Last 12 months</span><b>${MONEY.reduce((s, x) => s + x.v, 0)}k</b><em className="up">↑ 9% vs prior year</em></div></div>
+              <div className="cc-bars"><Bars data={MONEY.map((x) => ({ label: x.m, value: x.v }))} format={(v) => `$${v}k`} highlight={MONEY.length - 1} /></div>
             </section>
           </div>
+
+          <section className="d-card glass-pane cc-newest" aria-labelledby="rm-h">
+            <div className="d-head"><h2 id="rm-h">Newest members</h2><Link className="cc-more" href="/members">All members</Link></div>
+            <ul className="cc-people">
+              {RECENT.map((r) => (
+                <li key={r.n}>
+                  <span className="av" aria-hidden="true">{r.i}</span>
+                  <b className="nm">{r.n}</b>
+                  <span className="pl">{r.plan}</span>
+                  <span className="zn">{r.zone}</span>
+                  <span className={`st st-${r.st.toLowerCase().replace(/\s/g, '-')}`}>{r.st}</span>
+                  <b className="amt">{r.amt}</b>
+                  <small className="ago">{r.when} ago</small>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
 
         <aside className="cc-side" aria-label="Today">
@@ -181,7 +206,7 @@ function Spark({ values, label }: { values: number[]; label: string }) {
 
 /** Two series on ONE axis (same unit: people per month), legend above, hover shows both values. */
 function TwoLine({ a, b, labels }: { a: number[]; b: number[]; labels: string[] }) {
-  const W = 640, H = 300, P = { l: 40, r: 14, t: 18, b: 26 };
+  const W = 640, H = 280, P = { l: 46, r: 14, t: 14, b: 30 };
   const [h, setH] = useState<number | null>(null);
   const max = Math.max(...a, ...b) * 1.1;
   const x = (i: number) => P.l + (i * (W - P.l - P.r)) / (labels.length - 1);
@@ -198,10 +223,10 @@ function TwoLine({ a, b, labels }: { a: number[]; b: number[]; labels: string[] 
       <div className="chart-box">
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Renewals and new members by month. Renewals peak in June at ${Math.max(...a)}.`} onMouseLeave={() => setH(null)}>
           <defs><linearGradient id="tl-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="tl-stop" stopOpacity=".38" /><stop offset="1" className="tl-stop" stopOpacity="0" /></linearGradient></defs>
-          {ticks.map((t) => <g key={t}><line x1={P.l} x2={W - P.r} y1={y(t)} y2={y(t)} className="grid" /><text x={P.l - 6} y={y(t) + 4} className="axis" textAnchor="end">{t >= 1000 ? `${t / 1000}k` : t}</text></g>)}
+          {ticks.map((t) => <g key={t}><line x1={P.l} x2={W - P.r} y1={y(t)} y2={y(t)} className="grid" /><text x={P.l - 8} y={y(t) + 5} className="axis tl-axis" textAnchor="end">{t >= 1000 ? `${t / 1000}k` : t}</text></g>)}
           <path d={`${la} L${x(a.length - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#tl-fill)" />
           <path d={la} className="tl s1" /><path d={lb} className="tl s2" />
-          {labels.map((l, i) => <text key={l} x={x(i)} y={H - 6} className="axis" textAnchor="middle">{l}</text>)}
+          {labels.map((l, i) => <text key={l} x={x(i)} y={H - 4} className="axis tl-axis" textAnchor="middle">{l}</text>)}
           {h !== null && <g><line x1={x(h)} x2={x(h)} y1={P.t} y2={H - P.b} className="cross" /><circle cx={x(h)} cy={y(a[h])} r="5" className="tl-dot s1" /><circle cx={x(h)} cy={y(b[h])} r="5" className="tl-dot s2" /></g>}
           {labels.map((l, i) => <rect key={i} x={x(i) - (W - P.l - P.r) / (labels.length - 1) / 2} y="0" width={(W - P.l - P.r) / (labels.length - 1)} height={H} fill="transparent" tabIndex={0}
             onMouseEnter={() => setH(i)} onFocus={() => setH(i)} aria-label={`${l}: ${a[i]} renewals, ${b[i]} new members`} />)}

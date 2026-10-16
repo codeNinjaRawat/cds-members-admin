@@ -47,6 +47,9 @@ export function moduleForPath(path: string): Module | undefined {
   if (p.startsWith('/membership')) return 'membership';
   if (p.startsWith('/members')) return 'members';
   if (p.startsWith('/families')) return 'families';
+  if (p.startsWith('/events')) return 'events';
+  if (p.startsWith('/groups')) return 'members';
+  if (p.startsWith('/reports')) return 'reports';
   if (p.startsWith('/queues')) return 'queues';
   return undefined;
 }
