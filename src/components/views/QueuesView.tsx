@@ -17,7 +17,7 @@ import {
 } from '@/lib/queues/queues';
 import { useMembers } from './MembersView';
 
-const ME = 'Akhter Alam';
+const ME = 'Mohammad (demo)';
 type Filter = 'open' | 'mine' | 'overdue' | 'done';
 type Ask = null | { kind: 'decline' | 'info' | 'board'; caseIds?: string[] };
 type Undo = { text: string; caseIds: string[]; prev: Record<string, Decision | undefined>; members: Record<string, ReturnType<typeof snapshotMemberEdit>> };

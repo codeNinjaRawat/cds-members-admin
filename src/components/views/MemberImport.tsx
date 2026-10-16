@@ -38,7 +38,7 @@ export function MemberImport({ members, cfg, onClose, onDone }: { members: Membe
         street: x.street, city: x.city, zip: x.zip, zone: zone ?? 'sw', center: zone ? `${ZONES[zone]} Islamic Center 1` : '',
         plan: (x.plan as PlanId) || plan, joined: Number(today.slice(0, 4)), appliedOn: today, approvedOn: null, idCheck: 'not_started', standing: 'good',
         payments: [], notes: [], commitment: 'programs', extra: x.values, source: 'import',
-        audit: [{ at: new Date().toISOString(), by: 'Akhter Alam', action: 'Imported', detail: `From ${fileName || 'pasted text'}, row ${r.line}${r.duplicates.length ? ` – imported although it looks like ${r.duplicates.map((d) => d.id).join(', ')}` : ''}` }],
+        audit: [{ at: new Date().toISOString(), by: 'Mohammad (demo)', action: 'Imported', detail: `From ${fileName || 'pasted text'}, row ${r.line}${r.duplicates.length ? ` – imported although it looks like ${r.duplicates.map((d) => d.id).join(', ')}` : ''}` }],
       };
     });
     addImportedMembers(list);

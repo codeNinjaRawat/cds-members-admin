@@ -213,7 +213,7 @@ export function fakeSend(kind: 'email' | 'sms' | 'stripe', to: string, d: Integr
 export const mockIntegrations: IntegrationsDoc = {
   email: { enabled: true, provider: 'fake', mode: 'test', domain: 'isgh.org', fromTransactional: 'membership@isgh.org', fromBulk: 'news@news.isgh.org', dns: { spf: 'ok', dkim: 'unknown', dmarc: 'missing' } },
   sms: { enabled: false, provider: 'fake', mode: 'test', from: '+17135550100', registration: { type: '10dlc', status: 'not-started' }, countries: ['US'] },
-  stripe: { enabled: true, mode: 'test', publishableKey: 'pk_test_51ISGHdemo0000', secretKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Akhter Alam' }, ach: false, applePayDomainVerified: false, statementDescriptor: 'ISGH MEMBERSHIP' },
+  stripe: { enabled: true, mode: 'test', publishableKey: 'pk_test_51ISGHdemo0000', secretKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Mohammad (demo)' }, ach: false, applePayDomainVerified: false, statementDescriptor: 'ISGH MEMBERSHIP' },
   google: { enabled: false, clientId: '', redirectUris: [] },
   fallback: { emailProvider: null, smsProvider: null },
 };

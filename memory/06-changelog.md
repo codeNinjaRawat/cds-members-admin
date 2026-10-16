@@ -179,7 +179,7 @@
     menu and pages (view-only). Paths now match whole segments (wb test added).
   - Page guard ignored ?tab= (Voter list link showed for Area Reps but the page blocked them).
   - Phones: 30 pages scrolled sideways (wide tables, tab bars, long notices). Everything now scrolls inside its own box.
-  - Overview greeted everyone as "Akhter" – now the signed-in person; member KPI and zone donut use the member records.
+  - Overview greeted everyone as "Mohammad" – now the signed-in person; member KPI and zone donut use the member records.
   - "Renewal season" sidebar card only for people who can change membership rules.
   - "Working body" link showed an empty page to organization admins – now only masjid roles see it; organization
     admins get "Masjid working bodies" as its own page (/masjids) instead of a tab hidden in Admins and roles.
@@ -268,3 +268,17 @@
   center selects. Communication delivery log has no masjid on a send – left alone on purpose.
 - Tests: viewing.spec (4) – sticky across 8 screens, zone + "Not routed yet", locks for masjid and zone roles, home ZIP
   rules and invite; access white-box 101/101; admin suite 184/184; tsc clean (admin, web).
+
+## 2026-10-16 – Masjid admin home brought to the Overview standard
+- "/" for masjid roles (components/views/MasjidHome.tsx) now shares the Overview frame: greeting + date, masjid band
+  (zone, city, ZIP codes, Jumu'ah times, today's iqamah), the membership-year ribbon, four KPI cards with sparklines,
+  two-column grid and a side column; footer status. Area Representatives get the same, limited to their ZIP codes.
+- Every number is from the masjid's own records: current members and who joined this year (trend by month), renewed
+  for the year, dues collected vs last year by the same date (from member payments), voters; dues payments by month
+  (this year vs last, line chart with table); members by ZIP (renewed / not) with the Area Representative per ZIP.
+- Needs attention is built from the masjid's queues (applications, photo IDs, moves, payments), not-renewed members,
+  events waiting for approval, open Zakat cases (zakat.view only), missing Council meetings (minutes), vacant working-
+  body seats and ZIPs without a representative. Newest members (by approval date) with plan, ZIP, status and last dues.
+- Side column: working body (seats filled), coming up at the masjid, work-queue counts, the role's page links.
+- Tests: masjid.spec +1 (records agree across cards, attention items, secretary sees no Zakat line and cannot manage
+  the body); 2 selectors updated. Admin suite 185/185; tsc clean.

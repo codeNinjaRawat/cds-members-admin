@@ -9,7 +9,7 @@ const KEY = 'isgh-admin-audit';
 export const AUDIT_EVENT = 'isgh:audit';
 export const readAudit = (): AuditEntry[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
 /** The acting admin's name (set by useAccess once the roles are loaded). */
-export const currentAdminName = (): string => (typeof window !== 'undefined' && (window as unknown as { __isghAdminName?: string }).__isghAdminName) || 'Akhter Alam';
+export const currentAdminName = (): string => (typeof window !== 'undefined' && (window as unknown as { __isghAdminName?: string }).__isghAdminName) || 'Mohammad (demo)';
 const actingName = currentAdminName;
 export function logAudit(e: Omit<AuditEntry, 'at' | 'by'> & { by?: string }) {
   try {

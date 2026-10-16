@@ -86,7 +86,7 @@ test('360°: not-renewed member → record an on-time check → can vote; audit 
   await expect(page.locator('.m-verdict')).toContainText('Yes – meets every Bylaws rule');
   await page.getByRole('tab', { name: 'Audit log' }).click();
   await expect(page.locator('.m-audit li').first()).toContainText('Payment recorded');
-  await expect(page.locator('.m-audit li').first()).toContainText('Akhter Alam');
+  await expect(page.locator('.m-audit li').first()).toContainText('Mohammad (demo)');
   await page.reload();
   await expect(page.locator('.m-verdict')).toContainText('Yes');
 });

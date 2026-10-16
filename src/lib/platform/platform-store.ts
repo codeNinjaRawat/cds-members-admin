@@ -88,7 +88,7 @@ export function savePlatformDoc(k: PlatformDocKey, body: { data: unknown; baseVe
 export const readSupport = (): SupportSession[] => (readJson<unknown[]>(pfile('support')) ?? []).flatMap((r) => { const p = SupportSessionSchema.safeParse(r); return p.success ? [p.data] : []; });
 export const writeSupport = (list: SupportSession[]) => writeAtomic(pfile('support'), list.slice(0, 200));
 /** First line of the platform's history: ISGH joined as the founding client. */
-export const FOUNDING_ENTRY: AuditEntry = { id: 'a-founding-isgh', at: '2026-09-01T15:00:00.000Z', by: 'Akhter Alam', action: 'org.created', target: FOUNDING_SLUG, detail: 'Islamic Society of Greater Houston joined as client #1 – the founding client of the platform (Network plan, yearly)' };
+export const FOUNDING_ENTRY: AuditEntry = { id: 'a-founding-isgh', at: '2026-09-01T15:00:00.000Z', by: 'Mohammad (demo)', action: 'org.created', target: FOUNDING_SLUG, detail: 'Islamic Society of Greater Houston joined as client #1 – the founding client of the platform (Network plan, yearly)' };
 export const readAudit = (): AuditEntry[] => { const l = readJson<AuditEntry[]>(pfile('audit')) ?? []; return l.some((e) => e.id === FOUNDING_ENTRY.id) ? l : [...l, FOUNDING_ENTRY]; };
 export function audit(by: string, action: string, target: string | undefined, detail: string) {
   const e: AuditEntry = { id: `a-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`, at: new Date().toISOString(), by, action, target, detail };

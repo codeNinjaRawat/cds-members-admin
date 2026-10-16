@@ -82,7 +82,7 @@ test('masjid role: the filter is locked to their masjid on every screen; zone ro
 test('every admin except an Owner has a home ZIP → masjid; the warning names who is missing one', async ({ page }) => {
   await page.goto('/settings/admins');
   await expect(page.locator('.acc-warns')).not.toContainText('No home ZIP');
-  await expect(page.locator('tr[data-admin="akhter"] .acc-home')).toHaveText('Organization');
+  await expect(page.locator('tr[data-admin="owner"] .acc-home')).toHaveText('Organization');
   await expect(page.locator('tr[data-admin="treasurer"] .acc-home')).toContainText('Southwest Islamic Center 1');
   await expect(page.locator('tr[data-admin="treasurer"] .acc-home')).toContainText('ZIP 77036');
   await expect(page.locator('tr[data-admin="ar-se1"] .acc-home')).toContainText('ZIP 77502');            // an area role: its ZIP is the home

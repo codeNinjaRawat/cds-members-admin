@@ -233,7 +233,7 @@ export type Staff = z.infer<typeof StaffSchema>;
 
 /* ---------------- defaults (demo) ---------------- */
 export const defaultTeam: { staff: Staff[] } = { staff: [
-  { id: 'akhter', name: 'Akhter Alam', email: 'akhter@nextgrow.pro', role: 'owner', twoFactor: true, active: true },
+  { id: 'owner', name: 'Mohammad (demo)', email: 'owner@example.org', role: 'owner', twoFactor: true, active: true },
   { id: 'support-desk', name: 'Support desk', email: 'support@nextgrow.pro', role: 'support', twoFactor: true, active: true },
   { id: 'accounts', name: 'Accounts', email: 'billing@nextgrow.pro', role: 'billing', twoFactor: false, active: true },
 ] };
@@ -275,7 +275,7 @@ export function demoTenants(): Tenant[] {
   const list: Tenant[] = [
     { ...base, slug: 'isgh', clientNo: 1, name: 'Islamic Society of Greater Houston', shortName: 'ISGH', type: 'society', city: 'Houston', state: 'TX', address: '3110 Eastside St, Houston, TX 77098', phone: '(713) 524-6615', email: 'membership@isgh.org', color: '#0E5A45', status: 'active', planId: 'network', cycle: 'annual', createdOn: '2026-09-01', template: 'bylaws-society', sample: false,
       hosts: { web: 'member-web.nextgrow.pro', admin: 'member-admin.nextgrow.pro' }, usage: { members: 4812, centers: 22, sms: 3120 },
-      admins: [a('u-aa', 'Akhter Alam', 'akhter@isgh.org', 'owner', 'active', '2026-09-01', '2026-10-15'), a('u-sk', 'Sara Khan', 'sara.k@isgh.org', 'admin', 'active', '2026-09-03', '2026-10-14'), a('u-om', 'Omar Malik', 'omar.m@isgh.org', 'editor', 'invited', '2026-10-12')] },
+      admins: [a('u-aa', 'Mohammad (demo)', 'owner@isgh.org', 'owner', 'active', '2026-09-01', '2026-10-15'), a('u-sk', 'Sara Khan', 'sara.k@isgh.org', 'admin', 'active', '2026-09-03', '2026-10-14'), a('u-om', 'Omar Malik', 'omar.m@isgh.org', 'editor', 'invited', '2026-10-12')] },
     s({ slug: 'bayou-city', name: 'Bayou City Muslim Association', shortName: 'BCMA', type: 'association', city: 'Houston', state: 'TX', email: 'office@bayoucity.example', color: '#1F4FA3', status: 'active', planId: 'growth', cycle: 'monthly', createdOn: '2025-11-12', template: 'bylaws-society', usage: { members: 1210, centers: 4, sms: 640 },
       admins: [a('u-b1', 'Hamza Siddiqui', 'hamza@bayoucity.example', 'owner', 'active', '2025-11-12', '2026-10-13')] }),
     s({ slug: 'lakeside', name: 'Lakeside Islamic Center', shortName: 'LIC', type: 'masjid', city: 'Austin', state: 'TX', email: 'info@lakeside.example', color: '#1E9C94', status: 'trial', planId: 'starter', cycle: 'monthly', createdOn: '2026-09-24', trialEndsOn: '2026-10-24', template: 'simple-masjid', usage: { members: 140, centers: 1, sms: 0 },

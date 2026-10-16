@@ -686,3 +686,31 @@
 .of-access.yes { background: color-mix(in srgb, #2f8a4a 16%, transparent); color: #2f8a4a; }
 .of-access.no { background: color-mix(in srgb, var(--ink-3) 14%, transparent); color: var(--ink-3); }
 .of-person.late .of-access.yes { background: color-mix(in srgb, #d64545 16%, transparent); color: #d64545; }
+
+/* ── Masjid home (same frame as the Overview) ── */
+.mh.cc .mh-hero { grid-template-columns: 1fr auto; margin-bottom: var(--gap, 1rem); }
+.mh-name { margin: .1rem 0; font-size: 1.6rem; font-family: var(--font-display, inherit); }
+.mh-prayer-link { align-self: center; margin-left: .3rem; font-size: .82rem; font-weight: 700; color: var(--ink-2); text-decoration: none; }
+.mh-prayer-link:hover { text-decoration: underline; }
+.mh-reps { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .3rem; }
+.mh-reps li { display: flex; justify-content: space-between; gap: .6rem; font-size: .82rem; padding: .35rem 0; border-top: 1px solid var(--line); }
+.mh-reps li:first-child { border-top: 0; }
+.mh-reps .zn-missing { font-style: normal; }
+.mh-queues { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.mh-queues a { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .45rem .7rem; border-radius: 12px; border: 1px solid var(--line); background: color-mix(in srgb, var(--field) 60%, transparent); color: var(--ink); text-decoration: none; font-size: .86rem; }
+.mh-queues a:hover { border-color: var(--line-strong); }
+.mh-queues b { min-width: 1.6em; text-align: right; }
+.mh.cc .mh-body .d-head { margin-bottom: .5rem; }
+.mh.cc .mh-body ul { gap: .35rem; }
+.mh.cc .mh-body li { padding: .4rem .6rem; }
+.mh.cc .mh-links { margin-top: .2rem; }
+.mh.cc .cc-row3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr); }
+.mh.cc .dash-att { margin: 0; }
+@media (max-width: 1000px) { .mh.cc .cc-row3 { grid-template-columns: 1fr; } }
+.mh.cc .cc-newest .cc-people li { grid-template-columns: 34px minmax(0, 1fr) auto auto auto; gap: .5rem .7rem; }
+.mh.cc .cc-newest .nmw { display: grid; min-width: 0; text-align: left; justify-items: start; }
+.mh.cc .cc-newest .nmw .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mh.cc .cc-newest .nmw .ago { font-size: .74rem; color: var(--ink-3); }
+.mh.cc .cc-newest .pl { font-size: .8rem; color: var(--ink-2); white-space: nowrap; }
+.mh.cc .cc-newest .amt { text-align: right; }
+@media (max-width: 720px) { .mh.cc .cc-newest .cc-people li { grid-template-columns: 34px minmax(0, 1fr) auto; } .mh.cc .cc-newest .pl { display: none; } }

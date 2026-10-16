@@ -19,7 +19,7 @@ const KEY = 'isgh-admin-campaigns';
 export const readCampaigns = (): Campaign[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
 const write = (l: Campaign[]) => { try { localStorage.setItem(KEY, JSON.stringify(l)); } catch { /* full */ } };
 export const fmtWhen = (s: string) => { const [d, t = '00:00'] = s.split('T'); const [y, m, dd] = d.split('-'); const [h, mi] = t.split(':').map(Number); return `${m}/${dd}/${y} ${((h + 11) % 12) + 1}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
-const blank = (p: Partial<Campaign> = {}): Campaign => ({ id: `msg-${Date.now().toString(36)}`, name: '', channel: 'email', topic: 'announcement', subject: '', body: 'Assalamu alaikum {Member.FirstName},\n\n', audience: { everyone: false, groupIds: [], excludeGroupIds: [] }, sendAt: null, status: 'draft', sentTo: 0, createdBy: 'Akhter Alam', updatedAt: '', ...p });
+const blank = (p: Partial<Campaign> = {}): Campaign => ({ id: `msg-${Date.now().toString(36)}`, name: '', channel: 'email', topic: 'announcement', subject: '', body: 'Assalamu alaikum {Member.FirstName},\n\n', audience: { everyone: false, groupIds: [], excludeGroupIds: [] }, sendAt: null, status: 'draft', sentTo: 0, createdBy: 'Mohammad (demo)', updatedAt: '', ...p });
 type Filter = 'all' | 'draft' | 'scheduled' | 'sent';
 const STATUS_TEXT: Record<Campaign['status'], string> = { draft: 'Draft', scheduled: 'Scheduled', sent: 'Sent', cancelled: 'Cancelled' };
 
@@ -230,7 +230,7 @@ function Composer({ c, setC, comm, people, groups, now, onClose, onSave }: {
         <button type="button" className="btn ghost" onClick={onClose}>Back</button>
         <span className="cmp-actions-gap" />
         <button type="button" className="btn" onClick={() => onSave({ ...named, status: 'draft' }, `Draft “${named.name}” saved.`)}>Save draft</button>
-        <button type="button" className="btn" disabled={issues.length > 0} onClick={() => setTested(`Demo: a test ${c.channel === 'email' ? 'email' : 'text'} would go to you (Akhter Alam) with sample details.`)}>Send me a test</button>
+        <button type="button" className="btn" disabled={issues.length > 0} onClick={() => setTested(`Demo: a test ${c.channel === 'email' ? 'email' : 'text'} would go to you (Mohammad (demo)) with sample details.`)}>Send me a test</button>
         <button type="button" className="btn primary" disabled={issues.length > 0} onClick={() => setConfirm(true)}>{when === 'later' ? 'Schedule' : 'Send now'}…</button>
       </div>
       {confirm && (

@@ -260,7 +260,7 @@ export const mockOfficials: Officials = {
     H({ id: 'ar-sw-1-d', kind: 'area-rep', center: 'Southwest Islamic Center 1', zips: [], atLarge: 'general', name: 'Nadia Farooq', ...t24 }),
     // North Islamic Center 1 – appointed Associate Director, one secretary missing
     H({ id: 'ad-n-1', kind: 'associate-director', center: 'North Islamic Center 1', name: 'Rashid Alvi', how: 'appointed', termStart: '2026-04-12', termEnd: T24.end, oathOn: '2026-04-19', orientationOn: '2026-04-15' }),
-    ...(['administrative', 'finance', 'education', 'membership'] as const).map((s, i) => H({ id: `sec-n-1-${s}`, kind: 'secretary', office: s, center: 'North Islamic Center 1', name: ['Junaid Akhtar', 'Hina Saeed', 'Mariam Chaudhry', 'Usman Ghani'][i], how: 'confirmed', termEnd: '', oathOn: '' })),
+    ...(['administrative', 'finance', 'education', 'membership'] as const).map((s, i) => H({ id: `sec-n-1-${s}`, kind: 'secretary', office: s, center: 'North Islamic Center 1', name: ['Junaid Siddiqui', 'Hina Saeed', 'Mariam Chaudhry', 'Usman Ghani'][i], how: 'confirmed', termEnd: '', oathOn: '' })),
     H({ id: 'ar-n-1-a', kind: 'area-rep', center: 'North Islamic Center 1', zips: ['77014'], name: 'Waleed Anwar' }),
     H({ id: 'ar-n-1-b', kind: 'area-rep', center: 'North Islamic Center 1', zips: ['77067', '77090'], name: 'Sadia Rehman' }),
     H({ id: 'ar-n-1-c', kind: 'area-rep', center: 'North Islamic Center 1', zips: [], atLarge: 'general', name: '', status: 'vacant', vacancy: { reason: 'moved-away', on: '2026-06-01' }, oathOn: '' }),
