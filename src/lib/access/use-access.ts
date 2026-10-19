@@ -1,12 +1,13 @@
 'use client';
 /**
  * The signed-in admin's role on every screen (A10). Demo: "Acting as" in the top bar picks the admin (cookie
- * `isgh-acting`, read by the store API too). Live: GET /admin/me returns the same { admin, role } from the session.
+ * `isgh-acting`, read by the store API too). Live: the API session (GET /auth/me) says who is signed in and in which role.
  * The screens hide what a role cannot do; the server refuses it anyway.
  */
 import { useEffect, useState } from 'react';
 import { AccessSchema, actingIn, assignmentsOf, can as canDo, inScope as inScopeOf, mockAccess, roleOf, zakatLevelOf, type AccessDoc, type AdminUser, type Permission } from './access';
 import { logAudit } from './audit';
+import { LIVE, SESSION_EVENT, be, currentSession, loadSession } from '@/lib/live/live';
 
 const COOKIE = 'isgh-acting';
 export const ACCESS_EVENT = 'isgh:access';
@@ -15,6 +16,7 @@ const DASH = 'isgh-dash';
 const readDash = () => (typeof document === 'undefined' ? 0 : Number(/(?:^|;\s*)isgh-dash=(\d+)/.exec(document.cookie)?.[1] ?? 0));
 /** M4: switch the dashboard (which of the person's roles they work in). 0 = main role. */
 export function setDashboard(index: number, label?: string) {
+  if (LIVE) { void be('POST', 'auth/dashboard', { index }).then(() => loadSession(true)).then(() => window.dispatchEvent(new Event(ACCESS_EVENT))); return; }   // the API re-checks the roles
   document.cookie = index ? `${DASH}=${index}; path=/; SameSite=Lax` : `${DASH}=; path=/; max-age=0; SameSite=Lax`;
   logAudit({ area: 'access', action: 'Switched dashboard', detail: label ?? String(index) });
   window.dispatchEvent(new Event(ACCESS_EVENT));
@@ -31,6 +33,7 @@ export function loadAccess(force = false): Promise<AccessDoc> {
 }
 /** Switch who the demo acts as (and tell every open screen). */
 export function setActing(id: string | null, name?: string) {
+  if (LIVE) return;   // live: you are who you signed in as
   document.cookie = id ? `${COOKIE}=${id}; path=/; SameSite=Lax` : `${COOKIE}=; path=/; max-age=0; SameSite=Lax`;
   document.cookie = `${DASH}=; path=/; max-age=0; SameSite=Lax`; // a new person starts in their main role
   logAudit({ area: 'access', action: 'Acting as', detail: name ?? id ?? 'Owner' });
@@ -43,13 +46,17 @@ export function useAccess() {
   const [acting, setActingId] = useState<string | null>(null);
   const [dash, setDash] = useState(0);
   useEffect(() => {
-    const read = () => { setActingId(readActing()); setDash(readDash()); setDoc(cache); };
-    read(); void loadAccess().then(read);
-    window.addEventListener(ACCESS_EVENT, read);
-    return () => window.removeEventListener(ACCESS_EVENT, read);
+    const read = () => {
+      if (LIVE) { const s = currentSession(); setActingId(s?.actingAs.admin ?? null); setDash(Math.max(0, s?.current ?? 0)); setDoc(s ? cache : null); return; }
+      setActingId(readActing()); setDash(readDash()); setDoc(cache);
+    };
+    read(); void (LIVE ? loadSession().then(() => loadAccess()) : loadAccess()).then(read);
+    window.addEventListener(ACCESS_EVENT, read); window.addEventListener(SESSION_EVENT, read);
+    return () => { window.removeEventListener(ACCESS_EVENT, read); window.removeEventListener(SESSION_EVENT, read); };
   }, []);
   const d = doc ?? mockAccess;
-  const person: AdminUser | null = (acting && d.admins.find((a) => a.id === acting)) || d.admins.find((a) => a.roleId === 'owner' && a.status === 'active') || null;
+  // live: only the signed-in admin (never a fallback owner) · demo: the picked admin, else the first owner
+  const person: AdminUser | null = LIVE ? (acting ? d.admins.find((a) => a.id === acting) ?? null : null) : (acting && d.admins.find((a) => a.id === acting)) || d.admins.find((a) => a.roleId === 'owner' && a.status === 'active') || null;
   const dashIndex = person && dash < assignmentsOf(person).length ? dash : 0;
   const me: AdminUser | null = person ? actingIn(person, dashIndex) : null;
   const ready = !!doc;

@@ -1,5 +1,7 @@
 # Instructions for AI assistants
 
+OWNER STORY: Masajid Solutions (masajidsolutions.com) owns this product – one SaaS for all masjids; ISGH is one client. Build for every tenant, never ISGH-only (../memory/00-COMPANY-AND-SAAS.md).
+
 Before working in `admin`, read `memory/README.md` here and `../memory/README.md`
 at the project root. Keep both updated and log changes in the changelogs.
 

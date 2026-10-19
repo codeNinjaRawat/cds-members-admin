@@ -37,7 +37,7 @@ export const HolderSchema = z.object({
   zips: z.array(z.string().regex(/^\d{5}$/, 'ZIP codes have 5 digits.')).max(20), // area rep: the ZIP (or grouped ZIPs) they represent
   atLarge: z.enum(['', 'general', 'youth', 'female']),
   name: z.string().trim().max(80),
-  memberId: z.union([z.literal(''), z.string().regex(/^HOU-\d{6}$/, 'Member IDs look like HOU-204781.')]),
+  memberId: z.union([z.literal(''), z.string().regex(/^[A-Z]{2,5}-\d{4,8}$/, 'Member IDs look like ABC-204781.')]),
   publicEmail: z.union([z.literal(''), z.string().email('Check the email address.')]),   // office email shown on the website
   how: z.enum(['elected', 'appointed', 'confirmed', 'acting']),
   termStart: ISO_OR_EMPTY,
@@ -49,11 +49,41 @@ export const HolderSchema = z.object({
   boardTerms: z.number().int().min(0).max(20),  // full Board terms served before this one (term limits)
   showOnWebsite: z.boolean(),
 });
+/**
+ * E1 – one past (or current) term of one position: the history of who held what, year by year. Uploaded from a
+ * spreadsheet or added by hand. `title` keeps the position exactly as the organization writes it, so an organization
+ * with other offices than ISGH's (kind 'other') keeps its history too.
+ */
+export const END_REASONS = { completed: 'Completed the term', ...VACANCY_REASONS } as const;
+export const TermSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]{2,60}$/),
+  year: z.number().int().min(1900).max(2200),  // election year – the year the term was decided
+  kind: z.enum([...(Object.keys(KINDS) as [Kind, ...Kind[]]), 'other']),
+  office: z.string().max(40),
+  zone: z.string().max(40),
+  center: z.string().max(80),
+  zips: z.array(z.string().regex(/^\d{5}$/)).max(20),
+  atLarge: z.enum(['', 'general', 'youth', 'female']),
+  title: z.string().trim().max(80),            // the position as written (shown for 'other'; kept for every row)
+  name: z.string().trim().min(2, 'Enter the name.').max(80),
+  memberId: z.union([z.literal(''), z.string().regex(/^[A-Z]{2,5}-\d{4,8}$/, 'Member IDs look like ABC-204781.')]),
+  how: z.enum(['elected', 'appointed', 'confirmed', 'acting']),
+  termStart: ISO_OR_EMPTY,
+  termEnd: ISO_OR_EMPTY,
+  endReason: z.union([z.literal(''), z.enum(Object.keys(END_REASONS) as [keyof typeof END_REASONS, ...(keyof typeof END_REASONS)[]])]),
+  notes: z.string().max(240),
+  source: z.enum(['upload', 'manual', 'archived']),
+  showOnWebsite: z.boolean(),
+});
+export type Term = z.infer<typeof TermSchema>;
+
 export const OfficialsSchema = z.object({
   holders: z.array(HolderSchema).max(1500),
+  history: z.array(TermSchema).max(5000).default([]),   // E1 – past terms, per year and position
   eidDates: z.array(ISO).max(60),               // first day of each Eid (oath and election dates skip the 3 Eid days)
-  website: z.object({ enabled: z.boolean(), showEmail: z.boolean(), findByZip: z.boolean() }),
+  website: z.object({ enabled: z.boolean(), showEmail: z.boolean(), findByZip: z.boolean(), pastLeadership: z.boolean().default(false) }),
 }).superRefine((d, ctx) => {
+  d.history.forEach((t, i) => { if (t.termStart && t.termEnd && t.termEnd <= t.termStart) ctx.addIssue({ code: 'custom', path: ['history', i, 'termEnd'], message: 'The term must end after it starts.' }); });
   const ids = new Set<string>();
   const elected = new Map<string, number>();
   d.holders.forEach((h, i) => {
@@ -80,7 +110,7 @@ export type Officials = z.infer<typeof OfficialsSchema>;
 
 /* ---------------- dates ---------------- */
 const D = (iso: string) => new Date(`${iso}T12:00:00Z`);
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+const iso = (d: Date) => (Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10));   // empty date on file: '' instead of a crash
 export const addDays = (s: string, n: number) => iso(new Date(D(s).getTime() + n * 86_400_000));
 export const fmt = (s: string) => (s ? `${s.slice(5, 7)}/${s.slice(8, 10)}/${s.slice(0, 4)}` : '');
 const sundayOnOrAfter = (s: string) => { const d = D(s); return addDays(s, (7 - d.getUTCDay()) % 7); };
@@ -230,6 +260,158 @@ export function findMyRepresentatives(list: PublicOfficial[], zoneOfZip: (zip: s
   };
 }
 
+/* ---------------- E1 term history: upload, grouping, export ---------------- */
+export const HISTORY_COLUMNS = [
+  { key: 'year', label: 'Year', required: true, aliases: ['year', 'electionyear', 'term', 'termyear'] },
+  { key: 'position', label: 'Position', required: true, aliases: ['position', 'office', 'seat', 'title', 'role', 'post'] },
+  { key: 'name', label: 'Name', required: true, aliases: ['name', 'fullname', 'holder', 'member', 'person', 'electedmember'] },
+  { key: 'zone', label: 'Zone', required: false, aliases: ['zone', 'zonename', 'region'] },
+  { key: 'center', label: 'Islamic Center', required: false, aliases: ['center', 'islamiccenter', 'masjid', 'centre', 'mosque', 'location'] },
+  { key: 'zips', label: 'ZIP codes', required: false, aliases: ['zips', 'zip', 'zipcodes', 'zipcode', 'area'] },
+  { key: 'memberId', label: 'Member ID', required: false, aliases: ['memberid', 'id', 'membernumber', 'memberno'] },
+  { key: 'how', label: 'How', required: false, aliases: ['how', 'elected', 'electedappointed', 'method', 'by'] },
+  { key: 'termStart', label: 'Term starts', required: false, aliases: ['termstarts', 'termstart', 'start', 'startdate', 'from', 'oath', 'oathdate'] },
+  { key: 'termEnd', label: 'Term ends', required: false, aliases: ['termends', 'termend', 'end', 'enddate', 'to', 'until'] },
+  { key: 'endReason', label: 'End reason', required: false, aliases: ['endreason', 'reason', 'left', 'whyended', 'outcome'] },
+  { key: 'notes', label: 'Notes', required: false, aliases: ['notes', 'note', 'comment', 'comments', 'remarks'] },
+] as const;
+export type HistoryKey = (typeof HISTORY_COLUMNS)[number]['key'];
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** A date typed as 10/05/2024, 2024-10-05 or 5 Oct 2024 → ISO, '' when empty, null when it cannot be read. */
+export function readDate(v: string): string | null {
+  const s = v.trim(); if (!s) return '';
+  const ok = (y: string, mo: string, d: string) => (Number(mo) >= 1 && Number(mo) <= 12 && Number(d) >= 1 && Number(d) <= 31 ? `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}` : null);
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if (m) return ok(m[1], m[2], m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (m) return ok(m[3], m[1], m[2]);
+  const d = new Date(s); if (!Number.isNaN(d.getTime()) && /\d{4}/.test(s)) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return null;
+}
+
+/** The seat a position title describes. Titles the organization uses that ISGH's Bylaws do not know become 'other'. */
+export function matchPosition(title: string, zoneName: string, centerName: string, map: { zones: { id: string; name: string }[]; centers: { name: string; aka?: string; zone: string }[] }): Pick<Term, 'kind' | 'office' | 'zone' | 'center' | 'atLarge'> & { problem?: string } {
+  const t = norm(title);
+  const zoneBy = (s: string) => map.zones.find((z) => norm(z.name) === norm(s) || norm(z.name).replace('zone', '') === norm(s).replace('zone', ''))?.id ?? '';
+  const centerBy = (s: string) => map.centers.find((c) => norm(c.name) === norm(s) || (c.aka && norm(c.aka) === norm(s)))?.name ?? '';
+  const zone = zoneBy(zoneName); const center = centerBy(centerName);
+  const inTitle = (keys: string[]) => keys.some((k) => t.includes(k));
+  const officer = (Object.entries(OFFICERS) as [keyof typeof OFFICERS, string][]).find(([, v]) => t === norm(v) || t === `isgh${norm(v)}`);
+  if (officer) return { kind: 'officer', office: officer[0], zone: '', center: '', atLarge: '' };
+  const sec = (Object.entries(SECRETARIES) as [keyof typeof SECRETARIES, string][]).find(([, v]) => t.includes(norm(v)));
+  if (sec) return center ? { kind: 'secretary', office: sec[0], zone: '', center, atLarge: '' } : { kind: 'secretary', office: sec[0], zone: '', center: '', atLarge: '', problem: 'Name the Islamic Center of this Secretary.' };
+  if (inTitle(['zonaldirector', 'zonedirector', 'directorzone']) || (t.includes('director') && !t.includes('associate'))) {
+    const z = zone || map.zones.find((x) => t.includes(norm(x.name).replace('zone', '')))?.id || '';
+    return z ? { kind: 'zonal-director', office: '', zone: z, center: '', atLarge: '' } : { kind: 'zonal-director', office: '', zone: '', center: '', atLarge: '', problem: 'Name the zone of this Zonal Director.' };
+  }
+  if (inTitle(['associatedirector'])) return center ? { kind: 'associate-director', office: '', zone: '', center, atLarge: '' } : { kind: 'associate-director', office: '', zone: '', center: '', atLarge: '', problem: 'Name the Islamic Center of this Associate Director.' };
+  if (inTitle(['arearep', 'representative', 'councilmember'])) {
+    const atLarge: Term['atLarge'] = t.includes('youth') ? 'youth' : t.includes('sister') || t.includes('female') ? 'female' : t.includes('atlarge') ? 'general' : '';
+    return center ? { kind: 'area-rep', office: '', zone: '', center, atLarge } : { kind: 'area-rep', office: '', zone: '', center: '', atLarge, problem: 'Name the Islamic Center of this Area Representative.' };
+  }
+  return { kind: 'other', office: '', zone, center, atLarge: '' };
+}
+
+export type HistoryRow = { line: number; status: 'ok' | 'error' | 'duplicate'; errors: string[]; record?: Term };
+export type HistoryPlan = { columns: { header: string; key: HistoryKey | '' }[]; missing: string[]; rows: HistoryRow[]; tooMany: boolean };
+/** Read a CSV of past terms (one row per year × position × person) and check every row; nothing is saved here. */
+export function planHistoryImport(text: string, ctx: { map: { zones: { id: string; name: string }[]; centers: { name: string; aka?: string; zone: string }[] }; existing: Term[]; memberIds?: Set<string>; termYears?: number }, parse: (t: string) => string[][]): HistoryPlan {
+  const all = parse(text);
+  const head = all[0] ?? [];
+  const columns = head.map((h) => ({ header: h, key: (HISTORY_COLUMNS.find((c) => (c.aliases as readonly string[]).includes(norm(h)))?.key ?? '') as HistoryKey | '' }));
+  const missing = HISTORY_COLUMNS.filter((c) => c.required && !columns.some((x) => x.key === c.key)).map((c) => c.label);
+  const body = all.slice(1); const tooMany = body.length > 2000;
+  const at = (r: string[], k: HistoryKey) => { const i = columns.findIndex((c) => c.key === k); return i >= 0 ? (r[i] ?? '').trim() : ''; };
+  const seats = new Map<string, number>(); const people = new Map<string, number>();
+  const seatKey = (t: Pick<Term, 'year' | 'kind' | 'office' | 'zone' | 'center' | 'title' | 'atLarge' | 'zips'>) => [t.year, t.kind, t.office, t.zone, t.center, t.kind === 'other' ? norm(t.title) : '', t.atLarge, t.zips.join('+')].join('|');
+  ctx.existing.forEach((t) => { seats.set(seatKey(t), 0); });
+  const rows: HistoryRow[] = body.slice(0, 2000).map((r, k) => {
+    const line = k + 2; const errors: string[] = [];
+    if (missing.length) return { line, status: 'error', errors: ['Missing columns.'] };
+    const title = at(r, 'position'); const name = at(r, 'name');
+    const yearRaw = at(r, 'year'); const yearMatch = yearRaw.match(/\d{4}/);
+    const termStart = readDate(at(r, 'termStart')); const termEnd = readDate(at(r, 'termEnd'));
+    if (termStart === null) errors.push('Term starts: use a date like 01/07/2024.');
+    if (termEnd === null) errors.push('Term ends: use a date like 01/04/2026.');
+    const year = yearMatch ? Number(yearMatch[0]) : termStart ? Number(termStart.slice(0, 4)) - 1 : NaN;
+    if (!Number.isInteger(year) || year < 1900 || year > 2200) errors.push('Year: enter the election year, like 2024.');
+    if (!title) errors.push('Position is empty.');
+    if (name.length < 2) errors.push('Name is empty.');
+    const pos = matchPosition(title, at(r, 'zone'), at(r, 'center'), ctx.map);
+    const centerRaw = at(r, 'center'); const zoneRaw = at(r, 'zone');
+    if (centerRaw && !pos.center && pos.kind !== 'other') errors.push(`Islamic Center “${centerRaw}” is not in Masjids and zones.`);
+    else if (zoneRaw && pos.kind === 'zonal-director' && !pos.zone) errors.push(`Zone “${zoneRaw}” is not in Masjids and zones.`);
+    else if (pos.problem) errors.push(pos.problem);
+    const zips = at(r, 'zips').split(/[\s,;]+/).filter(Boolean); if (zips.some((z) => !/^\d{5}$/.test(z))) errors.push('ZIP codes have 5 digits.');
+    const howRaw = norm(at(r, 'how')); const how: Term['how'] = howRaw.startsWith('app') ? 'appointed' : howRaw.startsWith('act') ? 'acting' : howRaw.startsWith('con') ? 'confirmed' : 'elected';
+    const reasonRaw = norm(at(r, 'endReason')); const endReason = (Object.entries(END_REASONS).find(([k, v]) => reasonRaw && (norm(v) === reasonRaw || norm(k) === reasonRaw || norm(v).includes(reasonRaw)))?.[0] ?? (reasonRaw ? 'other' : '')) as Term['endReason'];
+    const memberId = at(r, 'memberId').toUpperCase(); if (memberId && !/^[A-Z]{2,5}-\d{4,8}$/.test(memberId)) errors.push('Member IDs look like ABC-204781.');
+    if (memberId && ctx.memberIds && !ctx.memberIds.has(memberId)) errors.push(`Member ${memberId} is not in the member records.`);
+    if (termStart && termEnd && termEnd <= termStart) errors.push('The term must end after it starts.');
+    if (errors.length) return { line, status: 'error', errors };
+    const yrs = ctx.termYears ?? 2;
+    const record: Term = {
+      id: `t-${year}-${norm(title).slice(0, 12) || 'x'}-${norm(name).slice(0, 10)}-${line}`, year, kind: pos.kind, office: pos.office, zone: pos.zone, center: pos.center, zips: zips.slice(0, 20), atLarge: pos.atLarge,
+      title, name, memberId, how, termStart: termStart || (pos.kind === 'secretary' ? '' : oathDay(year)), termEnd: termEnd || (pos.kind === 'secretary' ? '' : oathDay(year + yrs)), endReason, notes: at(r, 'notes').slice(0, 240), source: 'upload', showOnWebsite: true,
+    };
+    // the same seat twice in one year (from the file or already saved), one person in two elected offices the same year
+    const sk = seatKey(record); const pk = `${year}|${memberId || norm(name)}`;
+    const dup: string[] = [];
+    if (seats.has(sk) && !(pos.kind === 'area-rep' && !pos.atLarge)) dup.push(`${seatLabelOfTerm(record)} already has a holder for ${year}${seats.get(sk) ? ` (row ${seats.get(sk)})` : ''}.`);
+    if (record.kind !== 'secretary' && record.kind !== 'other' && people.has(pk)) dup.push(`${name} already holds an elected office in ${year} (row ${people.get(pk)}).`);
+    if (!seats.has(sk)) seats.set(sk, line);
+    if (record.kind !== 'secretary' && record.kind !== 'other' && !people.has(pk)) people.set(pk, line);
+    return dup.length ? { line, status: 'duplicate', errors: dup, record } : { line, status: 'ok', errors: [], record };
+  });
+  return { columns, missing, rows, tooMany };
+}
+export function seatLabelOfTerm(t: Pick<Term, 'kind' | 'office' | 'zone' | 'center' | 'zips' | 'atLarge' | 'title'>, zoneName: (id: string) => string = (z) => z): string {
+  return t.kind === 'other' ? [t.title, t.center || (t.zone ? zoneName(t.zone) : '')].filter(Boolean).join(', ') : seatLabel({ ...t, kind: t.kind }, zoneName);
+}
+/** "2024 – 2026" from the election year and the term dates. */
+export const termLabel = (t: Pick<Term, 'year' | 'termStart' | 'termEnd'>) => (t.termEnd ? `${t.termStart ? t.termStart.slice(0, 4) : t.year + 1} – ${t.termEnd.slice(0, 4)}` : String(t.year));
+/** Terms grouped by election year, newest first; positions in Bylaws order inside each year. */
+export function historyByYear(history: Term[]): { year: number; terms: Term[] }[] {
+  const order: Record<string, number> = { officer: 0, 'zonal-director': 1, 'associate-director': 2, secretary: 3, 'area-rep': 4, other: 5 };
+  const offs = Object.keys(OFFICERS);
+  const years = Array.from(new Set(history.map((t) => t.year))).sort((a, b) => b - a);
+  return years.map((year) => ({ year, terms: history.filter((t) => t.year === year).sort((a, b) => order[a.kind] - order[b.kind] || offs.indexOf(a.office) - offs.indexOf(b.office) || a.center.localeCompare(b.center) || a.title.localeCompare(b.title) || a.name.localeCompare(b.name)) }));
+}
+/** The same seat through the years ("President: 2024 …, 2022 …"). Current holders are listed first as the open term. */
+export function historyByPosition(history: Term[], current: Holder[] = [], zoneName: (id: string) => string = (z) => z): { seat: string; kind: Term['kind']; terms: Term[] }[] {
+  const now: Term[] = current.filter((h) => h.status === 'serving' && h.name).map((h) => ({ id: `now-${h.id}`, year: h.termStart ? Number(h.termStart.slice(0, 4)) - 1 : 0, kind: h.kind, office: h.office, zone: h.zone, center: h.center, zips: h.zips, atLarge: h.atLarge, title: seatLabel(h, zoneName), name: h.name, memberId: h.memberId, how: h.how, termStart: h.termStart, termEnd: h.termEnd, endReason: '', notes: '', source: 'archived', showOnWebsite: h.showOnWebsite }));
+  const key = (t: Term) => (t.kind === 'area-rep' ? `Area Representatives, ${t.center}` : seatLabelOfTerm(t, zoneName));
+  const groups = new Map<string, { seat: string; kind: Term['kind']; terms: Term[] }>();
+  [...now, ...history].forEach((t) => { const k = key(t); if (!groups.has(k)) groups.set(k, { seat: k, kind: t.kind, terms: [] }); groups.get(k)!.terms.push(t); });
+  const order: Record<string, number> = { officer: 0, 'zonal-director': 1, 'associate-director': 2, secretary: 3, 'area-rep': 4, other: 5 };
+  const offs = Object.values(OFFICERS) as string[];
+  return Array.from(groups.values()).map((g) => ({ ...g, terms: g.terms.sort((a, b) => b.year - a.year || a.name.localeCompare(b.name)) })).sort((a, b) => order[a.kind] - order[b.kind] || (a.kind === 'officer' ? offs.indexOf(a.seat) - offs.indexOf(b.seat) : 0) || a.seat.localeCompare(b.seat));
+}
+/** Full Board terms a person already served, counted from the history (for term limits) – by member ID, else by name. */
+export function boardTermsServed(history: Term[], who: { memberId: string; name: string }, before = 9999): number {
+  return history.filter((t) => (t.kind === 'officer' || t.kind === 'zonal-director') && t.year < before && (who.memberId && t.memberId ? t.memberId === who.memberId : norm(t.name) === norm(who.name)) && t.endReason !== 'resigned' && t.endReason !== 'removed').length;
+}
+/** The history as rows for a CSV in the same layout as the upload template. */
+export function historyRows(history: Term[], zoneName: (id: string) => string = (z) => z): string[][] {
+  return history.map((t) => [String(t.year), t.kind === 'other' ? t.title : seatLabelOfTerm(t, zoneName).split(', ')[0], t.name, t.zone ? zoneName(t.zone) : '', t.center, t.zips.join(' '), t.memberId, HOW[t.how], fmt(t.termStart), fmt(t.termEnd), t.endReason ? END_REASONS[t.endReason] : '', t.notes]);
+}
+export const HISTORY_TEMPLATE_ROWS: string[][] = [
+  ['2022', 'President', 'Example Name A', '', '', '', '', 'Elected', '01/08/2023', '01/05/2025', 'Completed the term', ''],
+  ['2022', 'Zonal Director', 'Example Name B', 'North Zone', '', '', '', 'Elected', '01/08/2023', '01/05/2025', '', ''],
+  ['2022', 'Associate Director', 'Example Name C', '', 'North Islamic Center 1', '', '', 'Elected', '01/08/2023', '01/05/2025', '', ''],
+  ['2022', 'Area Representative', 'Example Name D', '', 'North Islamic Center 1', '77014', '', 'Elected', '', '', '', 'Dates filled in from the election year when empty'],
+];
+/** What the public website may show of past leadership (names and seats only; Board and center heads, not Area Reps). */
+export function publicPastLeadership(d: Officials, zoneName: (id: string) => string = (z) => z): { year: number; terms: { seat: string; name: string; term: string }[] }[] {
+  if (!d.website.enabled || !d.website.pastLeadership) return [];
+  return historyByYear(d.history.filter((t) => t.showOnWebsite && t.kind !== 'area-rep' && t.kind !== 'secretary')).map((g) => ({ year: g.year, terms: g.terms.map((t) => ({ seat: seatLabelOfTerm(t, zoneName), name: t.name, term: termLabel(t) })) }));
+}
+
+/** Member portal: every past term the organization shows (Area Representatives and Secretaries too – members may want to know who
+ *  represented them), still never member IDs or emails. Not tied to the website's "past leadership" switch. */
+export function memberPastLeadership(d: Officials, zoneName: (id: string) => string = (z) => z): { year: number; terms: { seat: string; name: string; term: string; kind: string }[] }[] {
+  return historyByYear(d.history.filter((t) => t.showOnWebsite)).map((g) => ({ year: g.year, terms: g.terms.map((t) => ({ seat: seatLabelOfTerm(t, zoneName), name: t.name, term: termLabel(t), kind: t.kind })) }));
+}
+
 /* ---------------- demo data (fictional people; member IDs match demo records only by shape) ---------------- */
 const T25 = termFor(2025); // Jan 2026 – Jan 2028
 const T24 = termFor(2024); // Jan 2025 – Jan 2027
@@ -238,9 +420,32 @@ const H = (p: Partial<Holder> & Pick<Holder, 'id' | 'kind' | 'name'>): Holder =>
   oathOn: T25.start, orientationOn: '', status: 'serving', vacancy: { reason: '', on: '' }, boardTerms: 0, showOnWebsite: true, ...p,
 });
 const t24 = { termStart: T24.start, termEnd: T24.end, oathOn: T24.start };
+const PT = (year: number, p: Partial<Term> & Pick<Term, 'kind' | 'name'>): Term => ({
+  id: `h-${year}-${p.kind}-${(p.office || p.zone || p.center || p.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12)}-${p.name.toLowerCase().replace(/[^a-z]/g, '').slice(0, 8)}`,
+  year, office: '', zone: '', center: '', zips: [], atLarge: '', title: '', memberId: '', how: 'elected', termStart: oathDay(year), termEnd: oathDay(year + 2), endReason: 'completed', notes: '', source: 'archived', showOnWebsite: true, ...p,
+});
+/** E1 demo history – two earlier election cycles (fictional names). */
+export const mockHistory: Term[] = [
+  PT(2022, { kind: 'officer', office: 'president', title: 'President', name: 'Yusuf Karim' }),
+  PT(2022, { kind: 'officer', office: 'general-secretary', title: 'General Secretary', name: 'Nasir Baig' }),
+  PT(2022, { kind: 'zonal-director', zone: 'n', title: 'Zonal Director', name: 'Rizwan Qureshi' }),
+  PT(2022, { kind: 'zonal-director', zone: 'sw', title: 'Zonal Director', name: 'Saira Hashmi' }),
+  PT(2022, { kind: 'associate-director', center: 'Northwest Islamic Center 1', title: 'Associate Director', name: 'Danish Iqbal', how: 'elected', termEnd: '2024-06-30', endReason: 'moved-away', notes: 'Seat filled by appointment for the rest of 2024.' }),
+  PT(2022, { kind: 'associate-director', center: 'Northwest Islamic Center 1', title: 'Associate Director', name: 'Farhan Zaidi', how: 'appointed', termStart: '2024-07-07', termEnd: oathDay(2024) }),
+  PT(2021, { kind: 'officer', office: 'vice-president', title: 'Vice President', name: 'Salman Qadir' }),
+  PT(2021, { kind: 'officer', office: 'treasurer', title: 'Treasurer', name: 'Lubna Akram' }),
+  PT(2021, { kind: 'zonal-director', zone: 'se', title: 'Zonal Director', name: 'Haroon Pasha' }),
+  PT(2021, { kind: 'associate-director', center: 'Southwest Islamic Center 1', title: 'Associate Director', name: 'Imran Malik' }),
+  PT(2020, { kind: 'officer', office: 'president', title: 'President', name: 'Nasir Baig' }),
+  PT(2020, { kind: 'officer', office: 'general-secretary', title: 'General Secretary', name: 'Yusuf Karim' }),
+  PT(2020, { kind: 'zonal-director', zone: 'n', title: 'Zonal Director', name: 'Rizwan Qureshi' }),
+  PT(2020, { kind: 'area-rep', center: 'Southwest Islamic Center 1', zips: ['77036'], title: 'Area Representative', name: 'Kamran Butt' }),
+  PT(2020, { kind: 'other', title: 'Election Commissioner', name: 'Shireen Dawood', how: 'appointed', termStart: '2020-09-01', termEnd: '2021-01-31' }),
+];
 export const mockOfficials: Officials = {
   eidDates: ['2026-03-20', '2026-05-27', '2027-03-10', '2027-05-16', '2028-02-27', '2028-05-05'],
-  website: { enabled: true, showEmail: true, findByZip: true },
+  website: { enabled: true, showEmail: true, findByZip: true, pastLeadership: true },
+  history: mockHistory,
   holders: [
     H({ id: 'president', kind: 'officer', office: 'president', name: 'Yusuf Karim', publicEmail: 'president@isgh.org', ...t24, boardTerms: 1 }),
     H({ id: 'vice-president', kind: 'officer', office: 'vice-president', name: 'Salman Qadir', publicEmail: 'vp@isgh.org' }),

@@ -4,10 +4,16 @@
  * BE: GET /admin/platform/me (from the signed-in admin's organization).
  */
 import { tenantForHost, readPlatformDoc, readSupport, today } from '@/lib/platform/platform-store';
+import { apiCall, apiConfig } from '@/lib/api/client';
 import { announcementsFor, effectiveModules, hostsFor, planOf, sessionActive, trialDaysLeft } from '@/lib/platform/platform';
 
 export const dynamic = 'force-dynamic';
-export function GET(req: Request) {
+export async function GET(req: Request) {
+  if (!apiConfig.useMock) {   // live: the API answers for the signed-in admin's organization
+    const r = await apiCall('GET', '/admin/platform/me').catch(() => null);
+    if (!r) return Response.json({ error: 'We could not reach the server.' }, { status: 503 });
+    return Response.json(r.body, { status: r.status, headers: { 'Cache-Control': 'no-store' } });
+  }
   const host = req.headers.get('host');
   const { tenant: t } = tenantForHost(host);
   if (!t) return Response.json({ error: 'This address does not belong to an organization.' }, { status: 404 });

@@ -110,7 +110,7 @@ export const DomainSchema = z.object({
 export type Domain = z.infer<typeof DomainSchema>;
 
 export const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
-export const RESERVED_SLUGS = ['www', 'admin', 'api', 'app', 'saas', 'platform', 'mail', 'help', 'support', 'status', 'member-web', 'member-admin', 'docs', 'blog', 'static', 'cdn', 'assets', 'billing', 'login', 'auth', 'nextgrow', 'localhost'];
+export const RESERVED_SLUGS = ['www', 'admin', 'api', 'app', 'saas', 'platform', 'mail', 'help', 'support', 'status', 'member-web', 'member-admin', 'docs', 'blog', 'static', 'cdn', 'assets', 'billing', 'login', 'auth', 'nextgrow', 'masajid', 'localhost'];
 
 export const TenantSchema = z.object({
   slug: z.string().regex(SLUG_RE),
@@ -205,7 +205,7 @@ export type AuditEntry = { id: string; at: string; by: string; action: string; t
 
 export const PlatformSettingsSchema = z.object({
   productName: z.string().min(2).max(40),
-  baseDomain: z.string().regex(/^([a-z0-9-]+\.)+[a-z]{2,}$/, 'Like nextgrow.pro'),
+  baseDomain: z.string().regex(/^([a-z0-9-]+\.)+[a-z]{2,}$/, 'Like masajidsolutions.com'),
   supportEmail: z.string().email(),
   supportHours: z.number().int().min(1).max(24),          // how long a support sign-in lasts
   defaultTemplate: z.enum(TEMPLATES),
@@ -234,11 +234,11 @@ export type Staff = z.infer<typeof StaffSchema>;
 /* ---------------- defaults (demo) ---------------- */
 export const defaultTeam: { staff: Staff[] } = { staff: [
   { id: 'owner', name: 'Mohammad (demo)', email: 'owner@example.org', role: 'owner', twoFactor: true, active: true },
-  { id: 'support-desk', name: 'Support desk', email: 'support@nextgrow.pro', role: 'support', twoFactor: true, active: true },
-  { id: 'accounts', name: 'Accounts', email: 'billing@nextgrow.pro', role: 'billing', twoFactor: false, active: true },
+  { id: 'support-desk', name: 'Support desk', email: 'support@masajidsolutions.com', role: 'support', twoFactor: true, active: true },
+  { id: 'accounts', name: 'Accounts', email: 'billing@masajidsolutions.com', role: 'billing', twoFactor: false, active: true },
 ] };
 export const defaultSettings: PlatformSettings = {
-  productName: 'NextGrow Members', baseDomain: 'nextgrow.pro', supportEmail: 'support@nextgrow.pro', supportHours: 2, defaultTemplate: 'bylaws-society', requireReason: true,
+  productName: 'Masajid Solutions', baseDomain: 'masajidsolutions.com', supportEmail: 'support@masajidsolutions.com', supportHours: 2, defaultTemplate: 'bylaws-society', requireReason: true,
 };
 
 export const defaultPlans: PlansDoc = {
@@ -274,7 +274,7 @@ export function demoTenants(): Tenant[] {
   const s = (t: Omit<Tenant, 'timezone' | 'modules' | 'address' | 'phone' | 'sample'> & Partial<Tenant>): Tenant => ({ ...base, sample: true, ...t } as Tenant);
   const list: Tenant[] = [
     { ...base, slug: 'isgh', clientNo: 1, name: 'Islamic Society of Greater Houston', shortName: 'ISGH', type: 'society', city: 'Houston', state: 'TX', address: '3110 Eastside St, Houston, TX 77098', phone: '(713) 524-6615', email: 'membership@isgh.org', color: '#0E5A45', status: 'active', planId: 'network', cycle: 'annual', createdOn: '2026-09-01', template: 'bylaws-society', sample: false,
-      hosts: { web: 'member-web.nextgrow.pro', admin: 'member-admin.nextgrow.pro' }, usage: { members: 4812, centers: 22, sms: 3120 },
+      hosts: { web: 'member-web.masajidsolutions.com', admin: 'member-admin.masajidsolutions.com' }, usage: { members: 4812, centers: 22, sms: 3120 },
       admins: [a('u-aa', 'Mohammad (demo)', 'owner@isgh.org', 'owner', 'active', '2026-09-01', '2026-10-15'), a('u-sk', 'Sara Khan', 'sara.k@isgh.org', 'admin', 'active', '2026-09-03', '2026-10-14'), a('u-om', 'Omar Malik', 'omar.m@isgh.org', 'editor', 'invited', '2026-10-12')] },
     s({ slug: 'bayou-city', name: 'Bayou City Muslim Association', shortName: 'BCMA', type: 'association', city: 'Houston', state: 'TX', email: 'office@bayoucity.example', color: '#1F4FA3', status: 'active', planId: 'growth', cycle: 'monthly', createdOn: '2025-11-12', template: 'bylaws-society', usage: { members: 1210, centers: 4, sms: 640 },
       admins: [a('u-b1', 'Hamza Siddiqui', 'hamza@bayoucity.example', 'owner', 'active', '2025-11-12', '2026-10-13')] }),
@@ -401,7 +401,7 @@ export function hostsFor(t: Pick<Tenant, 'slug' | 'hosts' | 'customDomain'>, s: 
 }
 /**
  * Which org (and which app) an address belongs to. Uses the Host header only (set by our proxy, see DEPLOY.md).
- *   isgh.nextgrow.pro → isgh web · isgh-admin.nextgrow.pro → isgh admin · members.example.org → its org (verified only)
+ *   isgh.masajidsolutions.com → isgh web · isgh-admin.masajidsolutions.com → isgh admin · members.example.org → its org (verified only)
  *   On your PC: clear-lake.localhost:3000 → web, clear-lake.localhost:3001 → admin (any port; app comes from the caller).
  *   Plain localhost / 127.0.0.1 → null (the app then uses ISGH_TENANT, default "isgh").
  */
@@ -439,7 +439,7 @@ export function siblingOrigin(origin: string, to: 'web' | 'admin'): string | nul
 /** DNS records the org adds for its own domain. */
 export const dnsRecordsFor = (d: Domain, s: Pick<PlatformSettings, 'baseDomain'>) => [
   { type: 'CNAME', name: d.host, value: `orgs.${s.baseDomain}`, why: 'Points the address at the platform.' },
-  { type: 'TXT', name: `_nextgrow.${d.host}`, value: d.token, why: 'Proves the organization owns the domain.' },
+  { type: 'TXT', name: `_masajid.${d.host}`, value: d.token, why: 'Proves the organization owns the domain.' },
 ];
 
 /* ---------------- announcements, support ---------------- */

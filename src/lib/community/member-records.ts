@@ -152,15 +152,42 @@ export function parseCsv(text: string): string[][] {
 /* ---------- import ---------- */
 export const IMPORT_COLUMNS = [
   { key: 'first', label: 'First name', required: true, aliases: ['first', 'firstname', 'givenname'] },
+  { key: 'middle', label: 'Middle name', required: false, aliases: ['middle', 'middlename', 'middleinitial'] },
   { key: 'last', label: 'Last name', required: true, aliases: ['last', 'lastname', 'surname', 'familyname'] },
-  { key: 'email', label: 'Email', required: true, aliases: ['email', 'emailaddress', 'mail'] },
-  { key: 'phone', label: 'Phone', required: false, aliases: ['phone', 'mobile', 'cell', 'phonenumber', 'mobilephone'] },
+  { key: 'email', label: 'Email', required: true, aliases: ['email', 'emailaddress', 'mail', 'primaryemail'] },
+  { key: 'phone', label: 'Phone', required: false, aliases: ['phone', 'mobile', 'cell', 'phonenumber', 'mobilephone', 'cellphone'] },
   { key: 'dob', label: 'Date of birth', required: false, aliases: ['dob', 'dateofbirth', 'birthdate', 'birthday'] },
-  { key: 'street', label: 'Street', required: false, aliases: ['street', 'address', 'streetaddress', 'address1'] },
+  { key: 'street', label: 'Street', required: false, aliases: ['street', 'address', 'streetaddress', 'address1', 'addressline'] },
   { key: 'city', label: 'City', required: false, aliases: ['city'] },
   { key: 'zip', label: 'ZIP', required: false, aliases: ['zip', 'zipcode', 'postalcode', 'postcode'] },
-  { key: 'plan', label: 'Plan', required: false, aliases: ['plan', 'level', 'membershiplevel', 'membershipplan'] },
+  { key: 'plan', label: 'Plan', required: false, aliases: ['plan', 'level', 'membershiplevel', 'membershipplan', 'membershiptype'] },
+  // M1 – what other systems export (Wild Apricot names in the aliases)
+  { key: 'externalId', label: 'ID in the old system', required: false, aliases: ['userid', 'memberid', 'contactid', 'id', 'membernumber', 'externalid'] },
+  { key: 'status', label: 'Membership status', required: false, aliases: ['status', 'membershipstatus', 'memberstatus'] },
+  { key: 'memberSince', label: 'Member since', required: false, aliases: ['membersince', 'joined', 'joindate', 'createdon', 'datejoined', 'startdate'] },
+  { key: 'renewalDue', label: 'Renewal due', required: false, aliases: ['renewaldue', 'renewaldate', 'renewaldudate', 'expires', 'expiry', 'expirationdate', 'paidthrough'] },
+  { key: 'recurring', label: 'Recurring payment', required: false, aliases: ['recurring', 'recurringpayment', 'autorenew', 'automaticrenewal', 'checkomatic'] },
+  { key: 'smsConsent', label: 'Text/SMS consent', required: false, aliases: ['smsconsent', 'textsmsconsent', 'textconsent', 'sms', 'textmessages'] },
+  { key: 'emailOptIn', label: 'Subscribed to emails', required: false, aliases: ['subscribedtoemails', 'emailoptin', 'emailsubscription', 'subscribed', 'optedin', 'memberemailsandnewsletters'] },
+  { key: 'archived', label: 'Archived', required: false, aliases: ['archived', 'isarchived'] },
+  { key: 'notes', label: 'Notes', required: false, aliases: ['notes', 'note', 'comments', 'remarks', 'followup'] },
 ] as const;
+/** Ready-made column matches for common sources; "generic" relies on the header names alone. */
+export const IMPORT_PRESETS: { id: string; name: string; blurb: string; map: Record<string, ImportKey | 'ignore'> }[] = [
+  { id: 'generic', name: 'Any spreadsheet (match by heading)', blurb: 'Headings like First name, Last name, Email, Phone, ZIP, Plan are matched by name; anything else can be matched by hand.', map: {} },
+  { id: 'wildapricot', name: 'Wild Apricot contact export', blurb: 'Contacts › Export (CSV): User ID, First/Last name, Email, Phone, Membership level, Membership status, Member since, Renewal due, Text/SMS consent, Subscribed to emails, Archived.',
+    map: { userid: 'externalId', membershiplevel: 'plan', membershipstatus: 'status', membersince: 'memberSince', renewaldue: 'renewalDue', textsmsconsent: 'smsConsent', subscribedtoemails: 'emailOptIn', archived: 'archived', followup: 'notes', company: 'ignore', enteredby: 'ignore', paymentprocessed: 'ignore', timestamp: 'ignore', subscriptionsource: 'ignore', administrationaccess: 'ignore', eventannouncements: 'ignore', createdon: 'memberSince', memberemailsandnewsletters: 'emailOptIn', balance: 'ignore', membershipenabled: 'ignore', profilelastupdated: 'ignore', lastlogin: 'ignore' } },
+  { id: 'breeze', name: 'Breeze / Planning Center people export', blurb: 'First Name, Last Name, Email, Mobile Phone, Street Address, City, Zip, Status.', map: { mobilephone: 'phone', streetaddress: 'street', status: 'status' } },
+];
+/** What another system's status words mean here. Anything else is kept in the notes. */
+export const STATUS_WORDS: Record<string, 'active' | 'pending' | 'lapsed' | 'archived'> = {
+  active: 'active', current: 'active', member: 'active', good: 'active', goodstanding: 'active', paid: 'active', life: 'active', lifetime: 'active',
+  pendingnew: 'pending', pendingrenewal: 'active', pendingupgrade: 'active', pendinglevelchange: 'active', pending: 'pending', new: 'pending', applied: 'pending', applicant: 'pending',
+  lapsed: 'lapsed', expired: 'lapsed', overdue: 'lapsed', suspended: 'lapsed', inactive: 'lapsed', notrenewed: 'lapsed',
+  archived: 'archived', deleted: 'archived', former: 'archived', deceased: 'archived',
+};
+export const readStatusWord = (v: string) => STATUS_WORDS[v.toLowerCase().replace(/[^a-z]/g, '')] ?? null;
+export const readYesNo = (v: string) => { const t = v.trim().toLowerCase(); return t === '' ? null : ['yes', 'y', 'true', '1', 'x', 'on', 'checked', 'subscribed', 'opted in', 'optedin'].includes(t) ? true : ['no', 'n', 'false', '0', 'off', 'unsubscribed', 'opted out', 'optedout', 'unchecked'].includes(t) ? false : null; };
 export type ImportKey = (typeof IMPORT_COLUMNS)[number]['key'];
 export type ImportRecord = Record<ImportKey, string> & { values: FieldValues };
 export type ImportRow = { line: number; record: ImportRecord | null; errors: string[]; duplicates: DupMatch[]; status: 'ok' | 'duplicate' | 'error' };
@@ -180,23 +207,30 @@ export function toIsoDate(s: string): string {
  * field's label / ID. Rows with errors are never imported; possible duplicates (on file or earlier in the same file)
  * are held back for a person to decide.
  */
-export function planImport(text: string, opts: { fields: ProfileField[]; plans: { id: string; name: string }[]; existing: Person[]; today: string; maxRows?: number }) {
-  const table = parseCsv(text);
-  const maxRows = opts.maxRows ?? 2000;
-  if (!table.length) return { columns: [] as { header: string; key: string | null }[], rows: [] as ImportRow[], missing: IMPORT_COLUMNS.filter((c) => c.required).map((c) => c.label), tooMany: false };
-  const [head, ...body] = table;
-  const columns = head.map((h) => {
+/** How each heading will be read: the preset's match, else the heading name, else an extra profile field, else nothing. `mapping` (by heading) wins over all. */
+export function matchColumns(head: string[], opts: { fields: ProfileField[]; preset?: string; mapping?: Record<string, string | null> }) {
+  const preset = IMPORT_PRESETS.find((p) => p.id === (opts.preset ?? 'generic')) ?? IMPORT_PRESETS[0];
+  return head.map((h) => {
+    if (opts.mapping && h in opts.mapping) return { header: h, key: opts.mapping[h] };
     const k = headKey(h);
+    const pre = preset.map[k]; if (pre) return { header: h, key: pre === 'ignore' ? null : (pre as string) };
     const std = IMPORT_COLUMNS.find((c) => (c.aliases as readonly string[]).includes(k) || headKey(c.label) === k);
     if (std) return { header: h, key: std.key as string };
     const f = opts.fields.find((x) => headKey(x.label) === k || x.id === h.trim().toLowerCase());
     return { header: h, key: f && f.type !== 'file' ? `field:${f.id}` : null };
   });
+}
+export function planImport(text: string, opts: { fields: ProfileField[]; plans: { id: string; name: string }[]; existing: Person[]; today: string; maxRows?: number; preset?: string; mapping?: Record<string, string | null> }) {
+  const table = parseCsv(text);
+  const maxRows = opts.maxRows ?? 2000;
+  if (!table.length) return { columns: [] as { header: string; key: string | null }[], rows: [] as ImportRow[], missing: IMPORT_COLUMNS.filter((c) => c.required).map((c) => c.label), tooMany: false };
+  const [head, ...body] = table;
+  const columns = matchColumns(head, opts);
   const missing = IMPORT_COLUMNS.filter((c) => c.required && !columns.some((x) => x.key === c.key)).map((c) => c.label);
   const seen: Person[] = [];
   const rows: ImportRow[] = body.slice(0, maxRows).map((cells, i) => {
     const line = i + 2; const errors: string[] = [];
-    const rec = { first: '', last: '', email: '', phone: '', dob: '', street: '', city: '', zip: '', plan: '', values: {} } as ImportRecord;
+    const rec = { first: '', middle: '', last: '', email: '', phone: '', dob: '', street: '', city: '', zip: '', plan: '', externalId: '', status: '', memberSince: '', renewalDue: '', recurring: '', smsConsent: '', emailOptIn: '', archived: '', notes: '', values: {} } as ImportRecord;
     const raw: Record<string, unknown> = {};
     columns.forEach((c, j) => { const v = (cells[j] ?? '').trim(); if (!c.key) return; if (c.key.startsWith('field:')) raw[c.key.slice(6)] = v; else (rec as Record<string, unknown>)[c.key] = v; });
     if (cells.length > head.length && cells.slice(head.length).some((x) => x.trim())) errors.push('More cells than column headings – check for a stray comma.');
@@ -208,6 +242,11 @@ export function planImport(text: string, opts: { fields: ProfileField[]; plans: 
     if (rec.dob) { const iso = toIsoDate(rec.dob); if (!iso) errors.push(`“${rec.dob}” is not a date (use MM/DD/YYYY).`); else if (iso > opts.today) errors.push('Date of birth is in the future.'); else rec.dob = iso; }
     if (rec.zip && !/^\d{5}(-\d{4})?$/.test(rec.zip)) errors.push(`“${rec.zip}” is not a ZIP code.`);
     if (rec.plan) { const p = opts.plans.find((x) => x.id === rec.plan.toLowerCase() || x.name.toLowerCase() === rec.plan.toLowerCase()); if (!p) errors.push(`There is no plan called “${rec.plan}”.`); else rec.plan = p.id; }
+    // M1 – the other system's words become ours; a word we do not know is an error so nobody is silently made active
+    if (rec.status) { const st = readStatusWord(rec.status); if (!st) errors.push(`Status “${rec.status}” is not one we know (Active, Pending, Lapsed, Archived…).`); else rec.status = st; }
+    if (rec.memberSince) { const iso = toIsoDate(rec.memberSince); if (!iso) errors.push(`“${rec.memberSince}” (member since) is not a date.`); else rec.memberSince = iso; }
+    if (rec.renewalDue) { const iso = toIsoDate(rec.renewalDue); if (!iso) errors.push(`“${rec.renewalDue}” (renewal due) is not a date.`); else rec.renewalDue = iso; }
+    for (const k of ['recurring', 'smsConsent', 'emailOptIn', 'archived'] as const) { if (rec[k] && readYesNo(rec[k]) === null) errors.push(`“${rec[k]}” (${IMPORT_COLUMNS.find((c) => c.key === k)!.label}) should be Yes or No.`); else if (rec[k]) rec[k] = readYesNo(rec[k]) ? 'yes' : 'no'; }
     const chk = checkValues(opts.fields.filter((f) => f.id in raw), raw, 'admin');
     for (const [id, msg] of Object.entries(chk.errors)) errors.push(`${opts.fields.find((f) => f.id === id)?.label ?? id}: ${msg}`);
     rec.values = chk.values;

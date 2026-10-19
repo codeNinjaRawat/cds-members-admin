@@ -6,17 +6,18 @@
  * DEMO (no API). Live: GET/PUT /admin/org-structure.
  */
 import { useMemo, useState, type FormEvent } from 'react';
-import { DocEditor } from '@/components/editor/DocEditor';
-import { Panel, Tabs, countIssues } from '@/components/editor/bits';
+import { DocEditor, Modal } from '@/components/editor/DocEditor';
+import { Panel, SwitchRow, Tabs, countIssues } from '@/components/editor/bits';
 import {
-  CenterSchema, SERVICE_LABEL, centerForZip, centersIn, fmt, homeForZip, unservedZips, fmtTime, slugify, structureWarnings, unassignedZips, zoneForZip,
+  CenterSchema, SERVICE_LABEL, STRUCTURE_PRESETS, centerForZip, centersIn, fmt, homeForZip, unservedZips, fmtTime, slugify, structureWarnings, unassignedZips, zoneForZip,
   type Center, type OrgStructure, type Zone,
 } from '@/lib/community/org-structure';
 import { useMembers } from './MembersView';
-import { centerOf } from '@/lib/members/members';
+import { centerRulesInWords, DEFAULT_CENTER_RULES, type CenterRules } from '@/lib/community/org-structure';
+import { centerOf, ORG_TZ } from '@/lib/members/members';
 
 type Doc = { draft: OrgStructure; setDraft: (f: OrgStructure | ((d: OrgStructure) => OrgStructure)) => void; issues: Record<string, string> };
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const n = (v: number) => v.toLocaleString('en-US');
 
 export function ZonesView() {
@@ -43,11 +44,37 @@ function Body({ doc }: { doc: Doc }) {
           <ul>{warns.map((w, i) => <li key={i} data-zone={w.zone} data-center={w.center}>{w.text}</li>)}</ul>
         </details>
       )}
+      <Presets doc={doc} />
       <Tabs label="Zones and centers" tabs={[
         { id: 'zones', label: 'Zones', badge: countIssues(doc.issues, ['zones']), render: () => <ZonesTab doc={doc} byZone={byZone} /> },
         { id: 'centers', label: 'Islamic Centers', badge: countIssues(doc.issues, ['centers']), render: () => <CentersTab doc={doc} byCenter={byCenter} /> },
+        { id: 'rules', label: 'Rules', badge: countIssues(doc.issues, ['rules']), render: () => <RulesTab doc={doc} /> },
         { id: 'zips', label: 'ZIP codes and masjids', badge: (loose.length + doc.draft.zones.reduce((a, z) => a + unservedZips(doc.draft, z.id).length, 0)) || undefined, render: () => <ZipsTab doc={doc} loose={loose} byZip={byZip} /> },
       ]} />
+    </div>
+  );
+}
+
+/* ---------------- Z1/Z2 presets ---------------- */
+function Presets({ doc }: { doc: Doc }) {
+  const [id, setId] = useState(STRUCTURE_PRESETS[0].id);
+  const [ask, setAsk] = useState(false);
+  const p = STRUCTURE_PRESETS.find((x) => x.id === id)!;
+  return (
+    <div className="zn-presets glass-pane">
+      <div className="zn-preset-row">
+        <label className="sf-field zn-preset-pick"><span className="sf-label">Start from a preset</span><select className="in" aria-label="Map preset" value={id} onChange={(e) => setId(e.target.value)}>{STRUCTURE_PRESETS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+        <button type="button" className="btn" onClick={() => setAsk(true)}>Load into the draft</button>
+      </div>
+      <p className="muted small">{p.blurb} Loading replaces the zones, centers and ZIP codes in the draft; nothing is published until you press Publish.</p>
+      {ask && (
+        <Modal title={`Load “${p.name}”?`} onClose={() => setAsk(false)}>
+          <p>{p.blurb}</p>
+          <p>{p.doc.zones.length} zones, {p.doc.centers.length} centers. This replaces the {doc.draft.zones.length} zones and {doc.draft.centers.length} centers in the draft.</p>
+          {p.notes.length > 0 && <ul className="zn-preset-notes">{p.notes.map((t) => <li key={t}>{t}</li>)}</ul>}
+          <div className="modal-actions"><button type="button" className="btn" onClick={() => setAsk(false)}>Keep my map</button><button type="button" className="btn primary" onClick={() => { doc.setDraft(structuredClone(p.doc)); setAsk(false); }}>Load into the draft</button></div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -280,4 +307,34 @@ function ZipsTab({ doc, loose, byZip }: { doc: Doc; loose: string[]; byZip: Map<
 
 function uniqueId(base: string, taken: string[]) { let id = base, i = 2; while (taken.includes(id)) id = `${base}-${i++}`.slice(0, 40); return id; }
 function formatPhone(v: string) { const d = v.replace(/\D/g, '').slice(0, 10); return d.length < 4 ? d : d.length < 7 ? `(${d.slice(0, 3)}) ${d.slice(3)}` : `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`; }
-function addDays(d: string, k: number) { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + k); return t.toISOString().slice(0, 10); }
+function addDays(d: string, k: number) { const t = Date.parse(`${String(d ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t)) return String(d ?? ''); return new Date(t + k * 86_400_000).toISOString().slice(0, 10); }
+
+/* ---------------- D14 – center choice and change rules ---------------- */
+function RulesTab({ doc }: { doc: Doc }) {
+  const r = doc.draft.rules ?? DEFAULT_CENTER_RULES;
+  const set = (f: (x: CenterRules) => void) => doc.setDraft((d) => { const n = structuredClone(d); n.rules = n.rules ?? structuredClone(DEFAULT_CENTER_RULES); f(n.rules); return n; });
+  const e = (k: string) => doc.issues[`rules.${k}`];
+  return (
+    <div className="cv">
+      <Panel title="Which center a person belongs to" intro="From the review call: members belong to their zone and may pick any of its centers; near a border they may ask for the nearest center of the next zone. Another organization may keep it simpler – nearest center only, no border requests.">
+        <div className="field-row">
+          <label className="sf-field"><span className="sf-label">Inside their zone</span><select className="in" aria-label="Choice inside the zone" value={r.choiceInZone} onChange={(ev) => set((x) => { x.choiceInZone = ev.target.value as 'nearest'; })}><option value="any-in-zone">Any center of the zone (nearest suggested)</option><option value="nearest">The nearest center only</option></select></label>
+          <label className="sf-field"><span className="sf-label">Near a zone border</span><select className="in" aria-label="Border choice" value={r.borderChoice} onChange={(ev) => set((x) => { x.borderChoice = ev.target.value as 'none'; })}><option value="nearest-next-zone">May ask for the nearest center of the next zone</option><option value="any-next-zone">May ask for any center of the next zone</option><option value="none">No border requests</option></select></label>
+          {r.borderChoice !== 'none' && <label className="sf-field"><span className="sf-label">“Near” means within (miles)</span><input className="in in-num" type="number" min={0} max={100} step={0.5} aria-label="Border miles" value={r.borderMiles} onChange={(ev) => set((x) => { x.borderMiles = Math.max(0, Math.min(100, Number(ev.target.value || 0))); })} />{e('borderMiles') && <small className="sf-err">{e('borderMiles')}</small>}</label>}
+        </div>
+      </Panel>
+      <Panel title="Changing center" intro="A change is an application the office or the Board decides – not a setting a member flips every year.">
+        <div className="field-row three">
+          <label className="sf-field"><span className="sf-label">Approved by</span><input className="in" aria-label="Approved by" value={r.approvedBy} onChange={(ev) => set((x) => { x.approvedBy = ev.target.value; })} /></label>
+          <label className="sf-field"><span className="sf-label">Stays for (years, 0 = no lock)</span><input className="in in-num" type="number" min={0} max={20} aria-label="Lock years" value={r.lockYears} onChange={(ev) => set((x) => { x.lockYears = Math.max(0, Math.min(20, Number(ev.target.value || 0))); })} /></label>
+          <label className="sf-field"><span className="sf-label">Requests taken until (MM-DD, blank = any time)</span><input className="in" aria-label="Request deadline" placeholder="03-31" value={r.requestDeadline} onChange={(ev) => set((x) => { x.requestDeadline = ev.target.value; })} />{e('requestDeadline') && <small className="sf-err">{e('requestDeadline')}</small>}</label>
+        </div>
+        <div className="pe-switches">
+          <SwitchRow id="cr-proof" label="A change needs proof of address or ID" checked={r.needsProof} onChange={(v) => set((x) => { x.needsProof = v; })} />
+          <SwitchRow id="cr-move" label="A new address lifts the lock" checked={r.unlockOnMove} onChange={(v) => set((x) => { x.unlockOnMove = v; })} />
+        </div>
+        <p className="muted small">How it reads: {centerRulesInWords(r)}</p>
+      </Panel>
+    </div>
+  );
+}

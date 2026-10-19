@@ -20,12 +20,14 @@ import { OrgStructureSchema, mockOrgStructure, type OrgStructure } from '@/lib/c
 import { useAccess } from '@/lib/access/use-access';
 import { AccessSchema, assignmentsOf, mockAccess } from '@/lib/access/access';
 import { roleForSeat } from '@/lib/community/officials-access';
-import { centerOf, eligibility, fullName, type Member } from '@/lib/members/members';
+import { centerOf, eligibility, fullName, type Member, ORG_TZ } from '@/lib/members/members';
 import { useMembers } from './MembersView';
+import { History, priorBoardTerms } from './OfficialsHistory';
+import type { Term } from '@/lib/community/officials';
 
 type Doc = { draft: Officials; setDraft: (f: Officials | ((d: Officials) => Officials)) => void; issues: Record<string, string> };
 type Ctx = { linked: Set<string>; map: OrgStructure; facts: (id: string) => PersonFacts | null; voters: Record<string, Record<string, number>>; members: Member[]; today: string; zoneName: (id: string) => string; zoneOfCenter: (c: string) => string };
-const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 
 export function OfficialsView() {
   return (
@@ -60,6 +62,7 @@ function Body({ doc }: { doc: Doc }) {
   const ctx = useCtx();
   const [open, setOpen] = useState<string | null>(null);
   const set = (f: (x: Officials) => void) => doc.setDraft((d) => { const c = structuredClone(d); f(c); return c; });
+  const memberIds = useMemo(() => new Set(ctx.members.map((m) => m.id)), [ctx.members]);
   const warns = officialsWarnings(doc.draft, ctx.map, ctx.facts, ctx.voters, ctx.today);
   const i = open ? doc.draft.holders.findIndex((h) => h.id === open) : -1;
   /** Add a holder for a seat and open it. Elected seats get the term of the latest election for that seat. */
@@ -73,7 +76,7 @@ function Body({ doc }: { doc: Doc }) {
       ...(from ? { how: 'appointed', termStart: ctx.today, termEnd: from.termEnd, oathOn: '' } : seat.kind === 'secretary' ? { how: 'confirmed', termStart: ctx.today, termEnd: '', oathOn: '' } : { how: 'elected', termStart: term.start, termEnd: term.end, oathOn: '' }),
       ...seat,
     } as Holder;
-    set((x) => { if (from) { const k = x.holders.findIndex((q) => q.id === from.id); if (k >= 0) x.holders[k].status = 'ended'; } x.holders.push(h); });
+    set((x) => { if (from) { const k = x.holders.findIndex((q) => q.id === from.id); if (k >= 0) { x.holders[k].status = 'ended'; if (from.name) x.history.push(archived(from, from.vacancy.reason || 'other', from.vacancy.on || ctx.today, ctx.zoneName)); } } x.holders.push(h); });
     setOpen(id);
   };
   return (
@@ -83,6 +86,7 @@ function Body({ doc }: { doc: Doc }) {
         { id: 'board', label: 'Board (Shura)', badge: countIssues(doc.issues, ['holders']), render: () => <Board d={doc.draft} ctx={ctx} onOpen={setOpen} onFill={fill} /> },
         { id: 'centers', label: 'Center leadership', render: () => <Centers d={doc.draft} ctx={ctx} onOpen={setOpen} onFill={fill} /> },
         { id: 'vacancies', label: 'Vacancies', badge: doc.draft.holders.filter((h) => h.status === 'vacant').length || undefined, render: () => <Vacancies d={doc.draft} ctx={ctx} onOpen={setOpen} onFill={fill} /> },
+        { id: 'history', label: 'History', badge: doc.draft.history.length || undefined, render: () => <History d={doc.draft} set={set} map={ctx.map} memberIds={memberIds} zoneName={ctx.zoneName} today={ctx.today} /> },
         { id: 'rules', label: 'Rules', render: () => <Rules d={doc.draft} set={set} today={ctx.today} /> },
       ]} />
       {i >= 0 && <HolderPanel doc={doc} i={i} ctx={ctx} set={set} onClose={() => setOpen(null)} onFill={fill} />}
@@ -92,6 +96,13 @@ function Body({ doc }: { doc: Doc }) {
 
 /* ---------------- shared pieces ---------------- */
 const serving = (d: Officials) => d.holders.filter((h) => h.status === 'serving');
+/** E1: when a term ends, the holder goes into the history (per year and position) so nothing is lost. */
+function archived(h: Holder, reason: Term['endReason'], on: string, zoneName: (id: string) => string): Term {
+  return {
+    id: `a-${h.id}-${on.replace(/-/g, '')}`, year: h.termStart ? Number(h.termStart.slice(0, 4)) - 1 : Number(on.slice(0, 4)), kind: h.kind, office: h.office, zone: h.zone, center: h.center, zips: h.zips, atLarge: h.atLarge,
+    title: seatLabel(h, zoneName).split(', ')[0], name: h.name, memberId: h.memberId, how: h.how, termStart: h.termStart, termEnd: reason === 'completed' ? h.termEnd : on || h.termEnd, endReason: reason, notes: '', source: 'archived', showOnWebsite: h.showOnWebsite,
+  };
+}
 function Person({ h, ctx, onOpen, label }: { h?: Holder; ctx: Ctx; onOpen: (id: string) => void; label: string }) {
   if (!h) return null;
   const ended = h.termEnd && h.termEnd < ctx.today && h.kind !== 'secretary';
@@ -276,6 +287,7 @@ function Rules({ d, set, today }: { d: Officials; set: (f: (x: Officials) => voi
         <SwitchRow id="of-web" label="Show the Leadership page" checked={d.website.enabled} onChange={(v) => set((x) => { x.website.enabled = v; })} />
         <SwitchRow id="of-email" label="Show office email addresses" help="Use office addresses (like ad.sw1@isgh.org), not personal ones." checked={d.website.showEmail} onChange={(v) => set((x) => { x.website.showEmail = v; })} />
         <SwitchRow id="of-zip" label="“Who represents me?” – find representatives by ZIP code" checked={d.website.findByZip} onChange={(v) => set((x) => { x.website.findByZip = v; })} />
+        <SwitchRow id="of-past" label="Past leadership – list earlier terms from the History tab" help="Board and center heads only, never Area Representatives or Secretaries; each term can be hidden on the History tab." checked={d.website.pastLeadership} onChange={(v) => set((x) => { x.website.pastLeadership = v; })} />
       </Panel>
       <Panel title="Eid dates" intro="The oath of office (and the election) moves to the next Sunday when it falls in the three days of Eid. Enter the first day of each Eid.">
         <ul className="of-eid">{d.eidDates.map((e, k) => <li key={e}><span>{fmt(e)} – {fmt(addDays(e, 2))}</span><button type="button" className="linkish" onClick={() => set((x) => { x.eidDates.splice(k, 1); })}>Remove<span className="sr-only"> {fmt(e)}</span></button></li>)}</ul>
@@ -322,7 +334,7 @@ function HolderPanel({ doc, i, ctx, set, onClose, onFill }: { doc: Doc; i: numbe
         <Field label="Office email (website)" err={e('publicEmail')}><input className="in" aria-label="Office email" type="email" value={h.publicEmail} onChange={(ev) => up({ publicEmail: ev.target.value })} /></Field>
         <div className="field-row">
           <Field label="How"><select className="in" aria-label="How they got the seat" value={h.how} onChange={(ev) => up({ how: ev.target.value as Holder['how'] })}>{Object.entries(HOW).filter(([k]) => (h.kind === 'secretary') === (k === 'confirmed' || k === 'acting')).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-          {board && <Field label="Earlier Board terms" hint="Two in a row: cannot run for the same seat. Five in all: no more Board terms."><input className="in in-num" aria-label="Earlier Board terms" type="number" min="0" max="20" value={h.boardTerms} onChange={(ev) => up({ boardTerms: Number(ev.target.value || 0) })} /></Field>}
+          {board && <Field label="Earlier Board terms" hint={`Two in a row: cannot run for the same seat. Five in all: no more Board terms.${priorBoardTerms(doc.draft, h) ? ` The history lists ${priorBoardTerms(doc.draft, h)} earlier Board term${priorBoardTerms(doc.draft, h) === 1 ? '' : 's'} for ${h.name}.` : ''}`}><input className="in in-num" aria-label="Earlier Board terms" type="number" min="0" max="20" value={h.boardTerms} onChange={(ev) => up({ boardTerms: Number(ev.target.value || 0) })} /></Field>}
         </div>
         <div className="field-row">
           <Field label={h.kind === 'secretary' ? 'Confirmed on' : 'Term starts'}><input className="in" aria-label="Term starts" type="date" value={h.termStart} onChange={(ev) => up({ termStart: ev.target.value })} /></Field>
@@ -343,8 +355,8 @@ function HolderPanel({ doc, i, ctx, set, onClose, onFill }: { doc: Doc; i: numbe
           <p className="sf-hint">{vacancyRule(h, ctx.today)}</p>
           <button type="button" className="btn" disabled={!h.vacancy.reason} onClick={() => {
             if (h.kind === 'officer' && h.office === 'president') {
-              set((x) => { const vp = x.holders.find((q) => q.status === 'serving' && q.kind === 'officer' && q.office === 'vice-president'); x.holders[i] = { ...x.holders[i], status: 'ended' }; if (vp) { x.holders.push({ ...vp, id: `president-${Date.now().toString(36)}`, office: 'president', how: 'appointed', termStart: ctx.today, termEnd: h.termEnd, oathOn: '', orientationOn: ctx.today }); vp.status = 'vacant'; vp.vacancy = { reason: 'other', on: ctx.today }; } });
-            } else up({ status: 'vacant', name: h.name });
+              set((x) => { const vp = x.holders.find((q) => q.status === 'serving' && q.kind === 'officer' && q.office === 'vice-president'); x.holders[i] = { ...x.holders[i], status: 'ended' }; if (h.name) x.history.push(archived(h, h.vacancy.reason || 'other', h.vacancy.on || ctx.today, ctx.zoneName)); if (vp) { x.holders.push({ ...vp, id: `president-${Date.now().toString(36)}`, office: 'president', how: 'appointed', termStart: ctx.today, termEnd: h.termEnd, oathOn: '', orientationOn: ctx.today }); vp.status = 'vacant'; vp.vacancy = { reason: 'other', on: ctx.today }; } });
+            } else set((x) => { x.holders[i] = { ...x.holders[i], status: 'vacant' }; if (h.name) x.history.push(archived(h, h.vacancy.reason || 'other', h.vacancy.on || ctx.today, ctx.zoneName)); });
           }}>{h.kind === 'officer' && h.office === 'president' ? 'Vice President becomes President' : 'Mark as vacant'}</button>
         </div>
       )}

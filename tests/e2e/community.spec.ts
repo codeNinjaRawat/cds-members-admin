@@ -8,7 +8,7 @@ const publish = async (page: Page) => { await page.getByRole('button', { name: '
 
 test('events: list, waitlist state, new event checked before publishing, published to the store', async ({ page }) => {
   await page.goto('/events');
-  await expect(page.locator('.cv-item')).toHaveCount(4);
+  await expect(page.locator('.cv-item')).toHaveCount(5);
   await page.locator('.cv-item[data-event="family-night-katy"] .cv-row').click();
   await expect(page.locator('.cv-state')).toContainText('Full – new registrations join the waitlist');
   await page.getByRole('button', { name: 'New event' }).click();
@@ -45,7 +45,7 @@ test('groups: automatic counts add up, manual group gets a member, rules are che
 });
 
 test('communication: turn an email off, unknown merge field blocked, preview fills a sample member', async ({ page }) => {
-  await page.goto('/communication');
+  await page.goto('/communication?tab=system');
   const row = page.locator('[data-email="renewal-reminder-2"]');
   await row.getByRole('switch').uncheck();
   await expect(row).toHaveClass(/off/);
@@ -86,7 +86,8 @@ test('configuration: at least one way to pay; admin-only field cannot be in the 
 
 test('membership: load ISGH’s WildApricot levels into the draft; grace / overdue order checked', async ({ page }) => {
   await page.goto('/membership?tab=plans');
-  await page.getByRole('button', { name: /Use ISGH’s current levels/ }).click();
+  await page.getByLabel('Plan preset').selectOption('wildapricot');
+  await page.getByRole('button', { name: 'Load into the draft' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Load into the draft' }).click();
   await expect(page.locator('.pill.warn')).toHaveText('Unpublished changes');
   await page.getByRole('tab', { name: 'Renewals and reminders' }).click();

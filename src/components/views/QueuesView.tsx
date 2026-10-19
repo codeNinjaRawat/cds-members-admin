@@ -4,25 +4,35 @@
  * List on the left, the case on the right with the rule it is judged by; decisions apply at once with Undo.
  * Arrow keys or J/K move through the list. DEMO: decisions saved in this browser + member audit log.
  */
+import { useMembershipSettings } from '@/lib/members/use-settings';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
-  centerOf, demoMembers, fmtDate, fmtMoney, fullName, initials, PLANS, restoreMemberEdit, saveMember, snapshotMemberEdit, YEAR, ZONES, type Member,
-} from '@/lib/members/members';
+  approvalBlockers, centerOf, demoMembers, membersWithEdits, fmtDate, fmtMoney, fullName, initials, PLANS, restoreMemberEdit, saveMember, snapshotMemberEdit, YEAR, ZONES, type Member, ORG_TZ } from '@/lib/members/members';
 import {
-  buildCases, daysWaiting, isOpen, QUEUES, QUEUES_EVENT, readQueueState, rulesFor, sla, TODAY, writeQueueState,
+  applyQueueSettings, assigneeOf, buildCases, daysWaiting, escalation, isOpen, MISSING_LABEL, QUEUES, QUEUES_EVENT, queueMe, readQueueState, rulesFor, setQueueMe, sla, TODAY, writeQueueState,
   type Case, type Decision, type QueueId, type QueueState,
 } from '@/lib/queues/queues';
 import { useMembers } from './MembersView';
+import { LIVE } from '@/lib/live/live';
+import { useWorkSettings } from '@/lib/work/work-store';
+import type { AdminLike } from '@/lib/community/work';
+import { useOrg } from './TeamViews';
+import { applyCenterRules, CENTER_RULES, centerDeadline, buildLiveCases } from '@/lib/queues/queues';
 
-const ME = 'Mohammad (demo)';
 type Filter = 'open' | 'mine' | 'overdue' | 'done';
 type Ask = null | { kind: 'decline' | 'info' | 'board'; caseIds?: string[] };
 type Undo = { text: string; caseIds: string[]; prev: Record<string, Decision | undefined>; members: Record<string, ReturnType<typeof snapshotMemberEdit>> };
-const CASES = buildCases(demoMembers());
-export const allCases = () => CASES; // deterministic → same on server and client
+const DEMO_CASES = LIVE ? [] : buildCases(demoMembers());   // demo: deterministic → same on server and client
+let liveCases: { from: Member[]; cases: Case[] } | null = null;
+/** The open work: demo from the demo members; live from the members the API returned (same rules). */
+export const allCases = (): Case[] => {
+  if (!LIVE) return DEMO_CASES;
+  const ms = membersWithEdits(); if (liveCases?.from !== ms) liveCases = { from: ms, cases: buildLiveCases(ms) };
+  return liveCases.cases;
+};
 
 export function useQueueState() {
   const [s, setS] = useState<QueueState>({ decisions: {}, assignee: {} });
@@ -31,11 +41,11 @@ export function useQueueState() {
 }
 /** Open counts per queue (sidebar badges, overview). */
 export function openCounts(s: QueueState) {
-  return Object.fromEntries(QUEUES.map((q) => [q.id, CASES.filter((c) => c.queue === q.id && isOpen(c, s)).length])) as Record<QueueId, number>;
+  return Object.fromEntries(QUEUES.map((q) => [q.id, allCases().filter((c) => c.queue === q.id && isOpen(c, s)).length])) as Record<QueueId, number>;
 }
 
 export function QueuesView({ search = '' }: { search?: string }) {
-  const members = useMembers() ?? demoMembers();
+  const members = useMembers() ?? (LIVE ? [] : demoMembers());
   const byId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const qs = useQueueState();
   const initialTab = (new URLSearchParams(search).get('tab') as QueueId) || 'applications';
@@ -61,13 +71,23 @@ export function QueuesView({ search = '' }: { search?: string }) {
   };
 
   const mf = useMasjidFilter();
-  const visible = useMemo(() => CASES.filter((c) => { const m = byId.get(c.memberId); return !m || mf.keep(m.zone, centerOf(m), m.zip); }), [byId, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (LIVE) setQueueMe(mf.access.me?.id ?? '');   // live: decisions and cases carry the signed-in admin
+  // D5 – routing by queue type (Settings › Help desk and tasks › Work queues): who a case is on when nobody took it
+  const ws = useWorkSettings();
+  useEffect(() => { applyQueueSettings(ws.queues); }, [ws]);
+  const org = useOrg();
+  useEffect(() => { applyCenterRules(org.rules); }, [org]);   // D14 – the center-change rules
+  const admins = (mf.access.doc?.admins ?? []) as unknown as AdminLike[];
+  const meId = mf.access.me?.id ?? (LIVE ? '' : 'owner');
+  const nameOf = (id: string) => admins.find((a) => a.id === id)?.name ?? (id === queueMe() ? queueMe() : id);
+  const onFor = (c: Case) => assigneeOf(c, qs, ws.queues, admins, byId.get(c.memberId) ? centerOf(byId.get(c.memberId)!) : '');
+  const visible = useMemo(() => allCases().filter((c) => { const m = byId.get(c.memberId); return !m || mf.keep(m.zone, centerOf(m), m.zip); }), [byId, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const inTab = useMemo(() => visible.filter((c) => c.queue === tab), [tab, visible]);
   const list = useMemo(() => inTab.filter((c) => {
     const open = isOpen(c, qs);
     if (filter === 'done') return !open;
     if (!open) return false;
-    if (filter === 'mine') return qs.assignee[c.id] === ME;
+    if (filter === 'mine') { const a = onFor(c).id; return a === meId || a === queueMe(); }
     if (filter === 'overdue') return sla(c).tone === 'late';
     return true;
   }).sort((a, b) => daysWaiting(b) - daysWaiting(a)), [inTab, qs, filter]);
@@ -81,7 +101,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
     const u: Undo = { text: text ?? `${d.outcome}.`, caseIds: cases.map((c) => c.id), prev: {}, members: {} };
     for (const c of cases) {
       u.prev[c.id] = s.decisions[c.id];
-      s.decisions[c.id] = { ...d, by: ME, at: new Date().toISOString() };
+      s.decisions[c.id] = { ...d, by: queueMe(), at: new Date().toISOString() };
       const m = byId.get(c.memberId);
       if (m) {
         u.members[m.id] = snapshotMemberEdit(m.id);
@@ -106,7 +126,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
     for (const [mid, snap] of Object.entries(undo.members)) restoreMemberEdit(mid, snap);
     setSelId(undo.caseIds[0]); setUndo(null);
   };
-  const assign = (c: Case) => { const s = readQueueState(); if (s.assignee[c.id] === ME) delete s.assignee[c.id]; else s.assignee[c.id] = ME; writeQueueState(s); };
+  const assign = (c: Case, to?: string) => { const s = readQueueState(); const want = to === undefined ? meId : to; if (!want || s.assignee[c.id] === want) delete s.assignee[c.id]; else s.assignee[c.id] = want; writeQueueState(s); };
 
   // keyboard: ↑/↓ or J/K
   const onKey = (e: ReactKeyboardEvent) => {
@@ -118,6 +138,8 @@ export function QueuesView({ search = '' }: { search?: string }) {
   const focusItem = (id: string) => requestAnimationFrame(() => listRef.current?.querySelector<HTMLButtonElement>(`[data-case="${id}"]`)?.focus());
 
   const ready = inTab.filter((c) => qs.decisions[c.id]?.state === 'ready');
+  const settings = useMembershipSettings();
+  const blocked = (ask?.kind === 'board' ? inTab.filter((c) => ask.caseIds?.includes(c.id)) : []).map((c) => ({ c, why: approvalBlockers(byId.get(c.memberId)!, settings.rules) })).filter((x) => x.why.length);
   const q = QUEUES.find((x) => x.id === tab)!;
 
   return (
@@ -171,7 +193,10 @@ export function QueuesView({ search = '' }: { search?: string }) {
                         <span className={`wq-age ${t.tone}`} title={`Target ${t.target} days`}>{t.days === 0 ? 'Today' : `${t.days} d`}</span>
                         {d && d.state !== 'done' && <span className="wq-flag">{d.state === 'ready' ? 'Ready' : 'Asked'}</span>}
                         {d?.state === 'done' && <span className="wq-flag done">{d.outcome}</span>}
-                        {qs.assignee[c.id] && <span className="wq-who" title={`Assigned to ${qs.assignee[c.id]}`}>AA</span>}
+                        {(() => { const a = onFor(c); const esc = escalation(c, qs, ws.queues); return <>
+                          {a.id && <span className={`wq-who${a.byRule ? ' by-rule' : ''}`} title={`${a.byRule ? 'By the routing rule: ' : 'Taken by '}${nameOf(a.id)}`}>{nameOf(a.id).split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>}
+                          {esc && <span className="wq-flag esc" title={`Past the target – escalated to ${esc}`}>Escalated</span>}
+                        </>; })()}
                       </span>
                     </button>
                   </li>
@@ -189,7 +214,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
         </section>
 
         <section className="wq-case" aria-live="polite" aria-label="Case">
-          {!sel ? <p className="wq-empty">Pick a case on the left.</p> : <CaseDetail key={sel.id} c={sel} m={byId.get(sel.memberId)!} d={qs.decisions[sel.id]} assignee={qs.assignee[sel.id]} onAssign={() => assign(sel)} ask={ask} setAsk={setAsk} decide={decide} />}
+          {!sel ? <p className="wq-empty">Pick a case on the left.</p> : <CaseDetail key={sel.id} c={sel} m={byId.get(sel.memberId)!} d={qs.decisions[sel.id]} on={onFor(sel)} meId={meId} admins={admins.filter((a) => a.status === 'active')} escalatedTo={escalation(sel, qs, ws.queues)} onAssign={(to) => assign(sel, to)} ask={ask} setAsk={setAsk} decide={decide} />}
         </section>
       </div>
 
@@ -197,11 +222,14 @@ export function QueuesView({ search = '' }: { search?: string }) {
         <dialog className="modal glass-float" ref={(el) => { if (el && !el.open) el.showModal(); }} aria-label="Record Board approval" onClose={() => setAsk(null)} onCancel={() => setAsk(null)}>
           <form className="m-form" onSubmit={(e) => {
             e.preventDefault(); const ref = String(new FormData(e.currentTarget).get('ref'));
-            const cs = inTab.filter((c) => ask.caseIds?.includes(c.id));
+            const cs = inTab.filter((c) => ask.caseIds?.includes(c.id) && !blocked.some((b) => b.c.id === c.id));
+            if (!cs.length) { setAsk(null); return; }
             decide(cs, { state: 'done', outcome: 'Approved by the Board', note: ref }, () => [{ approvedOn: TODAY }, 'Approved', ref], `${cs.length} application${cs.length > 1 ? 's' : ''} approved by the Board.`);
           }}>
             <h2>Record Board approval</h2>
-            <p>The Bylaws need the Board to approve each application. This records one Board decision for {ask.caseIds?.length} application{(ask.caseIds?.length ?? 0) > 1 ? 's' : ''}.</p>
+            <p>The Bylaws need the Board to approve each application. This records one Board decision for {(ask.caseIds?.length ?? 0) - blocked.length} application{(ask.caseIds?.length ?? 0) - blocked.length === 1 ? '' : 's'}.</p>
+            {blocked.length > 0 && <div className="notice warn-note wq-blocked" role="alert"><b>{blocked.length} held back by the approval rule</b> (Membership rules › Plans and dues):
+              <ul>{blocked.map(({ c, why }) => <li key={c.id}>{fullName(byId.get(c.memberId)!)} – {why.join(' ')}</li>)}</ul></div>}
             <label className="sf-field"><span className="sf-label">Board meeting or reference</span><input className="in" name="ref" required placeholder="Board meeting, October 2026" /></label>
             <div className="modal-actions"><button type="button" className="btn" onClick={() => setAsk(null)}>Cancel</button><button className="btn primary">Approve {ask.caseIds?.length}</button></div>
           </form>
@@ -219,18 +247,22 @@ function summary(c: Case, m: Member) {
     case 'center': return `${ZONES[m.zone]} → ${ZONES[c.toZone]} · ${c.miles.toFixed(1)} mi`;
     case 'duplicates': return `${c.score}% alike · ${c.other.source}`;
     case 'payments': return `${fmtMoney(c.amountCents)} · ${c.detail}`;
+    case 'incomplete': return `Stopped at ${c.stepReached} · last seen ${fmtDate(c.lastSeen)}${c.reminders ? ` · ${c.reminders} reminder${c.reminders > 1 ? 's' : ''}` : ''}`;
+    case 'missing': return `${c.fields.map((f) => MISSING_LABEL[f]).join(', ')}${c.lastAsked ? ` · asked ${fmtDate(c.lastAsked)}` : ''}`;
   }
 }
 
 type DecideFn = (cases: Case[], d: Omit<Decision, 'by' | 'at'>, memberChange?: (m: Member) => [Partial<Member>, string, string] | null, text?: string) => void;
-function CaseDetail({ c, m, d, assignee, onAssign, ask, setAsk, decide }: { c: Case; m: Member; d?: Decision; assignee?: string; onAssign: () => void; ask: Ask; setAsk: (a: Ask) => void; decide: DecideFn }) {
+function CaseDetail({ c, m, d, on, meId, admins, escalatedTo, onAssign, ask, setAsk, decide }: { c: Case; m: Member; d?: Decision; on: { id: string; byRule: boolean }; meId: string; admins: AdminLike[]; escalatedTo: string; onAssign: (to?: string) => void; ask: Ask; setAsk: (a: Ask) => void; decide: DecideFn }) {
+  const nameOf = (id: string) => admins.find((a) => a.id === id)?.name ?? id;
+  const mine = on.id === meId || on.id === queueMe();
   const rules = rulesFor(c, m);
   const t = sla(c);
   const blocked = rules.some((r) => r.ok === false);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const done = d?.state === 'done';
-  const declineLabel = c.queue === 'duplicates' ? 'Not the same person' : c.queue === 'payments' ? 'Cancel this payment' : 'Decline';
-  const infoLabel = c.queue === 'id' ? 'Ask for a new photo' : c.queue === 'payments' ? 'Send a new payment link' : 'Ask for more information';
+  const declineLabel = c.queue === 'duplicates' ? 'Not the same person' : c.queue === 'payments' ? 'Cancel this payment' : c.queue === 'incomplete' ? 'Not interested – close' : c.queue === 'missing' ? 'Could not reach – close' : 'Decline';
+  const infoLabel = c.queue === 'id' ? 'Ask for a new photo' : c.queue === 'payments' ? 'Send a new payment link' : c.queue === 'incomplete' ? 'Send a reminder' : c.queue === 'missing' ? 'Ask for the information' : 'Ask for more information';
 
   return (
     <article className="wq-detail">
@@ -241,10 +273,18 @@ function CaseDetail({ c, m, d, assignee, onAssign, ask, setAsk, decide }: { c: C
           <p>{m.id} · {m.email} · {m.phone}</p>
           <p className="wq-meta"><span className={`wq-age ${t.tone}`}>{t.days === 0 ? 'Arrived today' : `Waiting ${t.days} day${t.days > 1 ? 's' : ''}`}</span> target {t.target} · since {fmtDate(c.submitted)}</p>
         </div>
-        <button type="button" className="btn sm wq-assign" onClick={onAssign} aria-pressed={assignee === ME}>{assignee === ME ? 'Assigned to me' : assignee ? `Assigned to ${assignee}` : 'Assign to me'}</button>
+        <div className="wq-on">
+          <button type="button" className="btn sm wq-assign" onClick={() => onAssign()} aria-pressed={mine && !on.byRule}>{mine ? (on.byRule ? 'On your desk (by rule) – take it' : 'Assigned to me') : on.id ? `On ${nameOf(on.id)}${on.byRule ? ' (by rule)' : ''}` : 'Assign to me'}</button>
+          <label className="sr-only" htmlFor={`wq-handto-${c.id}`}>Hand this case to</label>
+          <select id={`wq-handto-${c.id}`} className="in sm wq-handto" value={on.byRule ? '' : on.id} onChange={(e) => onAssign(e.target.value)} title="Hand this case to someone">
+            <option value="">{on.byRule && on.id ? `By rule: ${nameOf(on.id)}` : 'Unassigned'}</option>
+            {admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </div>
       </header>
+      {escalatedTo && <p className="notice warn-note glass-pane" role="status"><b>Past its target</b> – this case is flagged to the {escalatedTo.replace(/-/g, ' ')} role (Settings › Work queues).</p>}
 
-      {done && <p className="notice glass-pane" role="status"><b>{d!.outcome}</b> by {d!.by} · {new Date(d!.at).toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'medium', timeStyle: 'short' })}{d!.note ? ` – ${d!.note}` : ''}</p>}
+      {done && <p className="notice glass-pane" role="status"><b>{d!.outcome}</b> by {d!.by} · {new Date(d!.at).toLocaleString('en-US', { timeZone: ORG_TZ, dateStyle: 'medium', timeStyle: 'short' })}{d!.note ? ` – ${d!.note}` : ''}</p>}
       {d && !done && <p className="notice glass-pane">{d.outcome}{d.note ? ` – “${d.note}”` : ''}</p>}
 
       <CaseBody c={c} m={m} />
@@ -283,9 +323,11 @@ function CaseDetail({ c, m, d, assignee, onAssign, ask, setAsk, decide }: { c: C
             {blocked && <small className="wq-why">A check failed – ask the member for a new photo (or a current ID).</small>}
           </>}
           {c.queue === 'center' && <>
-            <button className="btn primary" disabled={blocked} onClick={() => decide([c], { state: 'done', outcome: 'Center changed' }, () => [{ zone: c.toZone, centerOverride: { center: c.toCenter, reason: `Border request (${c.miles.toFixed(1)} mi): ${c.reason}`, lockedUntil: `${YEAR + 5}-12-31` } }, 'Center changed', `${centerOf(m)} → ${c.toCenter} (border request, locked 5 years)`])}>Approve change</button>
-            {blocked && <small className="wq-why">The Bylaws only allow this within 5 miles of the border and before the deadline.</small>}
+            <button className="btn primary" disabled={blocked} onClick={() => decide([c], { state: 'done', outcome: 'Center changed' }, () => [{ zone: c.toZone, centerOverride: { center: c.toCenter, reason: `Border request (${c.miles.toFixed(1)} mi): ${c.reason}`, ...(CENTER_RULES.lockYears ? { lockedUntil: `${YEAR + CENTER_RULES.lockYears}-12-31` } : {}) } }, 'Center changed', `${centerOf(m)} → ${c.toCenter} (border request${CENTER_RULES.lockYears ? `, locked ${CENTER_RULES.lockYears} years` : ''})`])}>Approve change</button>
+            {blocked && <small className="wq-why">The rules (Masjids and zones › Rules) only allow this within {CENTER_RULES.borderMiles} miles of the border{centerDeadline() ? ' and before the deadline' : ''}{CENTER_RULES.lockYears ? ', and not while a change is locked' : ''}.</small>}
           </>}
+          {c.queue === 'incomplete' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Came back and finished' }, () => [{}, 'Application finished', `Finished after a follow-up (stopped at ${c.stepReached})`])}>They finished – move to Applications</button>}
+          {c.queue === 'missing' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Information received' }, () => [{ idCheck: c.fields.includes('id') ? 'pending' : m.idCheck }, 'Missing information received', c.fields.map((f) => MISSING_LABEL[f]).join(', ')])}>Information received</button>}
           {c.queue === 'duplicates' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Merged' }, () => [{}, 'Duplicate merged', `${c.other.name} (${c.other.email}, ${c.other.source}) merged into this record`])}>Merge into {m.first}’s record</button>}
           {c.queue === 'payments' && c.kind === 'check_pending' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Check received' }, () => [{ payments: [...m.payments, { year: YEAR, paidOn: TODAY, amountCents: c.amountCents, method: 'check', payer: 'self', ref: `CHK-${c.id.slice(-4)}` }] }, 'Payment recorded', `${YEAR} dues ${fmtMoney(c.amountCents)} by check`])}>Check received</button>}
           <button className="btn" onClick={() => setAsk({ kind: 'info' })}>{infoLabel}</button>
@@ -300,9 +342,11 @@ function defaultMessage(c: Case, kind: 'decline' | 'info') {
   if (kind === 'info') {
     if (c.queue === 'id') return 'Assalamu alaikum. The photo of your ID was hard to read. Please upload a clear photo of the front, with all four corners showing.';
     if (c.queue === 'payments') return 'Assalamu alaikum. Your membership payment did not go through. Here is a new secure link to finish it.';
+    if (c.queue === 'incomplete') return `Assalamu alaikum. You started your membership application and stopped at “${c.stepReached}”. Your answers are saved – here is the link to pick up where you left off. Reply to this message if something was unclear.`;
+    if (c.queue === 'missing') return `Assalamu alaikum. To keep your membership record complete we still need: ${c.fields.map((f) => MISSING_LABEL[f].toLowerCase()).join(', ')}. You can add it from your member home in a minute, or reply here.`;
     return 'Assalamu alaikum. We need one more detail to finish your application: ';
   }
-  if (c.queue === 'center') return 'Your home is more than 5 miles from the zone border, so the Bylaws keep you with your current Islamic Center.';
+  if (c.queue === 'center') return `Your home is more than ${CENTER_RULES.borderMiles} miles from the zone border, so the rules keep you with your current Islamic Center.`;
   return '';
 }
 
@@ -310,9 +354,9 @@ function CaseBody({ c, m }: { c: Case; m: Member }) {
   if (c.queue === 'id') return (
     <div className="wq-id">
       <figure className="wq-idcard" aria-label={`${c.doc} (demo image)`}>
-        <div className="wq-idtop">{c.doc.toUpperCase()}</div>
+        <div className="wq-idtop">{c.nameOnId ? c.doc.toUpperCase() : 'NO ID UPLOADED YET'}</div>
         <div className="wq-idbody"><span className="wq-photo" aria-hidden="true">{initials(m)}</span>
-          <dl><div><dt>Name</dt><dd>{c.nameOnId}</dd></div><div><dt>Date of birth</dt><dd>{fmtDate(c.dobOnId)}</dd></div><div><dt>Expires</dt><dd>{fmtDate(c.expires)}</dd></div></dl></div>
+          <dl><div><dt>Name</dt><dd>{c.nameOnId || '—'}</dd></div><div><dt>Date of birth</dt><dd>{c.dobOnId ? fmtDate(c.dobOnId) : '—'}</dd></div><div><dt>Expires</dt><dd>{c.expires ? fmtDate(c.expires) : '—'}</dd></div></dl></div>
         <figcaption>Demo picture – the real upload shows here (stored encrypted, deleted 90 days after the check)</figcaption>
       </figure>
       <dl className="m-defs wq-app"><div className="m-def"><dt>Application name</dt><dd>{fullName(m)}</dd></div><div className="m-def"><dt>Application date of birth</dt><dd>{fmtDate(m.dob)}</dd></div></dl>
@@ -338,6 +382,25 @@ function CaseBody({ c, m }: { c: Case; m: Member }) {
       </table>
       <p className="wq-score"><b>{c.score}%</b> alike. Merging keeps the member record, adds the new email and phone as extra contacts, and moves any payments.</p>
     </div>
+  );
+  if (c.queue === 'incomplete') return (
+    <div className="wq-steps-wrap">
+      <ol className="wq-steps" aria-label="Join form steps">
+        {(['Email', 'About you', 'Plan', 'Pledge', 'Review and pay'] as const).map((st, i) => { const reached = ['Email', 'About you', 'Plan', 'Pledge', 'Review and pay'].indexOf(c.stepReached); return <li key={st} className={i < reached ? 'done' : i === reached ? 'here' : ''}><span aria-hidden="true">{i < reached ? '✓' : i + 1}</span>{st}</li>; })}
+      </ol>
+      <dl className="m-defs">
+        <div className="m-def"><dt>Reach them</dt><dd>{m.email}{c.hasPhone ? ` · ${m.phone}` : ' · no phone given'}</dd></div>
+        <div className="m-def"><dt>Last seen</dt><dd>{fmtDate(c.lastSeen)}</dd></div>
+        <div className="m-def"><dt>Automatic reminders</dt><dd>{c.reminders || 'none yet'} (Settings › Work queues decides when they go out)</dd></div>
+      </dl>
+    </div>
+  );
+  if (c.queue === 'missing') return (
+    <dl className="m-defs">
+      <div className="m-def"><dt>Missing</dt><dd>{c.fields.map((f) => MISSING_LABEL[f]).join(', ')}</dd></div>
+      <div className="m-def"><dt>On the record</dt><dd>{[m.phone && `mobile ${m.phone}`, m.street && `address ${m.street}, ${m.city} ${m.zip}`, m.dob && `born ${fmtDate(m.dob)}`, m.idCheck === 'verified' && 'ID checked'].filter(Boolean).join(' · ') || '—'}</dd></div>
+      <div className="m-def"><dt>Member since</dt><dd>{m.joined} · {PLANS[m.plan].name}</dd></div>
+    </dl>
   );
   if (c.queue === 'payments') return (
     <dl className="m-defs">

@@ -177,3 +177,38 @@
   .layout-cards { grid-template-columns: 1fr; }
 }
 .w-obsidian .wall-art { background: radial-gradient(40% 60% at 25% 35%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 70%), radial-gradient(40% 60% at 80% 30%, color-mix(in srgb, var(--second) 40%, transparent), transparent 70%), linear-gradient(160deg, #0E1016, #1D1830); }
+/* ---------- P1 Plans editor ---------- */
+.pe { display: grid; gap: var(--gap, 1rem); }
+.pe-presets { padding: .9rem 1rem; border-radius: var(--r-lg, 16px); }
+.pe-preset-row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: end; } .pe-preset-pick { min-width: 320px; flex: 1; }
+.pe-year .in { max-width: 140px; }
+.pe-h { font-size: 1.1rem; display: flex; align-items: center; gap: .5rem; margin: 0 0 .5rem; }
+.pe-list { list-style: none; margin: 0 0 .7rem; padding: 0; display: grid; gap: .5rem; }
+.pe-card { border: 1px solid var(--line); border-radius: 14px; background: var(--field); }
+.pe-card.hidden-plan { border-style: dashed; }
+.pe-card.open { border-color: var(--accent-ink); }
+.pe-row { display: flex; align-items: center; gap: .5rem; padding: .3rem .5rem .3rem 0; }
+.pe-open { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; text-align: left; padding: .6rem .9rem; background: transparent; border: 0; color: var(--ink); font: inherit; cursor: pointer; min-width: 0; }
+.pe-open b { font-size: 1rem; } .pe-meta { color: var(--ink-3); font-size: .85rem; }
+.pe-form { padding: .2rem .9rem 1rem; display: grid; gap: .7rem; border-top: 1px solid var(--line); }
+.pe-sub { display: grid; gap: .5rem; padding: .7rem .8rem; border-radius: 12px; background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.pe-sub h4 { margin: 0; font-size: .9rem; color: var(--ink-2); }
+.pe-switches { display: grid; gap: .3rem; }
+.pe-fixed { display: grid; gap: .4rem; } .pe-fixed-row { align-items: end; } .pe-fixed-rm { align-self: end; margin-bottom: .2rem; }
+.pe-words { margin: 0; padding-left: 1.2rem; display: grid; gap: .3rem; font-size: .92rem; }
+.pe-rules { display: grid; gap: var(--gap, 1rem); }
+.field-row.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
+@media (max-width: 900px) { .field-row.three { grid-template-columns: 1fr; } }
+.pe-form .field-row.three.segs { display: flex; flex-wrap: wrap; gap: .7rem 1.2rem; } .pe-form .seg { flex-wrap: nowrap; }
+/* I1 giving platform accounts */
+.integ-accounts { list-style: none; margin: .6rem 0; padding: 0; display: grid; gap: .6rem; }
+.integ-account { border: 1px solid var(--line); border-radius: 14px; padding: .7rem .9rem; background: var(--field); } .integ-account.off { opacity: .7; border-style: dashed; }
+.integ-acc-head { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .5rem; } .integ-acc-head b { margin-right: auto; }
+.integ-add { padding: .7rem .9rem; border-radius: 14px; border: 1px dashed var(--line-strong); }
+
+/* V1/D13 – plan editor: static values, class panel, disabled switch */
+.in.in-static { display: flex; align-items: center; min-height: 38px; background: transparent; border-style: dashed; }
+.pe-class { padding: 10px 0 4px; border-top: 1px dashed var(--line, rgba(0,0,0,.12)); }
+.pe-class:first-of-type { border-top: 0; padding-top: 0; }
+.pe-note { margin: 4px 0 10px; }
+.sf-switch-row.is-disabled .switch { opacity: .55; cursor: not-allowed; }

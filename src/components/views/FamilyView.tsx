@@ -1,4 +1,5 @@
 'use client';
+import { LIVE } from '@/lib/live/live';
 /**
  * Admin › family trees. The MEMBERSHIP family of a member (family history stays private to the member):
  * who is a member, who can vote, adults who could join, children turning 18 before the record date.
@@ -53,11 +54,11 @@ export function MemberFamily({ m, members }: { m: Member; members: Member[] }) {
 
 /** Members › Family trees: find a member, see their family; outreach list of families with adults who can join. */
 export function FamiliesView({ search = '' }: { search?: string }) {
-  const all = useMembers() ?? demoMembers();
+  const all = useMembers() ?? (LIVE ? [] : demoMembers());
   const mf = useMasjidFilter();
   const members = useMemo(() => all.filter((x) => mf.keep(x.zone, centerOf(x), x.zip)), [all, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const initial = new URLSearchParams(search).get('member');
-  const [id, setId] = useState<string>(initial && all.some((x) => x.id === initial) ? initial : all.find((x) => x.email === 'aisha@example.com')!.id);
+  const [id, setId] = useState<string>(initial && all.some((x) => x.id === initial) ? initial : (all.find((x) => x.email === 'aisha@example.com') ?? all[0])?.id ?? '');
   const [q, setQ] = useState('');
   const m = all.find((x) => x.id === id) ?? members[0] ?? all[0];
   const hits = q.trim().length < 2 ? [] : members.filter((x) => `${memberName(x)} ${x.id} ${x.email}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8);
@@ -68,6 +69,7 @@ export function FamiliesView({ search = '' }: { search?: string }) {
   }).filter((r) => r.join + r.soon > 0).sort((a, b) => b.soon * 2 + b.join - (a.soon * 2 + a.join)).slice(0, 12), [members]);
   const pick = (nid: string) => { setId(nid); setQ(''); const u = new URL(window.location.href); u.searchParams.set('member', nid); window.history.replaceState(null, '', u); };
 
+  if (!m) return <div className="page families"><p className="muted">No members yet.</p></div>;
   return (
     <div className="page families">
       <header className="page-head">

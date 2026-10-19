@@ -14,7 +14,7 @@ export function applyAppearance(a: Appearance) {
   const p = PRESETS.find((x) => x.id === a.preset) ?? PRESETS[0];
   const dark = a.mode === 'dark' || (a.mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   html.dataset.mode = dark ? 'dark' : 'light';
-  html.dataset.glass = a.glass; html.dataset.wall = a.wallpaper; html.dataset.density = a.density; html.dataset.text = a.text; html.dataset.motion = a.motion; html.dataset.nav = a.nav; html.dataset.preset = p.id; html.dataset.dash = a.dash;
+  html.dataset.glass = a.glass; html.dataset.wall = a.wallpaper; html.dataset.density = a.density; html.dataset.text = a.text; html.dataset.motion = a.motion; html.dataset.nav = a.work === 'on' ? 'rail' : a.nav; html.dataset.width = a.width; html.dataset.work = a.work; html.dataset.preset = p.id; html.dataset.dash = a.dash;
   const wall = dark ? p.wallDark : p.wallLight;
   const accent = a.accent || p.accent;
   const s = html.style;

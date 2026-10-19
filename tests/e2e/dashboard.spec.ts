@@ -15,7 +15,7 @@ test('dashboard: tiles, every chart and a table view for each; sidebar marks Das
   await expect(page.locator('[data-chart="plans"] .viz-slice')).toHaveCount(4);
   await expect(page.locator('[data-chart="ages"] .viz-col')).toHaveCount(6);
   await expect(page.locator('[data-chart="zones"] .viz-hrow')).toHaveCount(5);
-  await expect(page.locator('.sub-link.active')).toHaveText(['Dashboard']);
+  await expect(page.locator('.sub-link.active')).toHaveText(['Overview']);   // D2 – Members opens on its Overview
   expect(errors).toEqual([]);
 });
 

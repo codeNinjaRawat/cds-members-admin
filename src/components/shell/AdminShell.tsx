@@ -3,15 +3,21 @@
  * A1 app shell: glass sidebar (groups, active item, planned modules), top bar (search / Ctrl+K command palette,
  * DEMO environment pill, open website, light/dark, user), mobile drawer. Applies the admin's own appearance.
  */
+import { Photo, useArtUrl } from './Photo';
+import { SECTION_ART, WALL_PHOTOS } from '@/lib/images';
 import { ViewingChip } from './MasjidPicker';
 import { IdleLock } from './IdleLock';
 import { useAccess, setActing, setDashboard } from '@/lib/access/use-access';
+import { LIVE, signOut } from '@/lib/live/live';
+import { NOTICE_EVENT, loadOrgLabels, ORG_TZ } from '@/lib/members/members';
 import { assignmentsOf, permissionForPath, PERMISSIONS, whereOf } from '@/lib/access/access';
 import { ZONES, type ZoneId } from '@/lib/members/members';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { applyAppearance, readAppearance, useAppearance } from '@/lib/appearance/appearance';
+import { useHelpdeskBadge, useMyTasksBadge } from '@/lib/work/work-store';
+import { useInboxBadge } from '@/lib/team/messages';
 import { iconPath, NAV, NAV_TREE, ORG_ONLY, type IconName, type NavItem, type NavNode } from './nav';
 import { openCounts, useQueueState } from '@/components/views/QueuesView';
 import { moduleForPath, useOrg, type Me } from '@/lib/platform/use-org';
@@ -30,6 +36,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [a, update] = useAppearance();
   const { me, site, can } = useOrg();
   const mod = moduleForPath(pathname);
+  // the photo for this part of the admin (sidebar group → SECTION_ART); dashboards carry their own band
+  const group = pathname === '/' ? 'Overview' : pathname.startsWith('/families') ? 'Family trees' : (NAV_TREE.find((n) => n.href && n.href !== '/' && pathname.startsWith(n.href.split('?')[0])) ?? NAV_TREE.find((n) => n.children?.some((c) => c.href !== '#' && pathname.split('?')[0] === c.href.split('?')[0] || (c.href !== '#' && c.href.split('?')[0] !== '/' && pathname.startsWith(c.href.split('?')[0] + '/')))))?.label ?? '';
+  const artKey = SECTION_ART[group] ?? null;
+  const artUrl = useArtUrl(artKey);
+  const wallKey = WALL_PHOTOS[a.wallpaper] ?? null;
   const closed = me && (me.org.status === 'suspended' || me.org.status === 'cancelled');
   const access = useAccess();
   const canHref = (href: string) => can(moduleForPath(href)) && (() => { const p = permissionForPath(href); return !p || access.can(p); })()
@@ -39,17 +50,22 @@ export function AdminShell({ children }: { children: ReactNode }) {
   // icon rail on wide screens: one icon per section, its groups fly out (the full tree on phones and tablets)
   const [wide, setWide] = useState(true);
   useEffect(() => { const m = window.matchMedia('(min-width: 1081px)'); const on = () => setWide(m.matches); on(); m.addEventListener('change', on); return () => m.removeEventListener('change', on); }, []);
-  const rail = a.nav === 'rail' && wide;
+  const work = a.work === 'on';
+  const rail = (a.nav === 'rail' || work) && wide;
   const [search, setSearch] = useState('');
   useEffect(() => { const read = () => setSearch(window.location.search); read(); window.addEventListener(TAB_EVENT, read); window.addEventListener('popstate', read); return () => { window.removeEventListener(TAB_EVENT, read); window.removeEventListener('popstate', read); }; }, [pathname]);
   const need = permissionForPath(pathname + search);
   const blocked = need && !access.can(need);
 
   useEffect(() => { applyAppearance(readAppearance()); }, []);
+  // this organization's zone and plan names (the screens read them at render; a change redraws the page once)
+  const [labels, setLabels] = useState(0);
+  useEffect(() => { void loadOrgLabels().then((changed) => { if (changed) setLabels((n) => n + 1); }); }, []);
   // M4 DEMO: the website's sign-in opens the chosen dashboard as /?as=<person>&dash=<role index> (live: the session).
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const as = q.get('as'); const dash = Number(q.get('dash') ?? 0);
+    if (LIVE) return;   // live: the session decides (the sign-in page picks the dashboard)
     if (!as || !/^[a-z0-9-]{2,40}$/.test(as) || !Number.isInteger(dash) || dash < 0 || dash > 10) return;
     setActing(as); setDashboard(dash, 'Opened from sign-in');
     q.delete('as'); q.delete('dash');
@@ -57,13 +73,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => { setDrawer(false); }, [pathname]);
   useEffect(() => {
-    const on = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((p) => !p); } };
+    const on = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((p) => !p); }
+      if (e.key === 'Escape' && !(e.target as HTMLElement | null)?.closest('dialog') && readAppearance().work === 'on') update({ work: 'off' });   // Esc leaves work mode
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); update({ work: readAppearance().work === 'on' ? 'off' : 'on' }); }
+    };
     window.addEventListener('keydown', on); return () => window.removeEventListener('keydown', on);
   }, []);
 
+  if (pathname === '/sign-in') return <>{children}</>;   // the sign-in page has no shell (nobody is signed in yet)
   return (
     <>
-    <div className="wall" aria-hidden="true" />
+    <div className="wall" aria-hidden="true">{wallKey && <Photo k={wallKey} className="wall-photo" priority />}</div>
     <div className="shell">
       <a className="skip" href="#main">Skip to content</a>
       <IdleLock />
@@ -94,6 +115,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <ViewingChip />
           <span className="env" title="Changes go to the local demo store (../.demo-store). The real site is not touched.">Demo</span>
           <a className="top-link" href={site} target="_blank" rel="noopener noreferrer">Open website<span className="sr-only"> (opens in a new tab)</span></a>
+          <button className={`icon-btn work-btn${work ? ' on' : ''}`} aria-label={work ? 'Leave work mode (Esc)' : 'Work mode – full page (Ctrl+Shift+F)'} aria-pressed={work} title={work ? 'Leave work mode (Esc)' : 'Work mode: the whole screen for the page (Ctrl+Shift+F)'} onClick={() => update({ work: work ? 'off' : 'on' })}>
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">{work ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" strokeWidth="1.8" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" strokeWidth="1.8" />}</svg>
+          </button>
           <button className="icon-btn" aria-label="Switch light or dark mode"
             onClick={() => update({ mode: document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark' })}>
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>
@@ -110,16 +134,20 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 {access.person.memberId && <option value="member">My membership ↗</option>}
               </select></label>
           )}
-          <label className="acting"><span className="sr-only">Acting as (demo)</span>
+          {LIVE ? (
+            <span className="acting signed-in"><span className="sr-only">Signed in as</span>{access.me?.name ?? ''} <button type="button" className="btn sm ghost" onClick={() => void signOut()}>Sign out</button></span>
+          ) : <label className="acting"><span className="sr-only">Acting as (demo)</span>
             <select className="in pill-select" aria-label="Acting as (demo)" value={access.me?.id ?? ''} onChange={(e) => { const x = access.doc.admins.find((y) => y.id === e.target.value); setActing(e.target.value, x?.name); }}>
               {access.doc.admins.filter((x) => x.status === 'active').map((x) => <option key={x.id} value={x.id}>{x.name} – {access.doc.roles.find((r) => r.id === x.roleId)?.name ?? x.roleId}</option>)}
-            </select></label>
+            </select></label>}
         </header>
-        <main id="main" tabIndex={-1}>
-          {me && <PlatformBanners me={me} pathname={pathname} />}
+        {LIVE && <LiveNotices />}
+        <main id="main" tabIndex={-1} data-art={artKey ?? undefined} style={artUrl ? ({ '--sec-img': `url("${artUrl}")` } as CSSProperties) : undefined}>
+          {me && !work && <PlatformBanners me={me} pathname={pathname} />}
+          {artKey && pathname !== '/' && !blocked && !closed && !work && <div className="sec-art" aria-hidden="true"><Photo k={artKey} priority /><span className="sec-art-name">{group}</span></div>}
           {closed ? <ClosedPanel me={me!} /> : mod && !can(mod) ? <ModuleOff label={MODULE_INFO[mod].label} plan={me!.org.plan} email={me!.supportEmail} />
             : blocked ? <div className="page"><section className="panel glass-pane no-access" role="alert"><h1 className="panel-h">Not part of your role</h1><p>{access.me?.name} ({access.role?.name}) cannot open this page – it needs “{PERMISSIONS[need!].label}”. Ask an Owner or Admin if you need it.</p><Link className="btn" href="/">Back to the overview</Link></section></div>
-            : children}
+            : <div key={labels} className="labels-root" style={{ display: "contents" }}>{children}</div>}
         </main>
       </div>
       {palette && <CommandPalette site={site} can={can} onClose={() => setPalette(false)} toggleMode={() => update({ mode: document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark' })} />}
@@ -138,7 +166,10 @@ const currentQuery = () => (typeof window === 'undefined' ? '' : window.location
 function SideTree({ pathname, can, rail = false }: { pathname: string; can: (href: string) => boolean; rail?: boolean }) {
   const [query, setQuery] = useState('');
   const qc = openCounts(useQueueState());
-  const counts: Record<string, number> = { 'q:all': Object.values(qc).reduce((a, b) => a + b, 0), ...Object.fromEntries(Object.entries(qc).map(([k, v]) => [`q:${k}`, v])) };
+  const openTickets = useHelpdeskBadge();
+  const myTasks = useMyTasksBadge();
+  const inbox = useInboxBadge(useAccess().me?.id ?? (LIVE ? '' : 'owner'));
+  const counts: Record<string, number> = { 'q:all': Object.values(qc).reduce((a, b) => a + b, 0) + openTickets, 'q:tickets': openTickets, 'q:tasks': myTasks, 'q:inbox': inbox, ...Object.fromEntries(Object.entries(qc).map(([k, v]) => [`q:${k}`, v])) };
   const [open, setOpen] = useState<string[]>([]);
   useEffect(() => {
     const read = () => setQuery(currentQuery());
@@ -232,10 +263,17 @@ function TreeNode({ n, counts, isActive, open, onToggle, parentActive, pathname 
   }
   return (
     <li className={`node has-sub${open ? ' open' : ''}${parentActive ? ' is-current' : ''}`}>
+      {n.home ? (
+        // D2 – the group opens its own page (Members → Overview); the chevron alone folds the list
+        <span className={`side-link parent with-home${parentActive ? ' is-current' : ''}`}>
+          <Link className="home-link" href={n.home} aria-label={nb ? `${n.label}, ${nb} need attention` : n.label} aria-current={isActive(n.home) ? 'page' : undefined} onClick={() => { if (!open) onToggle(); }}><Icon name={n.icon} /><span className="lbl">{n.label}</span>{badge}</Link>
+          <button type="button" className="chev-btn" aria-label={`${open ? 'Hide' : 'Show'} ${n.label} pages`} aria-expanded={open} aria-controls={id} onClick={onToggle}><svg className="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg></button>
+        </span>
+      ) : (
       <button type="button" className={`side-link parent${parentActive ? ' is-current' : ''}`} aria-label={nb ? `${n.label}, ${nb} need attention` : n.label} aria-expanded={open} aria-controls={id} onClick={onToggle}>
         <Icon name={n.icon} /><span className="lbl">{n.label}</span>{badge}
         <svg className="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>
-      </button>
+      </button>)}
       <ul className="sub glass-float" id={id}>
         <li className="sub-title" aria-hidden="true">{n.label}</li>
         {n.children.map((c) => <li key={c.label}><SubLink c={c.countKey ? { ...c, badge: counts[c.countKey] ? String(counts[c.countKey]) : undefined } : c} active={isActive(c.href)} pathname={pathname} /></li>)}
@@ -311,7 +349,7 @@ function PlatformBanners({ me, pathname }: { me: Me; pathname: string }) {
   const s = me.support; const o = me.org;
   return (
     <div className="pf-banners">
-      {s && <div className="pf-banner warn" role="status"><span><b>Support sign-in by {s.by}</b> ({s.mode === 'full' ? 'full access' : 'read only'}) until {new Date(s.endsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })}. Reason: “{s.reason}”</span></div>}
+      {s && <div className="pf-banner warn" role="status"><span><b>Support sign-in by {s.by}</b> ({s.mode === 'full' ? 'full access' : 'read only'}) until {new Date(s.endsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ORG_TZ })}. Reason: “{s.reason}”</span></div>}
       {o.status === 'past_due' && <div className="pf-banner bad" role="alert"><span><b>Your last payment to {me.productName} failed.</b> Update the card in billing to avoid a pause. Questions: <a href={`mailto:${me.supportEmail}`}>{me.supportEmail}</a></span></div>}
       {o.status === 'trial' && o.trialDaysLeft !== null && o.trialDaysLeft <= 14 && <div className="pf-banner info" role="status"><span><b>{o.trialDaysLeft === 0 ? 'Your free trial ends today.' : `${o.trialDaysLeft} day${o.trialDaysLeft === 1 ? '' : 's'} left in your free trial`}</b> ({o.plan} plan).</span></div>}
       {o.slug !== 'isgh' && (pathname === '/' || /^\/(members|queues|families)/.test(pathname)) && <div className="pf-banner info" role="note"><span><b>Sample records.</b> This screen shows demo members until {o.shortName}’s own member data is connected (BE phase).</span></div>}
@@ -340,5 +378,21 @@ function ModuleOff({ label, plan, email }: { label: string; plan: string; email:
       <p>Your organization is on the <b>{plan}</b> plan. To add {label.toLowerCase()}, ask <a href={`mailto:${email}`}>{email}</a> about a bigger plan or an add-on.</p>
       <Link className="btn" href="/">Back to the overview</Link>
     </section></div>
+  );
+}
+
+/** Live mode: what the server said about a save (refused, not reachable, done) – a short message at the bottom. */
+function LiveNotices() {
+  const [n, setN] = useState<{ text: string; tone: 'ok' | 'error'; at: number } | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => setN({ ...(e as CustomEvent<{ text: string; tone: 'ok' | 'error' }>).detail, at: Date.now() });
+    window.addEventListener(NOTICE_EVENT, on); return () => window.removeEventListener(NOTICE_EVENT, on);
+  }, []);
+  useEffect(() => { if (!n) return; const t = window.setTimeout(() => setN(null), n.tone === 'error' ? 9000 : 4000); return () => window.clearTimeout(t); }, [n]);
+  if (!n) return null;
+  return (
+    <div className={`toast live-notice ${n.tone === 'error' ? 'toast-error' : ''}`} role={n.tone === 'error' ? 'alert' : 'status'} style={{ position: 'fixed', insetInline: 16, bottom: 16, zIndex: 80, maxWidth: 560, marginInline: 'auto' }}>
+      {n.text} <button type="button" className="btn sm ghost" onClick={() => setN(null)} aria-label="Close message">×</button>
+    </div>
   );
 }

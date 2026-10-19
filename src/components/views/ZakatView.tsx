@@ -6,7 +6,7 @@
  * DEMO (no API): cases are saved in this browser.
  */
 import { DashBar, exportPage, useScope as useDashScope } from '@/components/charts/DashKit';
-import { ZONES } from '@/lib/members/members';
+import { ZONES, ORG_TZ } from '@/lib/members/members';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
@@ -22,8 +22,8 @@ import { nextCaseId, saveCase, useZakatCases, useZakatContext } from '@/lib/zaka
 import { csvCell } from '@/lib/community/member-records';
 
 const nowIso = () => new Date().toISOString();
-const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: '2-digit', day: '2-digit', year: 'numeric' });
-const fmtWhen = (iso: string) => `${fmtDay(iso)} ${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })}`;
+const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: ORG_TZ, month: '2-digit', day: '2-digit', year: 'numeric' });
+const fmtWhen = (iso: string) => `${fmtDay(iso)} ${new Date(iso).toLocaleTimeString('en-US', { timeZone: ORG_TZ, hour: 'numeric', minute: '2-digit' })}`;
 const ST_TONE: Record<CaseStatus, string> = { new: 'warn', verifying: '', 'info-requested': 'warn', 'awaiting-approval': '', approved: 'good', paid: 'good', rejected: 'bad' };
 const NEXT: Record<CaseStatus, string> = { new: 'Assign and verify', verifying: 'Finish verification', 'info-requested': 'Waiting for documents', 'awaiting-approval': 'Approval', approved: 'Pay out', paid: 'Done', rejected: 'Closed' };
 function dueText(c: ZakatCase, s: ZakatSettings, now: string) {

@@ -714,3 +714,66 @@
 .mh.cc .cc-newest .pl { font-size: .8rem; color: var(--ink-2); white-space: nowrap; }
 .mh.cc .cc-newest .amt { text-align: right; }
 @media (max-width: 720px) { .mh.cc .cc-newest .cc-people li { grid-template-columns: 34px minmax(0, 1fr) auto; } .mh.cc .cc-newest .pl { display: none; } }
+/* ---------- E1 Elected officials › History ---------- */
+.of-hist { display: grid; gap: var(--gap, 1rem); }
+.of-hist-bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.of-hist-bar input[type="search"] { max-width: 260px; }
+.of-hist-count { margin-right: auto; }
+.of-hist-year h2 small, .of-hist-pos h2 small { font-weight: 500; font-size: .85rem; margin-left: .4rem; }
+.of-hist-table tr.open td { background: color-mix(in srgb, var(--accent-ink) 7%, transparent); }
+.of-hist-more td { background: color-mix(in srgb, var(--accent-ink) 5%, transparent); }
+.of-hist-detail { display: flex; flex-wrap: wrap; gap: .6rem 1.4rem; align-items: center; font-size: .9rem; }
+.of-hist-detail span { display: grid; } .of-hist-detail small { color: var(--ink-3); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; }
+.of-timeline { list-style: none; margin: .4rem 0 0; padding: 0 0 0 .3rem; display: grid; gap: .35rem; border-left: 2px solid var(--line-strong); }
+.of-timeline li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: .6rem; align-items: start; padding: .35rem 0 .35rem .8rem; position: relative; }
+.of-timeline li::before { content: ''; position: absolute; left: -7px; top: .85rem; width: 12px; height: 12px; border-radius: 50%; background: var(--field); border: 2px solid var(--line-strong); }
+.of-timeline li.now::before { background: var(--accent-ink); border-color: var(--accent-ink); }
+.of-tl-year { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent-ink); }
+.of-tl-who { display: grid; gap: .05rem; min-width: 0; } .of-tl-who small { color: var(--ink-3); font-size: .78rem; }
+.of-hist-table td:nth-child(4) { white-space: nowrap; }
+/* Z1/Z2 map presets */
+.zn-presets { padding: .9rem 1rem; border-radius: var(--r-lg, 16px); }
+.zn-preset-row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: end; } .zn-preset-pick { min-width: 320px; flex: 1; }
+.zn-preset-notes { margin: .4rem 0 0; padding-left: 1.2rem; display: grid; gap: .3rem; font-size: .9rem; }
+/* ---------- R1 Records library ---------- */
+.rc { display: grid; gap: var(--gap, 1rem); }
+.rc-bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; } .rc-bar input[type="search"] { max-width: 240px; } .rc-count { margin-left: auto; }
+.rc-group h2 { display: flex; align-items: center; gap: .5rem; }
+.rc-table .rc-date { white-space: nowrap; font-variant-numeric: tabular-nums; } .rc-table tr.off td { opacity: .6; }
+/* ---------- Elections: nominations, ballot and results ---------- */
+.ex { display: grid; gap: var(--gap, 1rem); }
+.ex-bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.ex-warns { margin: 0; padding-left: 1.4rem; display: grid; gap: .25rem; font-size: .9rem; }
+.ex-noms, .ex-ballot, .ex-results, .ex-certify { display: grid; gap: var(--gap, 1rem); }
+.ex-add { padding: .9rem 1rem; border-radius: var(--r-lg, 16px); display: grid; gap: .6rem; }
+.ex-nom { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .8rem; align-items: start; padding: .7rem .9rem; border-radius: 14px; border: 1px solid var(--line); background: var(--field); }
+.ex-nom small { color: var(--ink-3); font-size: .8rem; } .ex-nom.st-withdrawn, .ex-nom.st-declined { opacity: .65; }
+.ex-issues { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .82rem; color: var(--warn); display: grid; gap: .15rem; }
+.ex-table tr.ex-empty td { box-shadow: inset 3px 0 0 var(--warn); } .ex-table tr.off td { opacity: .55; }
+.ex-table tr.ex-winner td { background: color-mix(in srgb, var(--ok) 10%, transparent); font-weight: 600; }
+.ex-table .in-num { width: 90px; }
+.ex-cast { max-width: 420px; }
+.ex-count.decided { border-color: var(--ok); }
+.ex-winners { list-style: none; margin: 0 0 .8rem; padding: 0; display: grid; gap: .35rem; }
+.ex-winners li { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem .7rem; border-radius: 10px; background: var(--field); font-size: .92rem; }
+.ex-nom-meta { margin-top: .1rem; }
+
+/* D1 – role › Dashboard cards */
+.acc-dash { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.acc-dash h3 { margin: 0 0 .2rem; font-size: 1rem; display: flex; gap: .5rem; align-items: baseline; }
+.acc-dash h3 small { color: var(--ink-3); font-weight: 500; font-size: .8rem; }
+.acc-dash-page { border: 1px solid var(--line); border-radius: 14px; padding: .6rem .8rem .7rem; margin: .6rem 0 0; min-width: 0; }
+.acc-dash-page legend { padding: 0 .3rem; font-weight: 700; font-size: .9rem; }
+.acc-dash-page ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .25rem .8rem; }
+.acc-dash-page li { opacity: .62; }
+.acc-dash-page li.on { opacity: 1; }
+.dash-note { margin: .6rem 0 0; }
+.acc-dash-page li.acc-dash-sec { opacity: 1; grid-column: 1 / -1; font-size: .78rem; font-weight: 700; color: var(--ink-3); margin: .4rem 0 .1rem; text-transform: uppercase; letter-spacing: .04em; }
+.acc-dash-sec small { text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+/* D12 – per-center money */
+.dn-centers th[scope="row"] { white-space: nowrap; }
+.dn-centers .in.sm { padding: .3rem .5rem; font-size: .82rem; }
+.dn-acc { display: flex; gap: .3rem; flex-wrap: wrap; align-items: center; }
+.dn-acc .in-last4 { width: 70px; }
+.chip-row.sm button { font-size: .75rem; padding: .2rem .55rem; }

@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import type { SiteConfig } from '@/lib/site-config/schema';
 import type { Giving } from '@/lib/content/giving';
-import { ISGH_WILDAPRICOT_LEVELS, DEFAULT_LIFECYCLE, type MembershipSettings } from '@/lib/content/membership';
-import { UseIsghLevels } from './CommunityViews';
+import type { MembershipSettings } from '@/lib/content/membership';
+import { PlansEditor } from './PlansEditor';
 import { RenewalPreview } from './RenewalPreview';
 import type { Page } from '@/lib/content/pages';
 import { PageSchema } from '@/lib/content/pages';
@@ -208,10 +208,11 @@ export function MembershipView() {
       intro="Dues, plans and the Bylaws rules the join form follows. Defaults come from the ISGH Constitution and Bylaws; change them when the Board decides.">
       {(doc) => (
         <Tabs label="Membership settings" tabs={[
-          { id: 'plans', label: 'Plans and dues', badge: countIssues(doc.issues, ['plans', 'year']), render: () => <Panel intro="Bylaws minimums: Single $25, Family $40 per year. Multi-year discount up to 25%. Each plan can also have WildApricot-style options: a household size, fixed prices for 3 or 5 years, a renewal date and automatic renewal."><div className="row-actions"><UseIsghLevels onUse={() => doc.setDraft((d) => ({ ...d, plans: structuredClone(ISGH_WILDAPRICOT_LEVELS), lifecycle: d.lifecycle ?? DEFAULT_LIFECYCLE }))} /></div><ScopedForm doc={doc} storeKey="membership-settings" only={['year', 'plans']} /></Panel> },
+          { id: 'plans', label: 'Plans and dues', badge: countIssues(doc.issues, ['plans', 'year', 'rules']), render: () => <Panel intro="Every plan and rule is yours to set: the words, the prices, the term, who a plan covers and who may vote. Start from a preset (ISGH's real categories, the Wild Apricot levels or the Bylaws demo set) and change what you like."><PlansEditor doc={doc} /></Panel> },
           { id: 'renewals', label: 'Renewals and reminders', badge: countIssues(doc.issues, ['lifecycle']), render: () => <Panel intro="What happens before and after each renewal date: reminder emails, invoices, the grace period and what to do when someone does not renew. The emails themselves are in Communication › System emails."><ScopedForm doc={doc} storeKey="membership-settings" only={['lifecycle']} /><RenewalPreview settings={doc.draft} /></Panel> },
           { id: 'voting', label: 'Voting and area', badge: countIssues(doc.issues, ['recordDate', 'timezone', 'minVotingAge', 'minMemberAge', 'serviceArea']), render: () => <Panel intro="Bylaws Art. I §2–3: age 18+, own dues paid by June 30, lives in the service area."><ScopedForm doc={doc} storeKey="membership-settings" only={['recordDate', 'timezone', 'minVotingAge', 'minMemberAge', 'serviceArea']} /></Panel> },
-          { id: 'join', label: 'Pledge and consents', badge: countIssues(doc.issues, ['commitments', 'pledge', 'consents', 'payerRelationships', 'otp']), render: () => <Panel intro="Changing the pledge or consent text? Also change its version, so we know who agreed to which text."><ScopedForm doc={doc} storeKey="membership-settings" only={['commitments', 'pledge', 'consents', 'payerRelationships', 'otp']} /></Panel> },
+          { id: 'join', label: 'Pledge and consents', badge: countIssues(doc.issues, ['commitments', 'pledge', 'consents', 'payerRelationships', 'otp', 'legal']), render: () => <Panel intro="Changing the pledge or consent text? Also change its version, so we know who agreed to which text. The Terms and Privacy links are shown with the text-message consent."><ScopedForm doc={doc} storeKey="membership-settings" only={['commitments', 'pledge', 'consents', 'legal', 'payerRelationships', 'otp']} labels={{ legal: 'Terms and privacy links' }} /></Panel> },
+          { id: 'identity', label: 'Identity and sign-up guide', badge: countIssues(doc.issues, ['identity', 'guide']), render: () => <Panel intro="What the join form says about identity – the name must match the photo ID, the Identity Collection and Verification Policy (a page of your own, or the built-in page with the text below) and the consent asked for – and the “How to sign up” page the website links to. Every word is yours; an organization that verifies identity differently changes or turns these off."><ScopedForm doc={doc} storeKey="membership-settings" only={['identity', 'guide']} labels={{ identity: 'Identity policy and consent', guide: 'Sign-up guide page' }} /></Panel> },
           { id: 'switches', label: 'Switches', badge: countIssues(doc.issues, ['flags']), render: () => <Panel><ScopedForm doc={doc} storeKey="membership-settings" only={['flags']} /></Panel> },
         ]} />
       )}

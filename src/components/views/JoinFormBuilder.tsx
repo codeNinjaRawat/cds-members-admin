@@ -12,7 +12,7 @@ import { DocEditor, type DocApi } from '@/components/editor/DocEditor';
 import { SwitchRow } from '@/components/editor/bits';
 import type { PreviewHandle } from '@/components/editor/LivePreview';
 import { useDoc } from '@/lib/store/use-doc';
-import type { MembershipSettings } from '@/lib/content/membership';
+import { memberClass, type MembershipRules, type MembershipSettings } from '@/lib/content/membership';
 import {
   CORE_FIELDS, FIELD_TYPE_LABEL, FIELD_TYPES, PLACEMENT_LABEL, PLACEMENTS, VISIBILITY, VISIBILITY_LABEL,
   type CoreKey, type FieldType, type JoinField, type JoinForm, type JoinSection, type Placement,
@@ -42,6 +42,7 @@ function Builder({ doc, previewRef }: { doc: DocApi<JoinForm>; previewRef: React
   const form = doc.draft;
   const settings = useDoc<MembershipSettings>('membership-settings');
   const plans = settings.status === 'ready' ? settings.draft.plans : [];
+  const rules = settings.status === 'ready' ? settings.draft.rules : undefined;
   const [open, setOpen] = useState<string | null>(null);           // field being edited
   const [focusStep, setFocusStep] = useState<string>('about');      // step shown in the preview
   const [coreOpen, setCoreOpen] = useState<CoreKey | null>(null);
@@ -99,10 +100,10 @@ function Builder({ doc, previewRef }: { doc: DocApi<JoinForm>; previewRef: React
                 ))}
               </div>
               {coreOpen && c.keys.includes(coreOpen) && <CoreEditor k={coreOpen} form={form} update={update} />}
-              {form.sections.map((s, si) => s.placement === c.step && <SectionCard key={s.id} s={s} si={si} n={form.sections.length} {...{ form, update, open, setOpen, addField, moveSection, issueAt, plans, setFocusStep, stepFor }} />)}
+              {form.sections.map((s, si) => s.placement === c.step && <SectionCard key={s.id} s={s} si={si} n={form.sections.length} {...{ form, update, open, setOpen, addField, moveSection, issueAt, plans, rules, setFocusStep, stepFor }} />)}
               {form.sections.map((s, si) => s.placement === `step-after-${c.step}` && (
                 <div key={s.id} className="jfb-ownstep"><StepRow title={s.title} custom onPreview={() => setFocusStep(`s:${s.id}`)} active={focusStep === `s:${s.id}`} />
-                  <SectionCard s={s} si={si} n={form.sections.length} {...{ form, update, open, setOpen, addField, moveSection, issueAt, plans, setFocusStep, stepFor }} /></div>
+                  <SectionCard s={s} si={si} n={form.sections.length} {...{ form, update, open, setOpen, addField, moveSection, issueAt, plans, rules, setFocusStep, stepFor }} /></div>
               ))}
             </li>
           ))}
@@ -138,10 +139,10 @@ function CoreEditor({ k, form, update }: { k: CoreKey; form: JoinForm; update: (
   );
 }
 
-type CardProps = { s: JoinSection; si: number; n: number; form: JoinForm; update: (fn: (f: JoinForm) => JoinForm) => void; open: string | null; setOpen: (id: string | null) => void;
+type CardProps = { s: JoinSection; si: number; n: number; form: JoinForm; update: (fn: (f: JoinForm) => JoinForm) => void; open: string | null; setOpen: (id: string | null) => void; rules?: MembershipRules;
   addField: (si: number, t?: FieldType) => void; moveSection: (si: number, d: -1 | 1) => void; issueAt: (p: string) => string[]; plans: { id: string; name: string }[]; setFocusStep: (s: string) => void; stepFor: (s: JoinSection) => string };
 
-function SectionCard({ s, si, n, form, update, open, setOpen, addField, moveSection, issueAt, plans, setFocusStep, stepFor }: CardProps) {
+function SectionCard({ s, si, n, form, update, open, setOpen, addField, moveSection, issueAt, plans, rules, setFocusStep, stepFor }: CardProps) {
   const [confirmDel, setConfirmDel] = useState(false);
   const problems = issueAt(`sections.${si}`);
   // the open editor is remembered by place (section + position), so renaming a question's id never closes it
@@ -180,7 +181,7 @@ function SectionCard({ s, si, n, form, update, open, setOpen, addField, moveSect
               </span>
             </div>
             {issueAt(`sections.${si}.fields.${fi}`).map((m) => <p key={m} className="sf-err">{m}</p>)}
-            {open === keyOf(fi) && <FieldEditor f={fl} si={si} fi={fi} form={form} update={update} plans={plans} onClose={() => setOpen(null)} />}
+            {open === keyOf(fi) && <FieldEditor f={fl} si={si} fi={fi} form={form} update={update} plans={plans} rules={rules} onClose={() => setOpen(null)} />}
           </li>
         ))}
       </ul>
@@ -194,14 +195,14 @@ function SectionCard({ s, si, n, form, update, open, setOpen, addField, moveSect
   );
 }
 
-function FieldEditor({ f, si, fi, form, update, plans, onClose }: { f: JoinField; si: number; fi: number; form: JoinForm; update: (fn: (f: JoinForm) => JoinForm) => void; plans: { id: string; name: string }[]; onClose: () => void }) {
+function FieldEditor({ f, si, fi, form, update, plans, rules, onClose }: { f: JoinField; si: number; fi: number; form: JoinForm; update: (fn: (f: JoinForm) => JoinForm) => void; plans: { id: string; name: string }[]; rules?: MembershipRules; onClose: () => void }) {
   const set = (patch: Partial<JoinField>) => update((x) => { x.sections[si].fields[fi] = { ...x.sections[si].fields[fi], ...patch }; return x; });
   const [confirmDel, setConfirmDel] = useState(false);
   const others = form.sections.flatMap((s) => s.fields).filter((x) => x.id !== f.id && x.type !== 'info');
   const ruleField = f.showIf?.field;
   const ruleTarget = others.find((x) => x.id === ruleField);
   const ruleChoices = ruleField === 'plan.category' ? [{ value: 'individual', label: 'One person' }, { value: 'household', label: 'Family (household)' }]
-    : ruleField === 'plan.memberClass' ? [{ value: 'natural', label: 'Muslim member' }, { value: 'associate', label: 'Associate member' }]
+    : ruleField === 'plan.memberClass' ? [{ value: 'natural', label: memberClass(rules, 'natural').label }, { value: 'associate', label: memberClass(rules, 'associate').label }]
     : ruleField === 'plan.planId' ? plans.map((p) => ({ value: p.id, label: p.name }))
     : ruleTarget?.type === 'yesno' ? [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] : ruleTarget?.options;
   const setOptions = (labels: string[]) => {

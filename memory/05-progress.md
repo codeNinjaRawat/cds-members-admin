@@ -21,3 +21,6 @@
 - [x] A4 work queues (applications, photo ID, center changes, duplicates, payments)
 - [ ] A5 plan builder polish · A9 reports · A10 users/roles/audit · A11 integrations
 - [x] Family tree (membership family + family history; portal and admin)
+
+## 2026-10-18
+- [x] Help desk (tickets) and Team tasks rebuilt as two modules + settings; My work card on Overview and masjid home

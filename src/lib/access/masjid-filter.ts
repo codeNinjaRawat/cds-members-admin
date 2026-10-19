@@ -10,24 +10,29 @@
  */
 import { useEffect, useState } from 'react';
 import { useAccess } from './use-access';
-import { ZONES, type ZoneId } from '@/lib/members/members';
+import { ZONES, ORG_STRUCTURE, LABELS_EVENT, type ZoneId } from '@/lib/members/members';
 import { centerForZip, mockOrgStructure, type OrgStructure } from '@/lib/community/org-structure';
 
 export const UNROUTED = '~none';
+/** The structure the filter offers: the organization's published one once loaded, else the demo one. */
+export const currentOrg = (): OrgStructure => (ORG_STRUCTURE as OrgStructure | null) ?? mockOrgStructure;
 const KEY = 'isgh-admin-viewing';
 export const VIEW_EVENT = 'isgh:viewing';
 type Viewing = { zone: '' | ZoneId; masjid: string };
 const read = (): Viewing => { try { const v = JSON.parse(localStorage.getItem(KEY) || '{}'); return { zone: v.zone ?? '', masjid: v.masjid ?? '' }; } catch { return { zone: '', masjid: '' }; } };
 export function setViewing(v: Partial<Viewing>) {
   const next = { ...read(), ...v };
-  if (next.masjid && next.masjid !== UNROUTED) { const c = mockOrgStructure.centers.find((x) => x.name === next.masjid); if (c) next.zone = c.zone as ZoneId; }
+  if (next.masjid && next.masjid !== UNROUTED) { const c = currentOrg().centers.find((x) => x.name === next.masjid); if (c) next.zone = c.zone as ZoneId; }
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private window */ }
   window.dispatchEvent(new Event(VIEW_EVENT));
 }
 export const clearViewing = () => setViewing({ zone: '', masjid: '' });
 
-export function useMasjidFilter(org: OrgStructure = mockOrgStructure) {
+export function useMasjidFilter(given?: OrgStructure) {
   const access = useAccess();
+  const [, relabel] = useState(0);   // the published structure arrives after the first render
+  useEffect(() => { const on = () => relabel((n) => n + 1); window.addEventListener(LABELS_EVENT, on); return () => window.removeEventListener(LABELS_EVENT, on); }, []);
+  const org = given ?? currentOrg();
   const [v, setV] = useState<Viewing>({ zone: '', masjid: '' });
   useEffect(() => { const on = () => setV(read()); on(); window.addEventListener(VIEW_EVENT, on); window.addEventListener('storage', on); return () => { window.removeEventListener(VIEW_EVENT, on); window.removeEventListener('storage', on); }; }, []);
   const role = access.role;

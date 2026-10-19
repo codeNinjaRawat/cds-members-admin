@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 export const EMAIL_PROVIDERS = { fake: 'Fake (demo – nothing is sent)', sendgrid: 'SendGrid', postmark: 'Postmark', ses: 'Amazon SES', resend: 'Resend', mailgun: 'Mailgun' } as const;
 export const SMS_PROVIDERS = { fake: 'Fake (demo – nothing is sent)', twilio: 'Twilio', telnyx: 'Telnyx', vonage: 'Vonage', sns: 'Amazon SNS' } as const;
+export const GIVING_PROVIDERS = { zeffy: 'Zeffy', paypal: 'PayPal Giving', bloomerang: 'Bloomerang', givelify: 'Givelify', medina: 'Medina kiosk', other: 'Another platform' } as const;
 type EmailP = keyof typeof EMAIL_PROVIDERS; type SmsP = keyof typeof SMS_PROVIDERS;
 const enumOf = <T extends Record<string, string>>(o: T) => z.enum(Object.keys(o) as [keyof T & string, ...(keyof T & string)[]]);
 
@@ -58,6 +59,22 @@ export const IntegrationsShape = z.object({
     clientSecret: Secret,
     redirectUris: z.array(z.string().url()).max(10),
   }),
+  /** I1 Giving platforms – Zeffy, PayPal, Bloomerang, Givelify…: one account for the organization or a masjid's own.
+   *  Only the account label, the public form address, the last 4 of each key and the sync time are stored here. */
+  giving: z.object({
+    accounts: z.array(z.object({
+      id: z.string().regex(/^[a-z0-9-]{2,40}$/),
+      provider: enumOf(GIVING_PROVIDERS),
+      enabled: z.boolean().default(true),
+      label: z.string().trim().min(2, 'Name the account.').max(80),
+      scope: z.enum(['organization', 'center']).default('organization'),
+      center: z.string().max(80).default(''),                                    // the masjid when scope = center
+      formUrl: z.string().url('Use the full address of the giving form.').or(z.literal('')).default(''),
+      apiKey: Secret,
+      webhookSecret: Secret,
+      lastSync: z.string().default(''),
+    })).max(60).default([]),
+  }).default({ accounts: [] }),
   fallback: z.object({ emailProvider: enumOf(EMAIL_PROVIDERS).nullable().default(null), smsProvider: enumOf(SMS_PROVIDERS).nullable().default(null) }),
   lastChange: z.object({ summary: z.string(), requestedBy: z.string(), approvedBy: z.string(), at: z.string() }).optional(),
 });
@@ -80,6 +97,15 @@ export const IntegrationsSchema = IntegrationsShape.superRefine((d, ctx) => {
   if (d.stripe.publishableKey && !d.stripe.publishableKey.startsWith(`pk_${d.stripe.mode}_`)) bad(['stripe', 'publishableKey'], `In ${d.stripe.mode} mode the key starts with pk_${d.stripe.mode}_.`);
   if (d.stripe.enabled && (!d.stripe.publishableKey || !d.stripe.secretKey)) bad(['stripe', 'secretKey'], 'Set both Stripe keys, or switch Stripe off.');
   if (d.stripe.mode === 'live' && !d.stripe.webhookSecret) bad(['stripe', 'webhookSecret'], 'Set the webhook secret – payments are confirmed by Stripe webhooks, never by the browser.');
+  // giving platforms
+  const seenAcc = new Set<string>();
+  d.giving.accounts.forEach((a, i) => {
+    if (a.scope === 'center' && !a.center) bad(['giving', 'accounts', i, 'center'], 'Name the masjid this account belongs to.');
+    const k = `${a.provider}|${a.scope === 'center' ? a.center : ''}`;
+    if (seenAcc.has(k)) bad(['giving', 'accounts', i, 'provider'], `There is already a ${GIVING_PROVIDERS[a.provider]} account for ${a.scope === 'center' ? a.center : 'the organization'}.`);
+    seenAcc.add(k);
+    if (a.enabled && !a.formUrl && !a.apiKey) bad(['giving', 'accounts', i, 'formUrl'], 'Enter the giving form address or the API key – without either nothing can be shown or synced.');
+  });
   // google
   if (d.google.enabled && (!d.google.clientId || !d.google.clientSecret)) bad(['google', 'clientId'], 'Set the client ID and secret, or switch Google sign-in off.');
   d.google.redirectUris.forEach((u, i) => { if (!/^https:\/\//.test(u) && !/^http:\/\/localhost(:\d+)?\//.test(u)) bad(['google', 'redirectUris', i], 'Use https (http only for localhost).'); });
@@ -105,6 +131,7 @@ const KEY_SHAPES: Record<string, { re: RegExp; hint: string }> = {
   'stripe:live': { re: /^(sk|rk)_live_[A-Za-z0-9]{16,}$/, hint: 'In live mode use sk_live_… (or a restricted rk_live_… key).' },
   webhook: { re: /^(whsec_)?[A-Za-z0-9+/=_-]{16,}$/, hint: 'Paste the signing secret from the provider’s webhook page.' },
   google: { re: /^GOCSPX-[A-Za-z0-9_-]{20,}$/, hint: 'Google client secrets start with GOCSPX-' },
+  giving: { re: /^[A-Za-z0-9_.:-]{16,}$/, hint: 'Giving platform keys are at least 16 characters' },
 };
 /** Checks a pasted key's shape and returns what may be kept (last 4 only). The key itself is never stored here. */
 export function checkKey(kind: string, key: string, by: string, at: string): { ok: true; secret: { last4: string; setAt: string; setBy: string } } | { ok: false; message: string } {
@@ -131,6 +158,10 @@ export function sensitiveChanges(before: IntegrationsDoc, after: IntegrationsDoc
   if (before.stripe.mode !== after.stripe.mode) out.push(`Stripe mode → ${after.stripe.mode}`);
   if (before.stripe.publishableKey !== after.stripe.publishableKey || !same(before.stripe.secretKey, after.stripe.secretKey) || !same(before.stripe.webhookSecret, after.stripe.webhookSecret)) out.push('Stripe keys');
   if (before.google.clientId !== after.google.clientId || !same(before.google.clientSecret, after.google.clientSecret)) out.push('Google sign-in keys');
+  const keysOf = (d: IntegrationsDoc) => new Map(d.giving.accounts.map((a) => [a.id, JSON.stringify([a.apiKey ?? null, a.webhookSecret ?? null])]));
+  const kb = keysOf(before), ka = keysOf(after);
+  const keyChanged = Array.from(new Set([...kb.keys(), ...ka.keys()])).some((id) => (kb.get(id) ?? '[null,null]') !== (ka.get(id) ?? '[null,null]'));
+  if (keyChanged) out.push('Giving platform keys');
   return out;
 }
 /** null = fine. The server checks this too: sensitive changes need lastChange approved by another active admin. */
@@ -146,7 +177,7 @@ export function fourEyes(before: IntegrationsDoc, after: IntegrationsDoc, actorI
 
 /* ---------- readiness ---------- */
 export type Check = { label: string; state: 'ok' | 'warn' | 'missing'; help?: string };
-export type Ready = { id: 'email' | 'sms' | 'stripe' | 'google'; title: string; status: 'live' | 'test' | 'off' | 'problem'; checks: Check[] };
+export type Ready = { id: 'email' | 'sms' | 'stripe' | 'google' | 'giving'; title: string; status: 'live' | 'test' | 'off' | 'problem'; checks: Check[] };
 type Needs = { smsOn: boolean; smsPurposes: string[]; cardOn: boolean; achOn: boolean; googleOnSite: boolean };
 export function readiness(d: IntegrationsDoc, needs: Needs): Ready[] {
   const st = (on: boolean, mode: 'test' | 'live', checks: Check[]): Ready['status'] => (!on ? 'off' : checks.some((c) => c.state === 'missing') ? 'problem' : mode);
@@ -180,14 +211,19 @@ export function readiness(d: IntegrationsDoc, needs: Needs): Ready[] {
     { label: 'Redirect addresses', state: g.redirectUris.length ? 'ok' : 'missing', help: 'Add the website’s /api/auth/google/callback address.' },
     ...(needs.googleOnSite && !g.enabled ? [{ label: 'The website shows "Continue with Google" but this integration is off', state: 'missing' as const }] : []),
   ];
+  const accs = d.giving.accounts.filter((a) => a.enabled);
+  const givingChecks: Check[] = accs.length
+    ? accs.map((a): Check => ({ label: `${GIVING_PROVIDERS[a.provider]}: ${a.label}`, state: a.apiKey && a.webhookSecret ? 'ok' : a.formUrl ? 'warn' : 'missing', help: a.apiKey ? (a.webhookSecret ? undefined : 'Without the webhook secret, gifts arrive only at the next sync.') : 'Form address only: gifts are entered by hand or by importing the platform’s export.' }))
+    : [{ label: 'No giving platform account yet', state: 'warn', help: 'Add Zeffy, PayPal Giving, Bloomerang… – organization-wide or per masjid.' }];
   return [
     { id: 'email', title: 'Email', status: st(e.enabled, e.mode, emailChecks), checks: emailChecks },
+    { id: 'giving', title: 'Giving platforms', status: accs.length ? (givingChecks.some((c) => c.state === 'missing') ? 'problem' : 'live') : 'off', checks: givingChecks },
     { id: 'sms', title: 'Text messages', status: st(s.enabled, s.mode, smsChecks) === 'off' && needs.smsOn ? 'problem' : st(s.enabled, s.mode, smsChecks), checks: smsChecks },
     { id: 'stripe', title: 'Stripe payments', status: st(p.enabled, p.mode, stripeChecks) === 'off' && needs.cardOn ? 'problem' : st(p.enabled, p.mode, stripeChecks), checks: stripeChecks },
     { id: 'google', title: 'Google sign-in', status: st(g.enabled, 'live', googleChecks) === 'off' && needs.googleOnSite ? 'problem' : st(g.enabled, 'live', googleChecks), checks: googleChecks },
   ];
 }
-export const webhookUrl = (adminOrigin: string, org: string, id: 'email' | 'sms' | 'stripe') => `${adminOrigin.replace(/\/$/, '')}/api/webhooks/${org}/${id}`;
+export const webhookUrl = (adminOrigin: string, org: string, id: 'email' | 'sms' | 'stripe' | `giving/${string}`) => `${adminOrigin.replace(/\/$/, '')}/api/webhooks/${org}/${id}`;
 
 /* ---------- fake adapter (test sends) ---------- */
 export type SendResult = { ok: boolean; id?: string; message: string };
@@ -213,6 +249,10 @@ export function fakeSend(kind: 'email' | 'sms' | 'stripe', to: string, d: Integr
 export const mockIntegrations: IntegrationsDoc = {
   email: { enabled: true, provider: 'fake', mode: 'test', domain: 'isgh.org', fromTransactional: 'membership@isgh.org', fromBulk: 'news@news.isgh.org', dns: { spf: 'ok', dkim: 'unknown', dmarc: 'missing' } },
   sms: { enabled: false, provider: 'fake', mode: 'test', from: '+17135550100', registration: { type: '10dlc', status: 'not-started' }, countries: ['US'] },
+  giving: { accounts: [
+    { id: 'zeffy-org', provider: 'zeffy', enabled: true, label: 'ISGH – Zeffy (organization)', scope: 'organization', center: '', formUrl: 'https://www.zeffy.com/donation-form/isgh-demo', apiKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Mohammad (demo)' }, lastSync: '2026-10-15T12:50:00.000Z' },
+    { id: 'zeffy-sw1', provider: 'zeffy', enabled: true, label: 'Southwest Islamic Center 1 – Zeffy', scope: 'center', center: 'Southwest Islamic Center 1', formUrl: 'https://www.zeffy.com/donation-form/sw1-demo', lastSync: '' },
+  ] },
   stripe: { enabled: true, mode: 'test', publishableKey: 'pk_test_51ISGHdemo0000', secretKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Mohammad (demo)' }, ach: false, applePayDomainVerified: false, statementDescriptor: 'ISGH MEMBERSHIP' },
   google: { enabled: false, clientId: '', redirectUris: [] },
   fallback: { emailProvider: null, smsProvider: null },

@@ -18,14 +18,18 @@ export const PRESETS: Preset[] = [
 
 export type Appearance = {
   preset: string; accent?: string; mode: 'light' | 'dark' | 'system';
-  glass: 'clear' | 'frosted' | 'solid'; wallpaper: 'silk' | 'mountains' | 'obsidian' | 'aurora' | 'girih' | 'dusk' | 'plain';
+  glass: 'clear' | 'frosted' | 'solid'; wallpaper: 'silk' | 'mountains' | 'obsidian' | 'aurora' | 'girih' | 'dusk' | 'plain' | 'arches' | 'ceiling' | 'mosaic' | 'skyline' | 'moon';
   nav: 'rail' | 'full';
   /** Overview layout: focus = compact window dashboard, command = full command center with side column */
   dash: 'focus' | 'command';
   density: 'comfortable' | 'compact'; text: 's' | 'm' | 'l'; motion: 'full' | 'reduced';
+  /** Page width: centered (max 1500px) or the whole screen. */
+  width: 'centered' | 'full';
+  /** Work mode: sidebar as icons, no photo band or banners, the page uses the whole screen (toggle in the top bar, Esc leaves it). */
+  work: 'on' | 'off';
 };
 /** Owner pick (2026-10-13, reference reel): dark smoked glass, icon rail. Each admin can still change it. */
-export const DEFAULT_APPEARANCE: Appearance = { preset: 'luxe', mode: 'dark', glass: 'frosted', wallpaper: 'silk', nav: 'full', dash: 'command', density: 'comfortable', text: 'm', motion: 'full' };
+export const DEFAULT_APPEARANCE: Appearance = { preset: 'luxe', mode: 'dark', glass: 'frosted', wallpaper: 'silk', nav: 'full', dash: 'command', density: 'comfortable', text: 'm', motion: 'full', width: 'centered', work: 'off' };
 export const APPEARANCE_KEY = 'isgh-admin-appearance';
 export const APPEARANCE_EVENT = 'isgh-appearance';
 

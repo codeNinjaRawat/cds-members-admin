@@ -10,25 +10,28 @@
  * outside their area (inScope). Demo data; live: GET /admin/masjids/{id}/home.
  */
 import Link from 'next/link';
+import { MyWorkCard } from './MyWorkCard';
 import { useEffect, useMemo, useState } from 'react';
 import { ChartCard, LineChart, StackedBars, StatTile } from '@/components/charts/Charts';
 import { Attention } from '@/components/charts/DashKit';
 import { useAccess } from '@/lib/access/use-access';
 import { AccessSchema, type AccessDoc } from '@/lib/access/access';
-import { centerOf, eligibility, fmtDate, fmtMoney, fullName, initials, PLANS, statusOf, YEAR, ZONES, type Member, type ZoneId } from '@/lib/members/members';
+import { centerOf, eligibility, fmtDate, fmtMoney, fullName, initials, PLANS, statusOf, YEAR, ZONES, type Member, type ZoneId, ORG_TZ } from '@/lib/members/members';
 import { EventsSchema, mockEvents, type EventsDoc } from '@/lib/community/events';
-import { dayTimes, clock, mockPrayerSettings, PRAYER_NAME, IQAMAH_PRAYERS } from '@/lib/community/prayer';
+import { dayTimes, clock, mockPrayerSettings, PrayerSettingsSchema, PRAYER_NAME, IQAMAH_PRAYERS, type PrayerSettings } from '@/lib/community/prayer';
 import type { Center, OrgStructure } from '@/lib/community/org-structure';
 import { calendarWarnings } from '@/lib/community/minutes';
 import { useMeetings } from '@/lib/minutes/use-meetings';
 import { useZakatCases } from '@/lib/zakat/use-zakat';
 import { isOpen, QUEUES, sla } from '@/lib/queues/queues';
 import { useMembers } from './MembersView';
+import { LIVE } from '@/lib/live/live';
 import { allCases, useQueueState } from './QueuesView';
 import { SEATS, holdersAt, useOrg } from './TeamViews';
 import { YearRibbon } from './YearRibbon';
+import { ArtBand } from '@/components/shell/Photo';
 
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const n = (v: number) => v.toLocaleString('en-US');
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -36,11 +39,13 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 function useDocs() {
   const [access, setAccess] = useState<AccessDoc | null>(null);
   const [events, setEvents] = useState<EventsDoc>(mockEvents);
+  const [prayer, setPrayer] = useState<PrayerSettings>(mockPrayerSettings);
   useEffect(() => {
+    void fetch('/api/store/prayer-times', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => { const p = PrayerSettingsSchema.safeParse(j?.data); if (p.success) setPrayer(p.data); }).catch(() => undefined);
     void fetch('/api/store/admin-access', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => { const p = AccessSchema.safeParse(j?.data); if (p.success) setAccess(p.data); }).catch(() => undefined);
     void fetch('/api/store/events', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => { const p = EventsSchema.safeParse(j?.data); if (p.success) setEvents(p.data); }).catch(() => undefined);
   }, []);
-  return { access, events };
+  return { access, events, prayer };
 }
 /** Numbers for a set of members (one masjid, or the ZIP codes of one Area Representative). */
 export function masjidNumbers(list: Member[]) {
@@ -67,7 +72,7 @@ export function MasjidHome() {
   const access = useAccess();
   const org = useOrg();
   const members = useMembers() ?? [];
-  const { access: published, events } = useDocs();
+  const { access: published, events, prayer } = useDocs();
   const qs = useQueueState();
   const meetings = useMeetings();
   const zakat = useZakatCases();
@@ -80,7 +85,7 @@ export function MasjidHome() {
   const m: Center | undefined = masjids[sel] ?? masjids[0];
   const mine = useMemo(() => members.filter((x) => m && centerOf(x) === m.name && access.inScope(x.zone, centerOf(x), x.zip)), [members, m, access.ready, access.me?.id, access.dashIndex]); // eslint-disable-line react-hooks/exhaustive-deps
   const [now, setNow] = useState('');
-  useEffect(() => { setNow(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })); }, []);
+  useEffect(() => { setNow(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ORG_TZ })); }, []);
   if (!m) return <div className="page"><p className="cv-empty">Your role has no masjid yet. Ask the organization admin.</p></div>;
 
   const k = masjidNumbers(mine);
@@ -91,8 +96,8 @@ export function MasjidHome() {
   const noRep = zips.filter((z) => !repFor(z).length);
   const upcoming = events.events.filter((e) => e.location.center === m.name && e.status !== 'cancelled' && e.end.slice(0, 10) >= t).sort((a, b) => a.start.localeCompare(b.start));
   const waitingApproval = upcoming.filter((e) => e.approval.state === 'pending');
-  const day = dayTimes(mockPrayerSettings, m.name, t, m.jumuah.map((j) => j.khutbah));
-  const hour = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Chicago' }));
+  const day = dayTimes(prayer, m.name, t, m.jumuah.map((j) => j.khutbah));   // the published Prayer times settings
+  const hour = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: ORG_TZ }));
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = me.name.replace(/\s*\(demo\)$/, '').split(' ')[0];
 
@@ -148,10 +153,11 @@ export function MasjidHome() {
           <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
           <p className="page-intro">{role.areaScoped ? 'Your ZIP codes' : 'Your masjid'} at a glance – members, dues, who serves and what needs you. Demo data.</p>
         </div>
-        <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' })}</p>
+        <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: ORG_TZ })}</p>
       </header>
 
-      <section className="mh-hero glass-pane" aria-label={m.name}>
+      <section className="mh-hero glass-pane has-art" aria-label={m.name}>
+        <ArtBand k="mosque-sunset" side="left" />
         <div>
           <p className="eyebrow">{role.areaScoped ? 'My area' : 'Masjid'} · {role.name}</p>
           <h2 className="mh-name">{m.name}</h2>
@@ -210,6 +216,7 @@ export function MasjidHome() {
         </div>
 
         <aside className="cc-side" aria-label="Your masjid">
+          <MyWorkCard limit={5} />
           {!role.areaScoped && (
             <section className="d-card glass-pane mh-body" aria-labelledby="mh-body-h">
               <div className="d-head"><h2 id="mh-body-h">Working body <small>{SEATS.length - vacant.length} of {SEATS.length} seats</small></h2></div>
@@ -233,7 +240,7 @@ export function MasjidHome() {
       </div>
 
       <footer className="cc-status glass-pane">
-        <span><i className="on" aria-hidden="true" />Demo mode – numbers from the demo member records</span>
+        <span><i className="on" aria-hidden="true" />{LIVE ? 'Live – numbers from the member records on the server' : 'Demo mode – numbers from the demo member records'}</span>
         <span suppressHydrationWarning>Refreshed {now} CT</span>
         <span>{m.name} · {ZONES[m.zone as ZoneId]} Zone</span>
       </footer>

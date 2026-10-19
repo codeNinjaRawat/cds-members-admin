@@ -9,9 +9,9 @@ import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, SwitchRow } from '@/components/editor/bits';
 import { DASH_KINDS, dashboardsFor, type DashKind, type SignInSettings } from '@/lib/community/sign-in';
 import { AccessSchema, mockAccess, type AccessDoc } from '@/lib/access/access';
-import { ZONES, type ZoneId } from '@/lib/members/members';
+import { ZONES, type ZoneId, ORG_TZ } from '@/lib/members/members';
 
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const KIND_HINT: Record<DashKind, string> = {
   member: 'Every member – always on.', organization: 'Roles for the whole organization (Board, Treasurer, offices).',
   zone: 'Zone directors.', masjid: 'Associate Directors, secretaries and other masjid roles.', area: 'Area Representatives (some ZIP codes of one masjid).',

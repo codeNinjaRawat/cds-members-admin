@@ -3,10 +3,10 @@ import { test, expect, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await page.goto('/queues'); await page.evaluate(() => localStorage.clear()); await page.reload(); });
 const tabCount = async (page: Page, name: RegExp) => Number(await page.getByRole('tab', { name }).locator('b').textContent());
-const sideCount = (page: Page, label: string) => page.locator('.sub-link', { hasText: label }).locator('.side-badge');
+const sideCount = (page: Page, label: string) => page.locator('.sub-link', { hasText: new RegExp(`^${label}`) }).locator('.side-badge');   // anchored: 'Applications' is not 'Incomplete applications'
 
-test('five queues with counts; sidebar badges match; tab lives in the address', async ({ page }) => {
-  for (const [name, side] of [[/Applications/, 'Applications'], [/Photo ID checks/, 'Photo ID checks'], [/Center changes/, 'Center changes'], [/Possible duplicates/, 'Possible duplicates'], [/Payments to fix/, 'Payments to fix']] as const) {
+test('seven queues with counts; sidebar badges match; tab lives in the address', async ({ page }) => {
+  for (const [name, side] of [[/^Applications/, 'Applications'], [/Photo ID checks/, 'Photo ID checks'], [/Center changes/, 'Center changes'], [/Possible duplicates/, 'Possible duplicates'], [/Payments to fix/, 'Payments to fix'], [/Incomplete applications/, 'Incomplete applications'], [/Missing information/, 'Missing information']] as const) {
     const n = await tabCount(page, name);
     expect(n).toBeGreaterThan(0);
     await expect(sideCount(page, side)).toHaveText(String(n));
@@ -119,7 +119,9 @@ test('decline needs a reason; duplicates merge; payments: check received makes t
 });
 
 test('assign to me and the "Assigned to me" filter', async ({ page }) => {
-  await page.getByRole('button', { name: 'Assign to me' }).click();
+  // D5 – the case is on someone by the routing rule until a person takes it
+  await expect(page.locator('.wq-assign')).toContainText('by rule');
+  await page.locator('.wq-assign').click();
   await expect(page.getByRole('button', { name: 'Assigned to me' }).last()).toHaveAttribute('aria-pressed', 'true');
   await page.locator('.chip-row').getByRole('button', { name: 'Assigned to me' }).click();
   await expect(page.locator('.wq-item')).toHaveCount(1);

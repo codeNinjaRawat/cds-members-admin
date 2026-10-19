@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from 'node:path';
 import { checkContrast, type ThemesFile } from '@/lib/theme/theme-css';
 import { REGISTRY, type DocKey } from './registry';
+import { SIMPLE_WORK_PRESET } from '@/lib/community/work';
 import { readTenants, tenantDir } from '@/lib/platform/platform-store';
 import { seedFor } from '@/lib/platform/seed';
 import { BUILT_IN_ROLES, type AccessDoc } from '@/lib/access/access';
@@ -33,8 +34,11 @@ const initialFor = (k: DocKey, slug: string) => {
   const t = readTenants().find((x) => x.slug === slug);
   if (k === 'admin-access') return t ? accessFor(t) : REGISTRY[k].initial;   // another org never gets ISGH's admins
   if (k === 'zakat-settings') return REGISTRY[k].initial;
+  if (k === 'work-settings') return t ? SIMPLE_WORK_PRESET : REGISTRY[k].initial;   // another org starts simple: 3 categories, nobody pre-assigned
   if (k === 'donation-settings') return t ? { ...(REGISTRY[k].initial as object), mainCenter: '', platforms: { stripe: { enabled: false, lastSync: '' }, paypal: { enabled: false, lastSync: '' }, medina: { enabled: false, lastSync: '' }, bloomerang: { enabled: false, lastSync: '' } }, checkomatic: { mode: 'off', minCents: 4000, funds: ['general'], countsAsDues: false } } : REGISTRY[k].initial; // other organizations start with Check-o-matic off // the same safe defaults for every organization
   if (k === 'fundraising') return t ? { campaigns: [], pages: [], website: { enabled: false } } : REGISTRY[k].initial;
+  if (k === 'elections') return t ? { ...(REGISTRY[k].initial as object), elections: [] } : REGISTRY[k].initial;
+  if (k === 'records') return t ? { items: [], website: { enabled: false, title: 'Records', intro: '' } } : REGISTRY[k].initial;
   if (k === 'finance-settings') return t ? { ...(REGISTRY[k].initial as object), accounts: [], budgets: [], openingCents: {}, plan: { approvedOn: '' }, audit: { year: 2025, presentedOn: '' } } : REGISTRY[k].initial;
   if (k === 'prayer-times') return t ? { ...(REGISTRY[k].initial as object), centers: [], special: [], location: { label: t.city || 'Main', lat: 29.7604, lng: -95.3698 } } : REGISTRY[k].initial;
   if (k === 'officials') return t ? { ...(REGISTRY[k].initial as object), holders: [], website: { enabled: false, showEmail: true, findByZip: true } } : REGISTRY[k].initial;

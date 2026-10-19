@@ -11,7 +11,7 @@ import { UNROUTED, useMasjidFilter } from '@/lib/access/masjid-filter';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { DocEditor, Modal } from '@/components/editor/DocEditor';
+import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, SwitchRow, Tabs, countIssues } from '@/components/editor/bits';
 import { SchemaForm } from '@/components/forms/SchemaForm';
 import { CATEGORY_LABEL, EventSchema, fmtRange, registrationState, spotsLeft, type EventItem, type EventsDoc } from '@/lib/community/events';
@@ -20,14 +20,14 @@ import { ALWAYS_ON, CommunicationShape, MACROS, SAMPLE_VALUES, SYSTEM_EMAILS, SY
 import { DEFAULT_LIFECYCLE, type MembershipSettings } from '@/lib/content/membership';
 import type { Recipient } from '@/lib/community/campaigns';
 import { CampaignsView, fmtWhen, readCampaigns } from './CampaignsView';
-import { EventAttendees } from './EventAttendees';
+import { EventAttendees, useLiveEventCounts } from './EventAttendees';
 import { useAccess } from '@/lib/access/use-access';
 import { OrgConfigShape, PAY_LABEL, codeStatus, payMethods, securityWarnings, type OrgConfig } from '@/lib/community/org-config';
 import { buildReceipt, checkoutTotal, invoiceNumber, dueDate } from '@/lib/community/payments';
-import { PLANS, STATUS_LABEL, YEAR, ZONES, ageOn, centerOf, eligibility, fullName, lastPayment, membersWithEdits, prefsOf, renewalOf, statusOf, type Member } from '@/lib/members/members';
+import { PLANS, STATUS_LABEL, YEAR, ZONES, ageOn, centerOf, eligibility, fullName, lastPayment, membersWithEdits, prefsOf, renewalOf, statusOf, type Member, ORG_TZ } from '@/lib/members/members';
 
 const NOW = () => new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 16); // Houston local time (CDT/CST close enough for demo)
-const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 /** Read another published document (for cross-checks such as "which events use this group"). */
 function useStoreData<T>(key: string): T | null {
   const [v, setV] = useState<T | null>(null);
@@ -65,6 +65,7 @@ function EventsBody({ doc }: { doc: { draft: EventsDoc; setDraft: (f: (d: Events
       reminders: [x.defaultReminderDays], registered: 0, waiting: 0, typeCounts: {}, sample: false, approval: { state: 'none', requestedBy: '', by: '', on: '', note: '' }, promotion: { featured: false, email: { audience: 'none', sendOn: '', sent: false }, sms: { enabled: false, sendOn: '' }, social: '' } }); });
     setView('drafts'); setOpen(id);
   };
+  const lc = useLiveEventCounts();   // live: the real counts
   return (
     <div className="cv">
       <Panel>
@@ -91,7 +92,7 @@ function EventsBody({ doc }: { doc: { draft: EventsDoc; setDraft: (f: (d: Events
                 <span className={`pill ${e.status === 'published' ? 'good' : e.status === 'cancelled' ? 'bad' : ''}`}>{e.status === 'published' ? 'Published' : e.status === 'cancelled' ? 'Cancelled' : 'Draft'}</span>
                 {e.approval.state === 'pending' && <span className="pill warn">Waiting for approval</span>}
                 {e.approval.state === 'changes' && <span className="pill bad">Changes asked</span>}
-                {e.registration.enabled && <span className="cv-count">{e.registered}{e.registration.capacity ? ` / ${e.registration.capacity}` : ''} registered{e.waiting ? ` · ${e.waiting} waiting` : ''}</span>}
+                {e.registration.enabled && <span className="cv-count">{(lc?.[e.id] ?? e).registered}{e.registration.capacity ? ` / ${e.registration.capacity}` : ''} registered{(lc?.[e.id] ?? e).waiting ? ` · ${(lc?.[e.id] ?? e).waiting} waiting` : ''}</span>}
                 {bad > 0 && <span className="sf-badge">{bad}</span>}
               </button>
               {open === e.id && (
@@ -419,23 +420,6 @@ export function ConfigurationView() {
         );
       }}
     </DocEditor>
-  );
-}
-
-/* =============================== RENEWALS (inside Membership) =============================== */
-export function UseIsghLevels({ onUse }: { onUse: () => void }) {
-  const [ask, setAsk] = useState(false);
-  return (
-    <>
-      <button type="button" className="btn" onClick={() => setAsk(true)}>Use ISGH’s current levels (WildApricot)</button>
-      {ask && (
-        <Modal title="Load ISGH’s current levels?" onClose={() => setAsk(false)}>
-          <p>This puts the 7 levels ISGH uses in WildApricot today into the draft: Individual $20, Family $75 (3 years $180, 5 years $285), Lifetime $1,000 / $1,500, Check-o-matic and Unverified – all renewing on December 15.</p>
-          <p>Nothing is published until you press Publish. You can still change everything.</p>
-          <div className="modal-actions"><button type="button" className="btn" onClick={() => setAsk(false)}>Keep my plans</button><button type="button" className="btn primary" onClick={() => { onUse(); setAsk(false); }}>Load into the draft</button></div>
-        </Modal>
-      )}
-    </>
   );
 }
 

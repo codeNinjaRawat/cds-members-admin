@@ -8,27 +8,31 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Tabs } from '@/components/editor/bits';
 import {
-  ageOn, centerOf, centersOf, COMMITMENT_LABEL, digits, eligibility, fmtDate, fmtMoney, fullName, initials, PLANS, recordDate, saveMember,
-  renewalOf, STATUS_LABEL, statusOf, YEAR, ZONES, type Member, type Payment, type ZoneId,
-} from '@/lib/members/members';
+  ageOn, approvalBlockers, centerOf, centersOf, COMMITMENT_LABEL, digits, eligibility, fmtDate, fmtMoney, fullName, initials, PLANS, recordDate, saveMember,
+  renewalOf, STATUS_LABEL, statusOf, YEAR, ZONES, type Member, type Payment, type ZoneId, ORG_TZ } from '@/lib/members/members';
 import { useMembers } from './MembersView';
 import { MemberFamily } from './FamilyView';
 import { useOrgConfig } from '@/lib/members/use-org-config';
+import { useMembershipSettings } from '@/lib/members/use-settings';
 import { useAccess } from '@/lib/access/use-access';
+import { useOrg } from './TeamViews';
+import { centerRulesInWords, DEFAULT_CENTER_RULES } from '@/lib/community/org-structure';
 import { canEdit, checkValues, findDuplicates, showValue, type FieldValues } from '@/lib/community/member-records';
 import type { ProfileField } from '@/lib/community/org-config';
 
 type Action = null | 'payment' | 'center' | 'note' | 'approve' | 'fields' | 'archive';
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 
 export function MemberProfile({ id }: { id: string }) {
   const members = useMembers();
   const cfg = useOrgConfig();
   const [action, setAction] = useState<Action>(null);
   const [flash, setFlash] = useState('');
+  const org = useOrg();
   const access = useAccess();
   const [more, setMore] = useState(false);
   const [allChecks, setAllChecks] = useState(false);
+  const settings = useMembershipSettings();
   // From the list's quick look: /members/ID?do=payment opens the payment form at once.
   useEffect(() => { const u = new URL(window.location.href); if (u.searchParams.get('do') === 'payment') { setAction('payment'); u.searchParams.delete('do'); window.history.replaceState(null, '', u); } }, []);
   useEffect(() => { if (!more) return; const off = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('.m-more')) setMore(false); };
@@ -40,13 +44,14 @@ export function MemberProfile({ id }: { id: string }) {
     <div className="page"><div className="panel glass-pane"><h1 className="panel-h">No member with ID {id}</h1><p className="panel-intro">Check the number or search the list.</p><Link className="btn" href="/members">Back to members</Link></div></div>
   );
   if (!access.inScope(m.zone, centerOf(m), m.zip)) return (
-    <div className="page"><div className="panel glass-pane" role="alert"><h1 className="panel-h">Not in your zones</h1><p className="panel-intro">{access.me?.name} sees members of {access.me?.zones.map((z) => ZONES[z]).join(', ')} only. {m.id} is in another zone.</p><Link className="btn" href="/members">Back to members</Link></div></div>
+    <div className="page"><div className="panel glass-pane" role="alert"><h1 className="panel-h">Not in your zones</h1><p className="panel-intro">{access.me?.name} sees members of {access.me?.zones.map((z) => ZONES[z as keyof typeof ZONES] ?? z).join(', ')} only. {m.id} is in another zone.</p><Link className="btn" href="/members">Back to members</Link></div></div>
   );
   const status = statusOf(m); const ren = renewalOf(m, today()); const vote = eligibility(m); const next = eligibility(m, YEAR + 1);
   const spouse = m.spouseId ? members.find((x) => x.id === m.spouseId) : undefined;
   const dups = cfg.members.duplicateCheck && !m.archived ? findDuplicates(m, members.filter((x) => !x.archived && !(m.notDuplicateOf ?? []).includes(x.id) && !(x.notDuplicateOf ?? []).includes(m.id))) : [];
   const done = (text: string) => { setAction(null); setFlash(text); window.setTimeout(() => setFlash(''), 4000); };
   const act = (patch: Partial<Member>, what: string, detail: string, msg: string) => { saveMember({ ...m, ...patch }, what, detail); done(msg); };
+  const blockers = approvalBlockers(m, settings.rules);
 
   return (
     <div className="page m360">
@@ -136,10 +141,11 @@ export function MemberProfile({ id }: { id: string }) {
         </div>
       </div>
 
-      {action === 'approve' && <ActionDialog title={`Approve ${fullName(m)}`} submit="Approve" onClose={() => setAction(null)}
-        onSubmit={(f) => act({ approvedOn: today() }, 'Approved', String(f.get('ref') || 'Board approval'), `${fullName(m)} is approved. Status updates now.`)}>
-        <p>The Bylaws need Board approval before a member can vote. Note where it was approved.</p>
-        <label className="sf-field"><span className="sf-label">Board meeting or reference</span><input className="in" name="ref" required placeholder="Board meeting, October 2026" /></label>
+      {action === 'approve' && <ActionDialog title={`Approve ${fullName(m)}`} submit="Approve" onClose={() => setAction(null)} disabled={blockers.length > 0}
+        onSubmit={(f) => { if (blockers.length) return; act({ approvedOn: today() }, 'Approved', String(f.get('ref') || `${settings.rules.approval.by || 'Board'} approval`), `${fullName(m)} is approved. Status updates now.`); }}>
+        <p>The Bylaws need {settings.rules.approval.by || 'Board'} approval before a member can vote. Note where it was approved.</p>
+        {blockers.length > 0 && <ul className="notice warn-note m-blockers" role="alert">{blockers.map((b) => <li key={b}>{b}{b.startsWith('Dues') && access.can('payments.record') && <> <button type="button" className="linkish" onClick={() => setAction('payment')}>Record the payment</button></>}</li>)}<li className="muted">The approval rule in Membership rules › Plans and dues asks for this first.</li></ul>}
+        <label className="sf-field"><span className="sf-label">{settings.rules.approval.by || 'Board'} meeting or reference</span><input className="in" name="ref" required placeholder="Board meeting, October 2026" /></label>
       </ActionDialog>}
 
       {action === 'payment' && <ActionDialog title="Record an offline payment" submit="Record payment" onClose={() => setAction(null)}
@@ -163,7 +169,7 @@ export function MemberProfile({ id }: { id: string }) {
         <label className="sf-field"><span className="sf-label">Check number or receipt (optional)</span><input className="in" name="ref" placeholder="Check 1042" /></label>
       </ActionDialog>}
 
-      {action === 'center' && <CenterDialog m={m} onClose={() => setAction(null)} onSave={(zone, center, reason) => act({ zone, centerOverride: { center, reason, lockedUntil: `${YEAR + 4}-12-31` } }, 'Center changed', `${centerOf(m)} → ${center}. Reason: ${reason}`, `Center changed to ${center}. Locked for 5 years (Bylaws).`)} />}
+      {action === 'center' && <CenterDialog m={m} rules={org.rules ?? DEFAULT_CENTER_RULES} onClose={() => setAction(null)} onSave={(zone, center, reason, proof) => act({ zone, centerOverride: { center, reason: proof ? `${reason} (proof: ${proof})` : reason, ...(org.rules?.lockYears ? { lockedUntil: `${YEAR + (org.rules.lockYears) - 1}-12-31` } : {}) } }, 'Center changed', `${centerOf(m)} → ${center}. Reason: ${reason}${proof ? ` · proof: ${proof}` : ''}`, `Center changed to ${center}.${org.rules?.lockYears ? ` Locked for ${org.rules.lockYears} years (Masjids and zones › Rules).` : ''}`)} />}
 
       {action === 'fields' && <FieldsDialog m={m} fields={cfg.members.fields} onClose={() => setAction(null)}
         onSave={(values, changed) => act({ extra: values }, 'Profile fields changed', changed.map((id) => { const f = cfg.members.fields.find((x) => x.id === id)!; return f.access === 'admins' ? `${f.label} (admin-only, value not logged)` : `${f.label}: ${showValue(f, values[id])}`; }).join('; '), 'Profile fields saved.')} />}
@@ -182,7 +188,7 @@ export function MemberProfile({ id }: { id: string }) {
   );
 }
 
-function ActionDialog({ title, submit, children, onClose, onSubmit }: { title: string; submit: string; children: ReactNode; onClose: () => void; onSubmit: (f: FormData) => void }) {
+function ActionDialog({ title, submit, children, onClose, onSubmit, disabled = false }: { title: string; submit: string; children: ReactNode; onClose: () => void; onSubmit: (f: FormData) => void; disabled?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const open = (el: HTMLDialogElement | null) => { ref.current = el; if (el && !el.open) el.showModal(); };
   return (
@@ -190,23 +196,26 @@ function ActionDialog({ title, submit, children, onClose, onSubmit }: { title: s
       <form method="dialog" className="m-form" onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); onSubmit(new FormData(e.currentTarget)); }}>
         <h2>{title}</h2>
         {children}
-        <div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary">{submit}</button></div>
+        <div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary" disabled={disabled}>{submit}</button></div>
       </form>
     </dialog>
   );
 }
 
-function CenterDialog({ m, onClose, onSave }: { m: Member; onClose: () => void; onSave: (z: ZoneId, c: string, reason: string) => void }) {
+function CenterDialog({ m, rules, onClose, onSave }: { m: Member; rules: typeof DEFAULT_CENTER_RULES; onClose: () => void; onSave: (z: ZoneId, c: string, reason: string, proof: string) => void }) {
   const [zone, setZone] = useState<ZoneId>(m.zone);
+  const locked = m.centerOverride?.lockedUntil && m.centerOverride.lockedUntil >= new Date().toISOString().slice(0, 10);
   return (
-    <ActionDialog title="Change Islamic Center" submit="Save change" onClose={onClose} onSubmit={(f) => onSave(zone, String(f.get('center')), String(f.get('reason')))}>
-      <p>Members belong where they live. A member within 5 miles of a zone border may ask for a nearby center; once the Board approves, it stays for 5 years.</p>
+    <ActionDialog title="Change Islamic Center" submit="Save change" onClose={onClose} onSubmit={(f) => onSave(zone, String(f.get('center')), String(f.get('reason')), String(f.get('proof') ?? ''))}>
+      <p>{centerRulesInWords(rules)}</p>
+      {locked && <p className="notice warn-note" role="alert">This member’s center is locked until {fmtDate(m.centerOverride!.lockedUntil!)}.{rules.unlockOnMove ? ' Only a new address lifts the lock – say so in the reason.' : ''}</p>}
       <p className="muted">Now: {ZONES[m.zone]} zone · {centerOf(m)}</p>
       <div className="field-row">
         <label className="sf-field"><span className="sf-label">Zone</span><select className="in" value={zone} onChange={(e) => setZone(e.target.value as ZoneId)}>{(Object.keys(ZONES) as ZoneId[]).map((z) => <option key={z} value={z}>{ZONES[z]}</option>)}</select></label>
         <label className="sf-field"><span className="sf-label">Islamic Center</span><select className="in" name="center" key={zone}>{centersOf(zone).map((c) => <option key={c}>{c}</option>)}</select></label>
       </div>
       <label className="sf-field"><span className="sf-label">Reason (required, goes in the audit log)</span><textarea className="in in-area" name="reason" required minLength={10} rows={3} placeholder="Moved to a new address / Board approved border request on …" /></label>
+      {rules.needsProof && <label className="sf-field"><span className="sf-label">Proof seen (required by the rules)</span><select className="in" name="proof" required defaultValue=""><option value="" disabled>Choose…</option><option>Driver license with the new address</option><option>Utility bill</option><option>Lease or deed</option><option>Government ID</option><option>Other document on file</option></select></label>}
     </ActionDialog>
   );
 }
@@ -287,7 +296,7 @@ function NotesTab({ m, onAdd }: { m: Member; onAdd: () => void }) {
   return (
     <section className="panel glass-pane" aria-label="Notes">
       {!m.notes.length ? <p className="panel-intro">No staff notes yet.</p> : (
-        <ul className="history">{[...m.notes].reverse().map((n) => <li key={n.at}><div><b>{n.text}</b><span>{n.by} · {new Date(n.at).toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'medium', timeStyle: 'short' })}</span></div></li>)}</ul>
+        <ul className="history">{[...m.notes].reverse().map((n) => <li key={n.at}><div><b>{n.text}</b><span>{n.by} · {new Date(n.at).toLocaleString('en-US', { timeZone: ORG_TZ, dateStyle: 'medium', timeStyle: 'short' })}</span></div></li>)}</ul>
       )}
       <button className="btn sm" onClick={onAdd}>Add note</button>
     </section>
@@ -299,7 +308,7 @@ function AuditTab({ m }: { m: Member }) {
     <section className="panel glass-pane" aria-label="Audit log">
       <p className="panel-intro">Every change: who, what and when (Central Time). Live: also before/after values and IP, kept for 7 years.</p>
       <ol className="m-audit">{[...m.audit].reverse().map((a, i) => (
-        <li key={i}><span className="tl-dot" aria-hidden="true" /><div><b>{a.action}</b> <span>{a.detail}</span><small>{a.by} · {a.at.length > 10 ? new Date(a.at).toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'medium', timeStyle: 'short' }) : fmtDate(a.at)}</small></div></li>
+        <li key={i}><span className="tl-dot" aria-hidden="true" /><div><b>{a.action}</b> <span>{a.detail}</span><small>{a.by} · {a.at.length > 10 ? new Date(a.at).toLocaleString('en-US', { timeZone: ORG_TZ, dateStyle: 'medium', timeStyle: 'short' }) : fmtDate(a.at)}</small></div></li>
       ))}</ol>
     </section>
   );

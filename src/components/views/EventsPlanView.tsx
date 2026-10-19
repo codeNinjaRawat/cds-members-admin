@@ -10,6 +10,8 @@
  *   Analytics  – past events: attendance, no-shows, fill rate, revenue, by month and kind; best and low show-up events
  * DEMO (no API). Live: GET/PUT /admin/events; POST /admin/events/{id}/approve | /changes; GET /admin/events/stats.
  */
+import { ORG_TZ } from '@/lib/members/members';
+import { usePastEvents } from '@/lib/dashboard/live-history';
 import { DashBar, exportPage, useScope as useDashScope } from '@/components/charts/DashKit';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -17,14 +19,14 @@ import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, SwitchRow, Tabs } from '@/components/editor/bits';
 import { ChartCard, Columns, ShareBar, StatTile } from '@/components/charts/Charts';
 import { CATEGORY_LABEL, type EventItem, type EventsDoc } from '@/lib/community/events';
-import { AUDIENCE, approvalChecks, clashes, eventStats, eventWarnings, eventsOn, fmt, mockEventHistory, monthGrid, promotionSteps, socialText } from '@/lib/community/event-ops';
+import { AUDIENCE, approvalChecks, clashes, eventStats, eventWarnings, eventsOn, fmt, monthGrid, promotionSteps, socialText } from '@/lib/community/event-ops';
 import { PrayerSettingsSchema, mockPrayerSettings, clock, type PrayerSettings } from '@/lib/community/prayer';
 import { useAccess } from '@/lib/access/use-access';
 import { logAudit } from '@/lib/access/audit';
 import { useOrg } from './TeamViews';
 
 type Doc = { draft: EventsDoc; setDraft: (f: (d: EventsDoc) => EventsDoc) => void; issues: Record<string, string> };
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const n = (v: number) => v.toLocaleString('en-US');
 const usd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -255,7 +257,8 @@ function Promotion({ doc, mine }: { doc: Doc; mine: (e: EventItem) => boolean })
 function Analytics() {
   const access = useAccess();
   const [cat, setCat] = useState('');
-  const own = access.role?.centerScoped ? mockEventHistory.filter((x) => access.me?.centers.includes(x.center)) : mockEventHistory;
+  const history = usePastEvents();
+  const own = access.role?.centerScoped ? history.filter((x) => access.me?.centers.includes(x.center)) : history;
   const ds = useDashScope('12m');
   const list = own.filter((x) => (!cat || x.category === cat) && ds.match(x.date, x.center));
   const st = useMemo(() => eventStats(list), [list]);

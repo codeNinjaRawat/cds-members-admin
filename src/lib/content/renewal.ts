@@ -17,7 +17,7 @@ export type ISODate = string; // YYYY-MM-DD
 /* ---------- date math (UTC days) ---------- */
 const DAY = 86_400_000;
 const toT = (s: ISODate) => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return Date.UTC(y, m - 1, d); };
-const fromT = (t: number): ISODate => new Date(t).toISOString().slice(0, 10);
+const fromT = (t: number): ISODate => (Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : '') as ISODate;   // bad date: '' instead of a crash
 const pad = (n: number) => String(n).padStart(2, '0');
 const yearOf = (s: ISODate) => Number(s.slice(0, 4));
 export const isISODate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && fromT(toT(s)) === s;

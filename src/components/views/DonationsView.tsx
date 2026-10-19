@@ -11,17 +11,17 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Tabs } from '@/components/editor/bits';
 import { ChartCard, Columns, ShareBar, StackedBars, StatTile } from '@/components/charts/Charts';
 import {
-  CHECKOMATIC_MODES, ONLINE, PLATFORMS, RECON_LABEL, checkomatic, checkomaticDonors, donationStats, entryProblems, needsReceipt, netOf, reconState, routedCenter, usd,
+  CHECKOMATIC_MODES, ONLINE, ONLINE_PLATFORMS, PLATFORMS, RECON_LABEL, checkomatic, checkomaticDonors, donationStats, entryProblems, needsReceipt, netOf, reconState, routedCenter, usd,
   type Donation, type DonationSettings, type Platform, type ReconState,
 } from '@/lib/community/donations';
 import type { OrgStructure } from '@/lib/community/org-structure';
 import { useAccess } from '@/lib/access/use-access';
 import { nextDonationId, saveDonation, useDonationContext, useDonations } from '@/lib/donations/use-donations';
 import { useMembers } from './MembersView';
-import { addImportedMembers, nextImportId, centersOf, type Member } from '@/lib/members/members';
+import { addImportedMembers, nextImportId, centersOf, type Member, ORG_TZ } from '@/lib/members/members';
 import { csvCell } from '@/lib/community/member-records';
 
-const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: '2-digit', day: '2-digit', year: 'numeric' });
+const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: ORG_TZ, month: '2-digit', day: '2-digit', year: 'numeric' });
 const TONE: Record<ReconState, string> = { matched: 'good', unmatched: 'warn', pending: '', refunded: 'bad' };
 
 export function DonationsView() {
@@ -153,7 +153,7 @@ function Recon({ list, s, canFix, onOpen }: { list: Donation[]; s: DonationSetti
       </section>
       <section className="glass-pane zk-list" aria-label="Platforms">
         <h2>Platforms</h2>
-        <ul className="dn-plats">{(['stripe', 'paypal', 'medina', 'bloomerang'] as const).map((p) => (
+        <ul className="dn-plats">{ONLINE_PLATFORMS.map((p) => (
           <li key={p} className={s.platforms[p]?.enabled ? 'on' : ''}><b>{PLATFORMS[p]}</b><small>{s.platforms[p]?.enabled ? `Connected · last sync ${s.platforms[p].lastSync ? fmtDay(s.platforms[p].lastSync) : '—'}` : 'Not connected'}</small></li>
         ))}</ul>
         <p className="muted">Keys are set in Settings › Integrations. Demo: no platform is called.</p>

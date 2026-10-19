@@ -6,6 +6,8 @@
  * Rules and budgets publish as the `finance-settings` document; transactions are records saved as they happen.
  * Center-limited roles see and enter only their centers. DEMO: this browser only.
  */
+import { currentOrg } from '@/lib/access/masjid-filter';
+import { ORG_TZ } from '@/lib/members/members';
 import { DashBar, exportPage, useScope as useDashScope } from '@/components/charts/DashKit';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
@@ -23,7 +25,7 @@ import { useMeetings } from '@/lib/minutes/use-meetings';
 import { csvCell } from '@/lib/community/member-records';
 
 type Doc = { draft: FinanceSettings; setDraft: (f: FinanceSettings | ((d: FinanceSettings) => FinanceSettings)) => void; issues: Record<string, string> };
-const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const HQ = 'Headquarters';
 const where = (c: string) => c || HQ;
 const TONE: Record<Tx['status'], string> = { pending: 'warn', approved: '', paid: 'good', received: 'good', rejected: 'bad', void: '' };
@@ -40,7 +42,7 @@ export function FinanceView() {
 
 function useScope() {
   const access = useAccess();
-  const centers = mockOrgStructure.centers.filter((c) => c.active && access.inScope(c.zone, c.name)).map((c) => c.name);
+  const centers = currentOrg().centers.filter((c) => c.active && access.inScope(c.zone, c.name)).map((c) => c.name);
   const scoped = !!access.role?.centerScoped;
   const seeCenter = (c: string) => (c ? centers.includes(c) : !scoped);
   const actor: Actor = { id: access.me?.id ?? '', name: access.me?.name ?? '', roleId: access.me?.roleId ?? '', centers };

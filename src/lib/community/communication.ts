@@ -93,7 +93,7 @@ export function render(text: string, values: Partial<Record<MacroKey, string>>) 
 export const SAMPLE_VALUES: Partial<Record<MacroKey, string>> = {
   'Member.FirstName': 'Aisha', 'Member.LastName': 'Rahman', 'Member.Id': 'HOU-104233', 'Member.Plan': 'Family', 'Member.RenewalDate': '12/15/2026',
   'Member.Center': 'Masjid Abubakr – HWY 3', 'Member.Zone': 'Southeast', 'Org.Name': 'Islamic Society of Greater Houston', 'Org.ShortName': 'ISGH', 'Org.Phone': '(713) 524-6615',
-  'Link.Renew': 'https://member-web.nextgrow.pro/membership/renew', 'Link.Profile': 'https://member-web.nextgrow.pro/portal', 'Link.Unsubscribe': 'https://member-web.nextgrow.pro/email-preferences', 'Invoice.Number': 'INV-2026-00412', 'Invoice.Amount': '$75.00',
+  'Link.Renew': 'https://member-web.masajidsolutions.com/membership/renew', 'Link.Profile': 'https://member-web.masajidsolutions.com/portal', 'Link.Unsubscribe': 'https://member-web.masajidsolutions.com/email-preferences', 'Invoice.Number': 'INV-2026-00412', 'Invoice.Amount': '$75.00',
   'Event.Title': 'Family night at Katy', 'Event.Date': '11/07/2026, 6:30 PM', 'Event.Place': 'Masjid Aqsa – Katy',
 };
 

@@ -56,8 +56,9 @@ test('zone director sees only their zone; board member sees no contact details b
   expect(zones.every((z) => z.startsWith('Southwest'))).toBe(true);
   await expect(page.getByRole('button', { name: 'Import' })).toHaveCount(0);
   await page.goto('/members/HOU-200000');
+  await page.locator('h1.panel-h, .m-defs').first().waitFor();
   const outside = await page.getByRole('heading', { name: 'Not in your zones' }).count();
-  const zoneText = outside ? '' : await page.locator('.m-defs').textContent();
+  const zoneText = outside ? '' : await page.locator('.m-defs').first().textContent();
   expect(outside > 0 || zoneText!.includes('Southwest')).toBe(true);
   await actAs(page, 'board-secretary');
   await page.goto('/members?view=pending');

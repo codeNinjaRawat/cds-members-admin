@@ -1,18 +1,36 @@
 /**
- * A4 Work queues – DEMO cases built from the demo members (no API).
- * Live: GET /admin/queues/:queue?state=&assignee= · POST /admin/queues/:queue/:id/{decide|assign} (BE B3/B4/B6, scoped by role A10).
+ * A4 Work queues – cases built from the members (demo or the API's). Decisions and who took a case: demo = this browser,
+ * live = GET/PUT /admin/queues/state (shared by the office); the member changes go through the members API.
  */
+import { LIVE, be } from '@/lib/live/live';
+import { notice, LABELS_EVENT, ORG_TZ, orgToday } from '@/lib/members/members';
 import { ageOn, centerOf, centersOf, fmtDate, fmtMoney, fullName, PLANS, YEAR, ZONES, type Member, type ZoneId } from '@/lib/members/members';
+import { routeQueueCase, type AdminLike, type QueueKey, type QueuesSettings } from '@/lib/community/work';
+import { centerRulesInWords, DEFAULT_CENTER_RULES, type CenterRules } from '@/lib/community/org-structure';
 
-export type QueueId = 'applications' | 'id' | 'center' | 'duplicates' | 'payments';
+export type QueueId = QueueKey;
 export const QUEUES: { id: QueueId; label: string; short: string; slaDays: number; intro: string }[] = [
   { id: 'applications', label: 'Applications', short: 'Applications', slaDays: 7, intro: 'New members waiting for review. Staff check each one, then the Board approves them together.' },
   { id: 'id', label: 'Photo ID checks', short: 'Photo ID', slaDays: 3, intro: 'Compare the photo ID with the application: name, date of birth and expiry.' },
   { id: 'center', label: 'Center changes', short: 'Center changes', slaDays: 14, intro: 'Members within 5 miles of a zone border may ask for a nearby Islamic Center. Approved changes stay for 5 years (Bylaws).' },
   { id: 'duplicates', label: 'Possible duplicates', short: 'Duplicates', slaDays: 7, intro: 'Two records that look like the same person. Merge them or mark them as different people.' },
   { id: 'payments', label: 'Payments to fix', short: 'Payments', slaDays: 3, intro: 'Declined cards, returned bank payments and pledged checks that have not arrived.' },
+  // D5 – the two follow-up queues the client asked for on the review call
+  { id: 'incomplete', label: 'Incomplete applications', short: 'Incomplete', slaDays: 5, intro: 'People who verified their email, maybe typed a phone number, and left before finishing. A call or a text usually brings them back.' },
+  { id: 'missing', label: 'Missing information', short: 'Missing info', slaDays: 30, intro: 'Members whose record lacks something the office needs – a phone, an address, a date of birth or a checked ID. Chase them now, not in election season.' },
 ];
-export const TODAY = '2026-10-13';
+/** D5 – targets and names come from Settings › Help desk and tasks › Work queues when set there. */
+export function applyQueueSettings(q: QueuesSettings | undefined) {
+  for (const x of QUEUES) { const r = q?.routing[x.id]; if (r) { x.slaDays = r.targetDays; if (r.label) x.label = r.label; } }
+}
+/** Demo: a fixed day (the sample cases are dated around it). Live: today in the organization's clock. */
+export let TODAY = LIVE ? new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ }) : '2026-10-13';
+// the organization's clock arrives with its settings (loadOrgLabels → LABELS_EVENT)
+if (typeof window !== 'undefined') window.addEventListener(LABELS_EVENT, () => { if (LIVE) TODAY = orgToday(); });
+/** D14 – the center-change rules (Masjids and zones › Rules); applyCenterRules() loads the organization's. */
+export let CENTER_RULES = DEFAULT_CENTER_RULES;
+export function applyCenterRules(r: CenterRules | undefined) { if (r) CENTER_RULES = r; const q = QUEUES.find((x) => x.id === 'center'); if (q) q.intro = centerRulesInWords(CENTER_RULES); }
+export const centerDeadline = (year = YEAR + 1) => (CENTER_RULES.requestDeadline ? `${year}-${CENTER_RULES.requestDeadline}` : '');
 export const CENTER_REQUEST_DEADLINE = '2027-03-31';
 
 export type Decision = { state: 'done' | 'ready' | 'needs-info'; outcome: string; note?: string; by: string; at: string };
@@ -24,19 +42,39 @@ export type IdCase = Base & { queue: 'id'; doc: 'Texas driver license' | 'Texas 
 export type CenterCase = Base & { queue: 'center'; toZone: ZoneId; toCenter: string; miles: number; reason: string };
 export type DupCase = Base & { queue: 'duplicates'; other: { name: string; email: string; phone: string; dob: string; source: string; created: string }; reasons: string[]; score: number };
 export type PayCase = Base & { queue: 'payments'; kind: 'card_declined' | 'bank_returned' | 'check_pending'; amountCents: number; detail: string; attempts: number };
-export type Case = AppCase | IdCase | CenterCase | DupCase | PayCase;
+export type IncompleteCase = Base & { queue: 'incomplete'; stepReached: 'About you' | 'Plan' | 'Pledge' | 'Review and pay'; lastSeen: string; reminders: number; hasPhone: boolean };
+export type MissingFieldKey = 'phone' | 'address' | 'dob' | 'id' | 'email';
+export type MissingCase = Base & { queue: 'missing'; fields: MissingFieldKey[]; lastAsked: string };
+export type Case = AppCase | IdCase | CenterCase | DupCase | PayCase | IncompleteCase | MissingCase;
+export const MISSING_LABEL: Record<MissingFieldKey, string> = { phone: 'Mobile number', address: 'Home address', dob: 'Date of birth', id: 'Photo ID check', email: 'Email address' };
 
-function addDays(d: string, n: number) { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+function addDays(d: string, n: number) { const t = new Date(`${(d ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t.getTime())) return d ?? ''; t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }   // empty / bad date (e.g. no birth date on file): unchanged, never a crash
 export const daysWaiting = (c: Case) => Math.max(0, Math.round((Date.parse(TODAY) - Date.parse(c.submitted)) / 86400000));
 export const sla = (c: Case) => { const d = daysWaiting(c); const t = QUEUES.find((q) => q.id === c.queue)!.slaDays; return { days: d, target: t, tone: d > t ? 'late' : d >= t - 1 ? 'due' : 'ok' } as const; };
 const NEXT_ZONE: Record<ZoneId, ZoneId> = { n: 'nw', nw: 'sw', sw: 's', s: 'se', se: 'n' };
 
 /** Deterministic demo cases (same on server and client). */
-export function buildCases(members: Member[]): Case[] {
+export function buildCases(members: Member[], opts: { followUps?: QueuesSettings['followUps'] } = {}): Case[] {
   const out: Case[] = [];
   const good = members.filter((m) => m.standing === 'good');
-  // applications – everyone not yet approved
-  good.filter((m) => !m.approvedOn).forEach((m) => out.push({ id: `app-${m.id}`, queue: 'applications', memberId: m.id, submitted: m.appliedOn }));
+  const fu = opts.followUps ?? { incomplete: { enabled: true, afterHours: 24, giveUpDays: 30 }, missing: { enabled: true, fields: ['phone', 'address', 'dob', 'id'] as MissingFieldKey[] } };
+  // incomplete applications – people who verified their email and stopped (demo: every 13th pending record); they are not in Applications yet
+  const pending = good.filter((m) => !m.approvedOn);
+  const stopped = new Set<string>();
+  if (fu.incomplete.enabled) pending.filter((_, i) => i % 4 === 2).slice(0, 6).forEach((m, i) => {
+    stopped.add(m.id);
+    const steps: IncompleteCase['stepReached'][] = ['About you', 'Plan', 'Review and pay', 'Pledge', 'About you', 'Plan'];
+    out.push({ id: `inc-${m.id}`, queue: 'incomplete', memberId: m.id, submitted: addDays(TODAY, -[1, 2, 4, 9, 13, 27][i]), stepReached: steps[i], lastSeen: addDays(TODAY, -[1, 2, 4, 9, 13, 27][i]), reminders: [0, 0, 1, 1, 2, 2][i], hasPhone: i % 3 !== 2 });
+  });
+  // applications – everyone not yet approved (and not stopped half-way)
+  pending.filter((m) => !stopped.has(m.id)).forEach((m) => out.push({ id: `app-${m.id}`, queue: 'applications', memberId: m.id, submitted: m.appliedOn }));
+  // missing information – approved members whose record lacks what the office asks for (demo: a deterministic sample with the gaps the setting lists)
+  if (fu.missing.enabled && fu.missing.fields.length) good.filter((m) => m.approvedOn).filter((_, i) => i % 61 === 17).slice(0, 7).forEach((m, i) => {
+    const want = fu.missing.fields as MissingFieldKey[];
+    const real = want.filter((f) => (f === 'phone' && !m.phone) || (f === 'address' && !m.street) || (f === 'dob' && !m.dob) || (f === 'email' && !m.email) || (f === 'id' && m.idCheck !== 'verified'));
+    const fields = real.length ? real : [want[i % want.length], ...(i % 2 ? [want[(i + 1) % want.length]] : [])].filter((f, k, a) => a.indexOf(f) === k);
+    out.push({ id: `mis-${m.id}`, queue: 'missing', memberId: m.id, submitted: addDays(TODAY, -[3, 12, 20, 33, 41, 6, 15][i]), fields, lastAsked: i % 3 === 0 ? addDays(TODAY, -[3, 12, 20, 33, 41, 6, 15][i]) : '' });
+  });
   // photo ID – not verified yet
   const docs: IdCase['doc'][] = ['Texas driver license', 'Texas ID card', 'US passport', 'Permanent resident card'];
   good.filter((m) => m.idCheck !== 'verified').forEach((m, i) => {
@@ -76,6 +114,27 @@ export function buildCases(members: Member[]): Case[] {
   return out;
 }
 
+/** Live data: only real work, nothing invented. Applications = applied and waiting; Not finished = people who never
+ *  completed (e.g. imported contacts with no membership, never verified); Photo ID = applicants not checked yet;
+ *  Missing information = members whose record really lacks a phone, address, birth date or email. Centre changes,
+ *  duplicates and failed payments come from the API once those requests exist – never made up. */
+export function buildLiveCases(members: Member[], opts: { followUps?: QueuesSettings['followUps'] } = {}): Case[] {
+  const out: Case[] = [];
+  const good = members.filter((m) => m.standing === 'good' && !m.archived);
+  const fu = opts.followUps ?? { incomplete: { enabled: true, afterHours: 24, giveUpDays: 30 }, missing: { enabled: true, fields: ['phone', 'address', 'dob', 'email'] as MissingFieldKey[] } };
+  const day = (s?: string | null) => String(s ?? '').slice(0, 10) || TODAY;
+  for (const m of good.filter((x) => !x.approvedOn)) {
+    if (m.joinStage === 'incomplete') { if (fu.incomplete.enabled) out.push({ id: `inc-${m.id}`, queue: 'incomplete', memberId: m.id, submitted: day(m.appliedOn), stepReached: 'About you', lastSeen: day(m.appliedOn), reminders: 0, hasPhone: !!m.phone }); continue; }
+    out.push({ id: `app-${m.id}`, queue: 'applications', memberId: m.id, submitted: day(m.appliedOn) });
+    if (m.idCheck !== 'verified') out.push({ id: `id-${m.id}`, queue: 'id', memberId: m.id, submitted: day(m.appliedOn), doc: 'Texas driver license', nameOnId: '', dobOnId: '', expires: '' });
+  }
+  if (fu.missing.enabled && fu.missing.fields.length) for (const m of good.filter((x) => x.approvedOn)) {
+    const fields = (fu.missing.fields as MissingFieldKey[]).filter((f) => (f === 'phone' && !m.phone) || (f === 'address' && !m.street) || (f === 'dob' && (!m.dob || m.dob.startsWith('1900'))) || (f === 'email' && !m.email));
+    if (fields.length) out.push({ id: `mis-${m.id}`, queue: 'missing', memberId: m.id, submitted: day(m.approvedOn), fields, lastAsked: '' });
+  }
+  return out;
+}
+
 /* ---------- rule checks shown with each case ---------- */
 export type Rule = { label: string; ok: boolean | null; note: string }; // null = needs a human look
 export function rulesFor(c: Case, m: Member): Rule[] {
@@ -88,6 +147,7 @@ export function rulesFor(c: Case, m: Member): Rule[] {
     { label: 'Not an existing or former member', ok: true, note: 'No match in duplicates' },
   ];
   if (c.queue === 'id') {
+    if (!c.nameOnId) return [{ label: 'Photo ID on file', ok: false, note: 'No ID document uploaded yet – ask the applicant to upload one or bring it to the center.' }, { label: 'Photo is clear and matches the person', ok: null, note: 'Check once the ID is here' }];
     const nameOk = c.nameOnId.toLowerCase() === fullName(m).toLowerCase();
     return [
       { label: 'Name matches the application', ok: nameOk, note: nameOk ? fullName(m) : `ID says “${c.nameOnId}”, application says “${fullName(m)}”` },
@@ -96,13 +156,24 @@ export function rulesFor(c: Case, m: Member): Rule[] {
       { label: 'Photo is clear and matches the selfie', ok: null, note: 'Look at both pictures' },
     ];
   }
-  if (c.queue === 'center') return [
-    { label: 'Within 5 miles of the zone border', ok: c.miles <= 5, note: `${c.miles.toFixed(1)} miles (map estimate)` },
-    { label: `Asked before the deadline (${fmtDate(CENTER_REQUEST_DEADLINE)})`, ok: c.submitted <= CENTER_REQUEST_DEADLINE, note: `Asked ${fmtDate(c.submitted)}` },
+  if (c.queue === 'center') { const r = CENTER_RULES; const dl = centerDeadline(); return [
+    ...(r.borderChoice !== 'none' ? [{ label: `Within ${r.borderMiles} miles of the zone border`, ok: c.miles <= r.borderMiles, note: `${c.miles.toFixed(1)} miles (map estimate)` }] : []),
+    ...(dl ? [{ label: `Asked before the deadline (${fmtDate(dl)})`, ok: c.submitted <= dl, note: `Asked ${fmtDate(c.submitted)}` }] : []),
     { label: 'Member in good standing', ok: m.standing === 'good', note: 'Approved member' },
-    { label: 'No change in the last 5 years', ok: !m.centerOverride, note: m.centerOverride ? `Locked until ${fmtDate(m.centerOverride.lockedUntil ?? '')}` : 'First request' },
-  ];
+    ...(r.lockYears ? [{ label: `No change in the last ${r.lockYears} years`, ok: !m.centerOverride || !m.centerOverride.lockedUntil || m.centerOverride.lockedUntil < TODAY, note: m.centerOverride?.lockedUntil ? `Locked until ${fmtDate(m.centerOverride.lockedUntil)}${r.unlockOnMove ? ' – unless they moved' : ''}` : 'First request' }] : []),
+    ...(r.needsProof ? [{ label: 'Proof of address seen', ok: null, note: 'A license, bill or lease with the address – required by the rules' }] : []),
+  ]; }
   if (c.queue === 'duplicates') return c.reasons.map((r) => ({ label: r, ok: null, note: '' }));
+  if (c.queue === 'incomplete') return [
+    { label: 'Email verified', ok: true, note: 'Code confirmed at sign-up' },
+    { label: 'Reached', ok: null, note: `Stopped at “${c.stepReached}” · last seen ${fmtDate(c.lastSeen)}` },
+    { label: 'A way to reach them', ok: c.hasPhone, note: c.hasPhone ? `${m.phone} · ${m.email}` : `Email only (${m.email}) – no phone yet` },
+    { label: 'Reminders sent', ok: c.reminders < 3 ? null : false, note: c.reminders ? `${c.reminders} automatic reminder${c.reminders > 1 ? 's' : ''}` : 'None yet' },
+  ];
+  if (c.queue === 'missing') return [
+    ...c.fields.map((f) => ({ label: MISSING_LABEL[f], ok: false as const, note: f === 'id' ? 'No checked ID on file' : 'Not on the record' })),
+    { label: 'Asked before', ok: null, note: c.lastAsked ? `Asked ${fmtDate(c.lastAsked)}` : 'Not asked yet' },
+  ];
   return [
     { label: 'Amount due', ok: null, note: `${fmtMoney(c.amountCents)} · ${PLANS[m.plan].name} plan ${YEAR}` },
     { label: 'Attempts', ok: c.attempts < 3, note: `${c.attempts} of 3` },
@@ -110,9 +181,62 @@ export function rulesFor(c: Case, m: Member): Rule[] {
   ];
 }
 
-/* ---------- demo state (this browser) ---------- */
+/* ---------- decisions and who took a case: demo = this browser, live = shared by the office (GET/PUT /admin/queues/state) ---------- */
 const KEY = 'isgh-admin-queues';
 export const QUEUES_EVENT = 'isgh:queues';
-export function readQueueState(): QueueState { try { return { decisions: {}, assignee: {}, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { decisions: {}, assignee: {} }; } }
-export function writeQueueState(s: QueueState) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* */ } window.dispatchEvent(new Event(QUEUES_EVENT)); }
+let me = 'Mohammad (demo)';
+/** Who is working the queue (demo: a sample name; live: the signed-in admin's id). */
+export const queueMe = () => me;
+export const setQueueMe = (id: string) => { me = id; };
+let live: QueueState | null = null; let liveLoading: Promise<void> | null = null;
+export function loadLiveQueueState(force = false): Promise<void> {
+  if (!force && live) return Promise.resolve();
+  if (!force && liveLoading) return liveLoading;
+  liveLoading = be<QueueState>('GET', 'admin/queues/state').then((r) => { liveLoading = null; live = r.ok ? { decisions: r.data.decisions ?? {}, assignee: r.data.assignee ?? {} } : live ?? { decisions: {}, assignee: {} }; window.dispatchEvent(new Event(QUEUES_EVENT)); });
+  return liveLoading;
+}
+export function readQueueState(): QueueState {
+  if (LIVE) { if (typeof window !== 'undefined' && !live) void loadLiveQueueState(); return structuredClone(live ?? { decisions: {}, assignee: {} }); }
+  try { return { decisions: {}, assignee: {}, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { decisions: {}, assignee: {} }; }
+}
+export function writeQueueState(s: QueueState) {
+  if (LIVE) {
+    const before = live ?? { decisions: {}, assignee: {} }; live = structuredClone(s); window.dispatchEvent(new Event(QUEUES_EVENT));
+    const ids = new Set([...Object.keys(before.decisions), ...Object.keys(s.decisions), ...Object.keys(before.assignee), ...Object.keys(s.assignee)]);
+    void (async () => {
+      for (const id of ids) {
+        const body: Record<string, unknown> = {};
+        if (JSON.stringify(before.decisions[id] ?? null) !== JSON.stringify(s.decisions[id] ?? null)) body.decision = s.decisions[id] ?? null;
+        if ((before.assignee[id] ?? '') !== (s.assignee[id] ?? '')) body.assignee = s.assignee[id] ?? '';
+        if (Object.keys(body).length) { const r = await be('PUT', `admin/queues/state/${encodeURIComponent(id)}`, body); if (!r.ok) notice(`Queue: ${r.message}`); }
+      }
+      await loadLiveQueueState(true);
+    })();
+    return;
+  }
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* */ } window.dispatchEvent(new Event(QUEUES_EVENT));
+}
 export const isOpen = (c: Case, s: QueueState) => s.decisions[c.id]?.state !== 'done';
+
+/* ---------- D5 – who a case is on by default, and escalation ---------- */
+/** The person the case is on: taken by hand (state), else the routing rule for its queue at the member's masjid. */
+export function assigneeOf(c: Case, s: QueueState, q: QueuesSettings | undefined, admins: AdminLike[], center = ''): { id: string; byRule: boolean } {
+  const taken = s.assignee[c.id]; if (taken) return { id: taken, byRule: false };
+  return { id: routeQueueCase(q?.routing[c.queue], center, admins, c.id), byRule: true };
+}
+/** Past its target and the queue names a role to tell → escalated to that role. */
+export function escalation(c: Case, s: QueueState, q: QueuesSettings | undefined): string {
+  if (!isOpen(c, s) || sla(c).tone !== 'late') return '';
+  return q?.routing[c.queue]?.escalateTo ?? '';
+}
+/** D5 reporting – decided cases: days from arrival to decision, per person. */
+export function throughput(cases: Case[], s: QueueState) {
+  const rows = new Map<string, { by: string; decided: number; days: number[]; late: number }>();
+  for (const c of cases) {
+    const d = s.decisions[c.id]; if (!d || d.state !== 'done') continue;
+    const by = d.by || 'Unassigned'; const r = rows.get(by) ?? { by, decided: 0, days: [], late: 0 }; rows.set(by, r);
+    const took = Math.max(0, Math.round((Date.parse(d.at.slice(0, 10)) - Date.parse(c.submitted)) / 86400000));
+    r.decided += 1; r.days.push(took); if (took > (QUEUES.find((q) => q.id === c.queue)?.slaDays ?? 7)) r.late += 1;
+  }
+  return [...rows.values()].map((r) => ({ by: r.by, decided: r.decided, late: r.late, avgDays: r.days.length ? Math.round((r.days.reduce((a, b) => a + b, 0) / r.days.length) * 10) / 10 : 0 })).sort((a, b) => b.decided - a.decided);
+}

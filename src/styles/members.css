@@ -302,3 +302,18 @@ code { font-size: .8rem; }
 .m-checks li[hidden] { display: none; }
 .m-grid .st, .m-who b, .m-vote { white-space: nowrap; }
 @media (max-width: 760px) { .m-peek-hint { display: none; } }
+/* M1 import steps and column matching */
+.imp-steps { list-style: none; margin: 0 0 .8rem; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+.imp-steps li { padding: .3rem .7rem; border-radius: 999px; border: 1px solid var(--line, rgba(127,127,127,.25)); font-size: .85rem; color: var(--ink-3); }
+.imp-steps li.on { background: var(--accent); color: var(--on-accent, #fff); border-color: transparent; }
+.imp-map td:last-child { min-width: 220px; } .imp-sample { color: var(--ink-3); font-size: .85rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-map tr.imp-ignored td:first-child { color: var(--ink-3); }
+
+/* D10 – Members › Check-o-matic */
+.cm-kpis { margin-bottom: 1rem; }
+.cm-search { margin-left: auto; min-width: 220px; }
+.cm-table td { vertical-align: top; }
+.cm-meter { height: 4px; border-radius: 999px; background: var(--line); margin-top: .35rem; overflow: hidden; max-width: 140px; }
+.cm-meter i { display: block; height: 100%; background: var(--accent-ink); }
+.cm-table tr.is-unknown td:first-child b { color: var(--ink); }
+.cm-table .row-actions { display: flex; gap: .3rem; flex-wrap: wrap; justify-content: flex-end; }

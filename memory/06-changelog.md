@@ -288,3 +288,258 @@
   (admin id `owner`, email owner@example.org / owner@isgh.org); the demo official "Junaid Akhtar" is "Junaid Siddiqui".
   Applied across admin, web, saas, BE notes, memory files, e2e and white-box tests and the demo store (rename.sh).
   Admin 185/185, saas 15/15, web 143/143, white-box all green; tsc clean (admin, web).
+
+## 2026-10-16 – Real photos, favicon and app icons
+- Photos (Pexels, free license, no credit needed) across the admin via one manifest (src/lib/images.ts): a section
+  band with the page title inside it on every module page (SECTION_ART per sidebar group), photo bands behind the
+  Overview greeting and the masjid home band, a full-bleed photo behind the Welcome card, six photo wallpapers in
+  My appearance (Houston at night, Houston skyline, Arches, Geometric ceiling, Blue mosaic, Crescent night), a faint
+  (8–9%) section photo behind filter bars and search panes, and photo empty states (.cv-empty, .empty-state).
+- Photo component (components/shell/Photo.tsx): local file first (admin/public/img/<key>.jpg), the Pexels address as
+  fallback, so nothing is blank before the files exist. Every photo sits under a veil; light and dark checked.
+- One-time fetch: `node tools/get-images.mjs` from the admin folder saves all 32 photos to public/img (needs a normal
+  internet connection – the Cowork shell cannot reach images.pexels.com). Re-run with --force to refresh.
+- Favicon and icons made in code (PIL, no font): ISGH star-and-arch mark, gold on onyx – favicon.svg, favicon.ico
+  (16/32/48), favicon-32x32.png, apple-touch-icon, android-chrome 192/512, maskable 512, og-default; a web manifest;
+  layout.tsx lists them; theme color #0B0B0E.
+- A stacking-context lesson: the overlapped page title must not give .page a z-index – fixed side panels (quick look,
+  officials' holder panel) fell under the top bar. Admin 185/185; tsc clean.
+
+## 2026-10-17 – E1 Elected members history (upload by year and position)
+- Owner direction (feedback memory 23): every change must fit other organizations too – nothing hard-wired to ISGH;
+  rules are configuration with ISGH's values as the demo preset. E1 is the first item of the recordings backlog.
+- Contract (web/src/lib/community/officials.ts, synced to the admin): `history: Term[]` on the officials document –
+  one record per election year × position × person (kind incl. 'other' for titles the Bylaws do not know, the title
+  as written, zone/center/ZIPs, member ID, how, term dates, end reason, notes, source upload/manual/archived,
+  showOnWebsite); `website.pastLeadership` switch. Old saved documents still parse (history defaults to []).
+  Functions: readDate (US/ISO/written dates), matchPosition (title + zone/center columns → seat), planHistoryImport
+  (CSV check: missing columns, bad dates/years/ZIPs/IDs, unknown centers or zones, same seat twice in a year and
+  one person in two elected offices → "already filled", 2,000-row cap, term dates filled from the election year and
+  the oath rule), historyByYear, historyByPosition (current holders lead each timeline), boardTermsServed (term
+  limits from the history), historyRows/HISTORY_TEMPLATE_ROWS (export = template layout), publicPastLeadership.
+- Admin › Elected officials › History tab (components/views/OfficialsHistory.tsx): by year / by position views,
+  search, Upload elected members (template download, paste or file, check → add), Add a past term, Export, remove a
+  row, per-term website flag. Marking a seat vacant / recording an appointment archives the ended term into the
+  history automatically; the holder panel shows earlier Board terms counted from the history. Read-only for roles
+  without officials.manage.
+- Website › Leadership: "Past leadership" section (by election year, Board and center heads only, never Area
+  Representatives, Secretaries or member IDs) when the switch in Elected officials › Rules is on.
+- Tests: admin e2e officials-history.spec.ts (5), web leadership.spec.ts (+1), white-box wb/history.test.ts (55).
+
+## 2026-10-18 – P1–P3 Membership plans as configuration (presets, Check-o-matic rule, lifetime by donation)
+- Contract (web/src/lib/content/membership.ts, synced): `rules` on the membership-settings document, every rule a
+  switch with editable numbers – qualifyingGifts ("monthly contributors are members": plan, label, minimum per
+  month, yearly total, cut-off MM-DD, recurring-only or any gift, covers spouse, rollover), lifetimeByDonation
+  (threshold, single gift / calendar year / all time, lifetime plan granted, needs approval), household (who a
+  household plan covers, in words), approval (who approves, only after full payment, only after ID check).
+  Validation: a rule that is on needs an existing plan (lifetime rule: a lifetime plan), total ≥ one month,
+  real cut-off date. Old documents parse (rules default off). Helpers: qualifiesByGifts, lifetimeByDonationReached,
+  rulesInWords (the website's sentences). PLAN_PRESETS: "ISGH today (isgh.org, 2026)" – Check-o-matic (primary and
+  spouse, $10+/month, $40 by June 30), Individual $20, Lifetime $1,000 / $1,500 or by a $25,000 gift – plus the
+  older Wild Apricot levels and the Bylaws demo set. Nothing in the product depends on a preset.
+- Admin › Membership rules › Plans and dues: a purpose-made editor (components/views/PlansEditor.tsx) replaces the
+  generic form. Plan cards whose fields follow the term – a lifetime plan never shows renewal or multi-year prices
+  (the two errors seen in the review call came from the generic form offering them); switching the term cleans up.
+  Covers / member class / term as segmented choices, household size, fixed multi-year prices, renewal, website
+  words and switches; add, duplicate, reorder, remove; "Start from a preset" with a confirm. Rules panels below;
+  "How the website explains it" shows the sentences the public plans page will carry.
+- Members › eligibility: when the qualifying-contributions rule is on and the member holds that plan, the dues check
+  becomes "contributions reach $X by the cut-off" with the shortfall in words (demo members keep the Bylaws plans;
+  live: the member module reads the published settings).
+- Website › Plans and dues: "How membership works" block from rulesInWords when any rule is on.
+- Tests: admin plans.spec.ts (4), community/renewal specs updated to the preset picker, web pages.spec.ts (+1),
+  white-box wb/plans.test.ts (33). Admin suite 194/194.
+
+## 2026-10-18 – Z1/Z2 Real zones and Islamic Centers as a preset
+- Contract (web/src/lib/community/org-structure.ts, synced): ISGH_REAL_STRUCTURE – the five zones with ISGH's
+  masjids and musallas as isgh.org/islamic-centers lists them (21 centers with street, city, ZIP; four seen on the
+  Zones map as addresses only are marked "name to confirm"); each center's service area starts as its own ZIP, zone
+  ZIPs are the union. Directors, phones, websites, Jumu'ah times left for the admin. STRUCTURE_PRESETS: the real
+  set and the demo map (four fictional centers per zone, which the demo members use). Zone IDs are unchanged, so
+  members, officials and roles keep working after a load.
+- Admin › Masjids and zones: "Start from a preset" (Map preset + Load into the draft, confirm with counts and
+  notes). Z1 – the Zones map boundaries are still needed for the full ZIP lists: the admin pastes them on the ZIP
+  codes tab (a KML/ZIP export from the Owner would let us ship them in the preset).
+- Tests: zones.spec.ts (+1), white-box wb/structure.test.ts (13).
+
+## 2026-10-18 – J1–J3 + A1 Join-form policies, sign-up guide, approval rule
+- Contract (membership.ts, synced): `identity` (name must match the photo ID + note, the Identity Collection and
+  Verification Policy – a page of your own by URL or the built-in page with your text –, consent required + text +
+  version), `guide` (How-to-sign-up page: title, intro, steps, help), `legal` (Terms / Privacy links shown with the
+  text-message consent). All default on with plain-English demo text; older documents parse. The application
+  carries identityConsentVersion like the other consents.
+- Website: join form shows the ID note above the name fields (J2), the SMS consent with Terms and Privacy links
+  (J2), and an "Identity check" block on the pledge step with the policy link and a required consent (J1);
+  /membership/guide (J3) and /membership/identity-policy pages; Plans links to the guide.
+- Admin › Membership rules: "Identity and sign-up guide" tab (identity policy, consent, guide page); Terms/Privacy
+  links on Pledge and consents. A1: approvalBlockers() (full payment for the year / lifetime price, ID check) from
+  rules.approval; the member profile's Approve dialog lists blockers, offers "Record the payment" and disables
+  Approve; the work queue's Board-approval batch holds back and names blocked applications. Demo default: payment
+  rule off (the ISGH preset turns it on); useMembershipSettings() reads the published document.
+- Tests: admin approval-rule.spec.ts (3), plans.spec.ts (+1); web join/community/joinform specs take the identity
+  consent, pages.spec.ts (+1); white-box plans 41/41. Admin 199/199, web 146/146.
+
+## 2026-10-18 – M1 Generic member import with column matching (Wild Apricot preset)
+- Contract (member-records.ts, synced): IMPORT_COLUMNS grew (middle name, ID in the old system, membership status,
+  member since, renewal due, recurring, Text/SMS consent, subscribed to emails, archived, notes) with Wild Apricot
+  heading aliases; IMPORT_PRESETS (any spreadsheet / Wild Apricot contact export / Breeze–Planning Center) carry
+  explicit column matches and ignores; STATUS_WORDS + readStatusWord map another system's words (Active, Pending -
+  New, Lapsed, Suspended, Archived…) to ours – an unknown word is an error, nobody is silently made active; readYesNo;
+  matchColumns(head, {preset, mapping}) – a hand mapping wins over the preset, which wins over heading aliases;
+  planImport checks the new columns (dates, yes/no, status).
+- Admin › Members › Import: three steps – the file → match the columns (preset picker, every column a select with
+  the first row as a sample, needed/duplicate warnings) → check and import. Active rows become approved members with
+  this year's dues recorded (unless the renewal was already due), Lapsed → not renewed, Pending → pending, Archived →
+  archived; consents become prefs; the old ID, renewal date, recurring flag and follow-up go into the notes.
+- Tests: records.spec.ts (+1 Wild Apricot journey, mapping checks), white-box records 62/62.
+
+## 2026-10-18 – I1 Giving platforms (Zeffy) and R1 Records library
+- I1 – Settings › Integrations › "Giving platforms": accounts for Zeffy, PayPal Giving, Bloomerang, Givelify, a
+  kiosk or another platform – one for the whole organization or a masjid's own, side by side (demo: ISGH Zeffy +
+  Southwest Islamic Center 1 Zeffy). Stored: label, scope/masjid, giving-form address, last 4 of the API key and
+  webhook secret, sync time – never a secret. Rules: a masjid account names its masjid; one account per platform and
+  masjid; an enabled account needs a form address or a key. Readiness card lists each account; per-account webhook
+  address /api/webhooks/<org>/giving/<account>; key changes need a second admin (adding an account without keys does
+  not). Donations: Zeffy joined the online platforms (ONLINE_PLATFORMS drives the platform lists; demo gifts include
+  Zeffy). Live: BE adapters per provider read gifts and payouts into Donations under the account's masjid.
+- R1 – Records library (admin › Meetings and minutes › Records library, /records; website /records): minutes, annual and
+  financial reports, Constitution and Bylaws, policies, newsletters, forms, election notices – for the organization
+  or one masjid, each with a date and an audience (everyone / members / leaders). Follows the shared masjid filter;
+  masjid roles see their masjid locked and edit only their own records; warnings (stale or missing minutes, missing
+  Bylaws, masjids without records). New `records` document (registry, seed, server store, access: read members.view,
+  write center.content). Website page shows public records by organization and masjid; members-only ones belong in
+  the member portal (next).
+- Tests: integrations.spec.ts (+1, chips now 5), records-library.spec.ts (2), web pages.spec.ts (+1); white-box
+  integrations 55/55, records-lib 13/13.
+- Verification 2026-10-18 (end of the night): Records library moved under Meetings and minutes (a members.view role
+  must not see the Website group). Admin 203/203, web 147/147, saas 15/15; white-box access 101, history 55,
+  plans 41, structure 13, records 62, records-lib 13, integrations 55, groups 39; tsc clean (admin, web).
+  BE contract notes: BE/memory/api-contract-review-items.md. Status table: admin/memory/23-owner-feedback.md.
+
+## 2026-10-18 – Elections: nominations, ballot and results (the "Next" item in the Elections menu)
+- Contract (web/src/lib/community/elections.ts, synced): an election per year – editable rules (nomination window
+  in days before Election Day, seconder, self-nomination, one seat per person, standing years for Board / President
+  and Vice President, residency, voting method, secret ballot, tie-break, who certifies; ISGH's Bylaws values are the
+  defaults), seats (from Elected officials' ballot parity and Masjids and zones – Area Representative seats from the
+  eligible voters per ZIP, `seatsOnBallot()`), nominations with status, results per seat (ballots cast, spoiled,
+  votes, winners), frozen voter count, certification, sworn-in date. Validation: window order, seconder before
+  acceptance, seat must exist, votes + spoiled ≤ ballots cast. Helpers: nominationIssues (eligible voter, standing
+  years, residence, one office per person incl. serving holders, duplicates, self-nomination), ballot (uncontested /
+  empty), tally + impliedWinners (ties flagged for the tie-break rule), turnout, electionWarnings, holdersFromResults.
+- Admin › Elections › Nominations, ballot and results (/elections/run): year picker and status, KPIs (seats,
+  nominations, voter list, turnout), warnings; tabs Nominations (record with live checks, accept / not eligible /
+  declined / withdraw / reopen), Ballot (who votes, places, candidates, take a seat off, refresh seats from the
+  configuration, freeze the voter list, set the ballot → open voting → close and count), Results (count per seat,
+  tie-break buttons, accept / reopen a count), Certify and swear in (certify, then the winners become serving
+  holders in Elected officials with term dates and the replaced holders go to the history), Rules. Election
+  Commission (voters.freeze) runs it; everyone with members.view reads it. New `elections` document.
+- Tests: elections-run.spec.ts (3, serial), white-box wb/elections.test.ts (33). Admin suite 207/207.
+
+## 2026-10-18 – Work mode (big screens), Tasks and tickets, configuration map
+- Work mode: a top-bar button (Ctrl+Shift+F, Esc leaves it) folds the sidebar to icons, hides the photo band and
+  platform banners and lets the page use the whole screen; remembered per admin. My appearance also has "Page width:
+  Centered / Whole screen" for those who want the full width but keep the sidebar and band. Tests work-mode.spec.ts (2).
+- Work queues › Tasks and tickets (/queues/tickets): complaints and feedback from the website, member requests and
+  tasks admins write for each other – owner from Admins and roles, priority with a target (2/7/14 days), status,
+  thread of updates, late-first list, Mine/Late/Done filters, shared masjid filter; masjid roles see their masjid
+  (and organization tickets assigned to them) and create for their masjid only; sidebar badge and q:all include
+  open tickets. DEMO in this browser; contract in BE/memory/api-contract-tickets.md. Tests tickets.spec.ts (3).
+- memory/24-configuration-first.md: the single map of what an organization configures itself (screen → document →
+  what the BE enforces) – the rule for all new work. Roles and permissions: the role builder (Settings › Admins and
+  roles) with the permission catalog, scopes and custom roles is in place and covered by access.spec.ts and
+  dashboards.spec.ts ("a role built from scratch").
+- 2026-10-18: lib/queues/tickets.ts split – the model (types, demo, dueFor, lateBy, sortTickets, addUpdate) lives in
+  tickets-core.ts without React so the API shares it; tickets.ts keeps the browser storage and the hook.
+
+## 2026-10-18 – Product mark replaced (admin + saas public/brand)
+- New NextGrow Members mark (arch + sprout in an eight-point lattice) in public/brand of admin and saas: logo-mark.svg,
+  logo-mark-dark.svg, favicon.svg, icon-maskable.svg, PNG icons, favicon.ico, og-default.png. Source and brand sheet:
+  company-website/brand/. The web app (tenant site) keeps the tenant's own logo.
+
+## 2026-10-18 – Platform rebrand: Masajid Solutions
+- platform.ts (web → admin/saas synced): productName "Masajid Solutions", baseDomain masajidsolutions.com, support@/billing@
+  masajidsolutions.com, demo hosts member-web/member-admin.masajidsolutions.com, TXT `_masajid.<host>`, reserved slug
+  "masajid". communication.ts demo links, SaasShell default product name and mark (/brand/logo-mark-dark.svg),
+  saas-harness/serve.cjs serves /brand/. saas e2e 15/15. DEPLOY.md addresses must move to the new domain (DNS, wildcard
+  certificate) – not changed on the server by this commit. SAAS_PREVIEW_USER default left as before (env on server).
+
+## 2026-10-18 – Help desk and Team tasks rebuilt (owner: "I have not seen any good thing about ticketing and internal task")
+- Research note first: memory/research/tickets-and-tasks.md (two jobs: Help desk for people outside the team, Team tasks for the team's own work).
+- Shared contract web/src/lib/community/work.ts (synced): `work-settings` document (categories with routing to a person or "the role at the
+  ticket's masjid", targets per priority with business-hours clock, due-soon %, auto-close, satisfaction, saved replies with merge fields,
+  restricted categories + senior roles; task board names, labels, project templates with anchor-day offsets) + pure rules (SLA clocks with
+  pause while waiting, routing, visibility, reply/note/merge/auto-close, recurring tasks, templates, workload, ticket → task).
+- Work queues › Help desk (/queues/tickets): saved views with counts (Needs a reply, Mine, Unassigned, Due soon, Late, Waiting, All open,
+  Solved), search, category + masjid filters, bulk assign/status/priority/merge, j/k keys; ticket = conversation (public reply vs yellow
+  internal note, @mentions → followers, saved replies), two clocks, owner/priority/category/masjid, followers, tags, restricted switch,
+  merge, "Create a team task", satisfaction; Dashboard tab (open, late, median first reply / solve, targets met, satisfaction, by category,
+  per week, by masjid, oldest open, per owner). New ticket dialog for phone / walk-in / email with automatic owner preview.
+- Work queues › Team tasks (/tasks): My work (Overdue, Today, Next 7 days, Later, No date, I asked others), Board (drag or Move menu),
+  List, Calendar, Projects (progress, at risk, archive, new from template with preview), Dashboard; task drawer with checklist, sub-tasks,
+  labels, repeat, links, comments with @mentions.
+- Settings › Help desk and tasks (/settings/work): presets "Masjid organization" and "Simple start"; other organizations start simple.
+- Overview: the fixed "Today's tasks" demo list is replaced by a live My work card (also on masjid home); stale "comes in module A4" text fixed.
+- Sidebar: Help desk (open visible tickets) and Team tasks (mine due today/overdue) badges. TicketsView/tickets.ts kept as thin re-exports.
+- Tests: tickets.spec.ts (7, rewritten), tasks.spec.ts (5), white-box tests/wb/work.test.ts (14). tsc clean (admin, web) on the PC.
+  Full admin e2e in the cloud harness: 123 pass; the 24 that fail also fail on the code before this change (harness: no website on 3000,
+  shared store order).
+
+## 2026-10-19 – Admin icon family
+- src/components/shell/nav.ts: new IconName union (53) and path map from company-website/brand/icons/icongen.py;
+  NAV_TREE uses section-specific icons. Icon component unchanged (currentColor stroke 1.7). Old names kept.
+
+## 2026-10-19 – call transcripts reconciled (no code)
+- New: memory/24-call-transcripts.md – the three review calls summarized by meaning, speakers by role.
+- memory/23-owner-feedback.md: Recording 1 is now covered (T-A); every "needs confirmation" item answered or marked
+  "ask"; 15 new items V1, D1–D15 logged with status and a suggested order. Waiting for the Owner's "go".
+
+## 2026-10-19 – From the review-call transcripts: V1, D1, D2, D3, D5, D7, D8, D10, D11, D12, D13, D14 (admin/memory/23-owner-feedback.md, 10/19 section)
+Everything is configuration with the client's values as a preset; nothing is wired to one organization.
+- **V1 Member classes are a setting** (web contract lib/content/membership.ts `rules.classes`): each of the two classes has a
+  name, a line, "can vote" and "offered on the join form"; the plan editor's vote switch follows the class (Rules › Member
+  classes), the eligibility check and the join form's voting preview read the setting, the join form skips the "how are you
+  joining" question when only one class is offered. ISGH preset: natural = no dues / no vote, associate = the paid member
+  (what the client said on the call); the generic default keeps "member votes, associate does not".
+- **D13 Plan editor:** plans can carry an age range (youth / senior plans show only to those ages on the join form); one-person
+  plans show "Household: not on this plan" instead of an error; lifetime plans say why renewal is gone; ISGH preset says
+  "Checkomatic". Classes and ages are new optional fields – old documents parse unchanged.
+- **D5 Work queues route by type** (web contract lib/community/work.ts `queues`: owners per queue = people or "the role at
+  the case's masjid", round-robin or first, target days, escalate-to role, own label) – Settings › Help desk and tasks ›
+  Work queues shows "today it would land on". QueuesView: "On <name> (by rule)" badge, take it, hand it to anyone (select),
+  "Escalated" flag past the target; two new queues **Incomplete applications** and **Missing information** (follow-ups
+  configurable: hours before the first reminder, give-up days, which fields count as missing); Overview › My work lists
+  "On your desk – queue cases"; the queues dashboard adds "Whose desk the open work is on" and "How fast cases get decided"
+  (per person, average days, past target). Sidebar badges for the new queues.
+- **D1 Dashboards per role:** every card of the home page (command and focus layouts) and Members › Overview has an id
+  (admin lib/dashboards/widgets.ts); a role hides cards under Settings › Admins and roles › role › Dashboard (editable on
+  built-in roles; Owner and "manage admins" see everything). Presets from the call: the board loses the office's pipeline /
+  fees / newest / suggestions, membership roles lose giving money, finance loses the pipeline. New tile "Membership fees
+  this month" (dues only) next to "Giving this month"; Members › Overview's dues tile reads "Membership fee collected".
+- **D2 Members opens on its Overview:** the Members group in the sidebar is a link (nav `home`), the chevron folds the list;
+  the first child is called Overview.
+- **D3 verified:** extra roles per person with an end date already exist (`more` assignments); the Other roles list now shows
+  "until …" / "no end date". **D4 verified:** `members.contact` already hides email/phone/DOB/street for roles without it
+  (board, president) and gates exports. **D9 verified:** admin and website sessions are separate cookies (Agent B's C1–C3).
+- **D14 Center rules are a setting** (web contract lib/community/org-structure.ts `rules`): any center in the zone or nearest
+  only, border miles and what may be asked for, proof required, lock years, lock lifted on a move, request deadline, who
+  approves. Masjids and zones › Rules tab; the center-change queue's checks and the profile's Change center dialog (proof
+  seen) read it; the lock date comes from `lockYears`.
+- **D10 Members › Check-o-matic** (new page /members/checkomatic, needs only "See members"): every monthly giver's year held
+  against the "monthly contributors are members" rule – member tagged / not in the system; counted-by-cut-off vs given;
+  Contacted / "Eligible, information not provided" / Start application; CSV. Demo plan "Monthly contributor" (hidden) with
+  the rule on, so the page has something to show.
+- **D12 Money per center** (web contract lib/community/donations.ts `centers`): each center may have its own payment account
+  (provider, name, last 4 – never a key) and its own fund list; central funds (routed to the main center or shared) always
+  go to the organization. Donations › Funds and rules › "Each center's account and funds"; `fundsForCenter` /
+  `accountFor` for the sign-up and giving pages (the website sign-up step that shows the center's funds is still to do).
+- **D7 Portal ticket:** two help-desk categories "My membership record is wrong" / "My Islamic Center is wrong" (routed to
+  the membership office) and one-tap starts on the portal's Ask or tell us page that prefill what the record says.
+- **D8 Team messages** (new /inbox, admin lib/team/messages.ts): channels per department and direct threads, attachments
+  (picture or file, 2 MB, demo as data URL), links to a member / ticket / task, @mentions, "Make a task" from any
+  message, unread badge in the sidebar. Demo in this browser; live routes noted in the file.
+- **D11 Become a member with your gift:** the giving dialog's thank-you offers membership to a monthly donor when the rule is
+  on (`monthlyOffer` in the contract), with whether the gift already qualifies.
+- Website join form: the class question comes from the setting; home-page plan cards show plans of voting classes.
+- Tests: wb membership-classes (4), queue-routing (3), dashboards (1), center-money (3); e2e plans/queues/dashboard/
+  dashboards/access updated for the new labels; members list waits for the signed-in person's scope before listing anyone.
+- Merged with Agent B's live-stats home pages (home-stats.ts: `feesMonth`/`feesPrevMonth` added).

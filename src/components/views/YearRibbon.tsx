@@ -5,6 +5,7 @@
  * end Dec 31, new officials take the oath in January, and June 30 – the record date: own dues paid by then = a vote.
  * "Today" sits on the band; the next date is counted down on the left.
  */
+import { ORG_TZ } from '@/lib/members/members';
 import { useEffect, useRef, useState } from 'react';
 import { electionDay, oathDay } from '@/lib/community/officials';
 
@@ -34,7 +35,7 @@ export function YearRibbon() {
   const [today, setToday] = useState('');
   const band = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
-  useEffect(() => { setToday(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })); }, []);
+  useEffect(() => { setToday(new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ })); }, []);
   useEffect(() => {
     const el = band.current; if (!el) return;
     const ro = new ResizeObserver(() => setWidth(el.clientWidth || 800)); ro.observe(el); return () => ro.disconnect();

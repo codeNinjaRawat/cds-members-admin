@@ -76,6 +76,8 @@ export const RoleSchema = z.object({
   areaScoped: z.boolean().default(false),                                     // M2: inside one masjid, only the ZIP codes set on the assignment (Area Representative)
   zakatLevel: z.number().int().min(0).max(3).default(0),                      // 0 = cannot approve Zakat
   builtIn: z.boolean().default(false),
+  /** D1 – which dashboard widgets this role does NOT see (ids from admin lib/dashboards/widgets.ts). Editable on built-in roles too. */
+  dashboard: z.object({ hide: z.array(z.string().max(60)).max(80).default([]) }).default({}),
 }).superRefine((r, ctx) => {
   if (r.zoneScoped && r.centerScoped) ctx.addIssue({ code: 'custom', path: ['centerScoped'], message: 'A role is limited to zones or to centers, not both.' });
   if (r.areaScoped && !r.centerScoped) ctx.addIssue({ code: 'custom', path: ['areaScoped'], message: 'ZIP-code areas sit inside a masjid – limit the role to a masjid too.' });
@@ -85,25 +87,26 @@ export const RoleSchema = z.object({
 });
 export type Role = z.infer<typeof RoleSchema>;
 type RoleOpts = { area: RoleArea; zone?: boolean; center?: boolean; zips?: boolean; level?: number };
-const role = (id: string, name: string, description: string, permissions: Permission[], o: RoleOpts): Role => ({ id, name, description, permissions, area: o.area, zoneScoped: !!o.zone, centerScoped: !!o.center || !!o.zips, areaScoped: !!o.zips, zakatLevel: o.level ?? 0, builtIn: true });
+type RoleOpts2 = RoleOpts & { hide?: string[] };
+const role = (id: string, name: string, description: string, permissions: Permission[], o: RoleOpts2): Role => ({ id, name, description, permissions, area: o.area, zoneScoped: !!o.zone, centerScoped: !!o.center || !!o.zips, areaScoped: !!o.zips, zakatLevel: o.level ?? 0, builtIn: true, dashboard: { hide: o.hide ?? [] } });
 const EB_VIEW: Permission[] = ['members.view', 'members.approve', 'reports.view', 'zakat.view', 'donations.view', 'finance.view'];
 export const BUILT_IN_ROLES: Role[] = [
   // Leadership
   role('owner', 'Owner', 'Everything, including billing. At least one active owner is required.', [...ALL], { area: 'leadership', level: 3 }),
   role('admin', 'Admin', 'Everything except billing (Super Admin).', ALL.filter((p) => p !== 'billing'), { area: 'leadership', level: 3 }),
-  role('president', 'President', 'Executive Board. Leads the organization: sees every module, approves applications, sends messages, keeps the officials list.', [...EB_VIEW, 'comms.send', 'officials.manage'], { area: 'leadership' }),
+  role('president', 'President', 'Executive Board. Leads the organization: sees every module, approves applications, sends messages, keeps the officials list.', [...EB_VIEW, 'comms.send', 'officials.manage'], { area: 'leadership', hide: ['ov.queue', 'ov.site', 'cc.pipeline', 'cc.kpi.fees'] }),
   role('vice-president', 'Vice President', 'Executive Board. Sees every module and approves applications; stands in for the President.', [...EB_VIEW, 'comms.send'], { area: 'leadership' }),
-  role('general-secretary', 'General Secretary', 'Executive Board. Notices, meetings and minutes, member records and messages.', [...EB_VIEW, 'members.edit', 'center.content', 'comms.send'], { area: 'leadership' }),
+  role('general-secretary', 'General Secretary', 'Executive Board. Notices, meetings and minutes, member records and messages.', [...EB_VIEW, 'members.edit', 'center.content', 'comms.send'], { area: 'leadership', hide: ['ov.site', 'cc.kpi.fees'] }),
   role('executive-board', 'Executive Board', 'Sees every module and approves applications; changes nothing else.', EB_VIEW, { area: 'leadership' }),
-  role('board-member', 'Board member', 'Approves applications (Bylaws) and sees reports.', ['members.view', 'members.approve', 'reports.view'], { area: 'leadership' }),
+  role('board-member', 'Board member', 'Approves applications (Bylaws) and sees reports.', ['members.view', 'members.approve', 'reports.view'], { area: 'leadership', hide: ['ov.queue', 'ov.mywork', 'ov.gmonth', 'ov.site', 'mo.methods', 'cc.pipeline', 'cc.kpi.fees', 'cc.newest', 'cc.mywork', 'cc.suggest'] }),
   // Masjid working body (one set per masjid – see the org chart: Associate Director, secretaries, Area Representatives)
   role('associate-director', 'Associate Director', 'Runs the masjid: its members and dues, events, prayer times and minutes, its gifts and finance; sees its Zakat cases; builds its working body.', ['members.view', 'members.contact', 'members.edit', 'payments.record', 'reports.view', 'zakat.view', 'donations.view', 'donations.reconcile', 'finance.view', 'events.manage', 'events.checkin', 'center.content', 'team.manage'], { area: 'masjid', center: true }),
-  role('membership-secretary', 'Membership Secretary', 'The masjid’s member records: new applications, renewals, cash and check dues, contact details.', ['members.view', 'members.contact', 'members.edit', 'payments.record', 'reports.view'], { area: 'masjid', center: true }),
-  role('finance-secretary', 'Finance Secretary', 'The masjid’s money: records cash and checks, sees donations, funds and budgets.', ['payments.record', 'donations.view', 'donations.reconcile', 'finance.view', 'reports.view'], { area: 'masjid', center: true }),
+  role('membership-secretary', 'Membership Secretary', 'The masjid’s member records: new applications, renewals, cash and check dues, contact details.', ['members.view', 'members.contact', 'members.edit', 'payments.record', 'reports.view'], { area: 'masjid', center: true, hide: ['ov.funds', 'ov.gmonth', 'ov.site', 'cc.kpi.giving', 'cc.money'] }),
+  role('finance-secretary', 'Finance Secretary', 'The masjid’s money: records cash and checks, sees donations, funds and budgets.', ['payments.record', 'donations.view', 'donations.reconcile', 'finance.view', 'reports.view'], { area: 'masjid', center: true, hide: ['ov.queue', 'ov.site', 'mo.ages', 'mo.joins', 'cc.pipeline', 'cc.newest'] }),
   role('education-secretary', 'Education Secretary', 'Classes, weekend school and programs: the masjid’s events, check-in and prayer-time notices.', ['members.view', 'events.manage', 'events.checkin', 'center.content'], { area: 'masjid', center: true }),
   role('area-representative', 'Area Representative', 'Represents members in a few ZIP codes of one masjid: sees and contacts only those members.', ['members.view', 'members.contact'], { area: 'masjid', zips: true }),
   // Membership and centers
-  role('membership-officer', 'Membership officer', 'Day-to-day member work: records, payments, groups, messages, reports.', ['members.view', 'members.contact', 'members.edit', 'members.archive', 'payments.record', 'groups.manage', 'comms.send', 'reports.view'], { area: 'membership' }),
+  role('membership-officer', 'Membership officer', 'Day-to-day member work: records, payments, groups, messages, reports.', ['members.view', 'members.contact', 'members.edit', 'members.archive', 'payments.record', 'groups.manage', 'comms.send', 'reports.view'], { area: 'membership', hide: ['ov.funds', 'ov.gmonth', 'ov.site', 'cc.kpi.giving', 'cc.money'] }),
   role('center-admin', 'Center admin', 'Runs one center: its members, events, prayer times and minutes.', ['members.view', 'members.contact', 'members.edit', 'events.manage', 'events.checkin', 'center.content', 'donations.view', 'finance.view', 'reports.view'], { area: 'membership', center: true }),
   role('zone-director', 'Zone director', 'Members of their own zone(s) only.', ['members.view', 'members.contact', 'members.edit', 'events.checkin', 'reports.view'], { area: 'membership', zone: true }),
   // Zakat and Sadaqah
@@ -111,9 +114,9 @@ export const BUILT_IN_ROLES: Role[] = [
   role('zakat-committee-member', 'Central Committee Member', 'Level 2 approval for cases above the coordinator’s limit.', ['zakat.view', 'zakat.approve'], { area: 'zakat', level: 2 }),
   role('zakat-coordinator', 'Local Zakat Coordinator', 'Level 1 at their own center: takes applications, verifies, home visits, approves small cases.', ['zakat.view', 'zakat.intake', 'zakat.verify', 'zakat.approve'], { area: 'zakat', center: true, level: 1 }),
   role('zakat-operations', 'Zakat Operations Office', 'Pays out fully approved cases and keeps the payout record.', ['zakat.view', 'zakat.disburse', 'finance.view'], { area: 'zakat' }),
-  role('office-admin', 'Office admin', 'Front office: enters applications from the phone and walk-ins.', ['zakat.view', 'zakat.intake'], { area: 'zakat' }),
+  role('office-admin', 'Office admin', 'Front office: enters applications from the phone and walk-ins.', ['zakat.view', 'zakat.intake'], { area: 'zakat', hide: ['ov.funds', 'ov.gmonth', 'ov.site', 'ov.curve', 'cc.kpi.giving', 'cc.money', 'cc.trend'] }),
   // Donations and finance
-  role('treasurer', 'Treasurer', 'Handles all monies (Bylaws): payments, refunds, funds, budgets and reports; approves and signs payments.', ['members.view', 'members.contact', 'payments.record', 'payments.refund', 'reports.view', 'donations.view', 'finance.view', 'finance.manage', 'fundraising.manage', 'zakat.view'], { area: 'finance' }),
+  role('treasurer', 'Treasurer', 'Handles all monies (Bylaws): payments, refunds, funds, budgets and reports; approves and signs payments.', ['members.view', 'members.contact', 'payments.record', 'payments.refund', 'reports.view', 'donations.view', 'finance.view', 'finance.manage', 'fundraising.manage', 'zakat.view'], { area: 'finance', hide: ['ov.queue', 'ov.site', 'cc.pipeline', 'cc.kpi.fees'] }),
   role('treasurer-view', 'Treasurer (view only)', 'Oversight: sees Zakat, donations, funds and reports; changes nothing.', ['zakat.view', 'donations.view', 'finance.view', 'reports.view'], { area: 'finance' }),
   role('finance-team', 'Finance team', 'Donations, reconciliation, funds and refunds.', ['members.view', 'payments.record', 'payments.refund', 'donations.view', 'donations.reconcile', 'finance.view', 'finance.manage', 'fundraising.manage', 'reports.view'], { area: 'finance' }),
   // Communication, events, website, elections, other
@@ -134,12 +137,14 @@ export function upgradeAccess(raw: unknown): unknown {
   return { ...d, roles: [...BUILT_IN_ROLES, ...custom] };
 }
 
+/** ISGH's zone ids – an example only: every organization's zones come from its own map (org-structure). */
 export const ZONE_IDS = ['n', 'nw', 'sw', 's', 'se'] as const;
+const ZONE_ID = z.string().regex(/^[a-z0-9-]{1,20}$/);
 const ZIP5 = z.string().regex(/^\d{5}$/, 'A ZIP code has 5 digits.');
 /** M2: one more role the same person holds somewhere else (role + where). The first role sits on the person itself. */
 export const AssignmentSchema = z.object({
   roleId: z.string(),
-  zones: z.array(z.enum(ZONE_IDS)).default([]),
+  zones: z.array(ZONE_ID).default([]),
   centers: z.array(z.string().trim().min(2).max(80)).max(30).default([]),
   zips: z.array(ZIP5).max(60).default([]),
   expiresOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -153,7 +158,7 @@ export const AdminSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email(),
   roleId: z.string(),
-  zones: z.array(z.enum(ZONE_IDS)).default([]),
+  zones: z.array(ZONE_ID).default([]),
   centers: z.array(z.string().trim().min(2).max(80)).max(30).default([]),     // center names (org-structure) for center-limited roles
   zips: z.array(ZIP5).max(60).default([]),                                    // M2: ZIP codes for area-limited roles (inside the masjid)
   more: z.array(AssignmentSchema).max(10).default([]),                        // M2: other roles this person holds (e.g. AD of one masjid + Area Rep)
@@ -285,7 +290,7 @@ export const inScope = (doc: AccessDoc, a: AdminUser | null | undefined, memberZ
   if (!a || !r) return false;
   if (r.areaScoped) return !!memberCenter && a.centers.includes(memberCenter) && !!memberZip && (a.zips ?? []).includes(memberZip.slice(0, 5));
   if (r.centerScoped) return !!memberCenter && a.centers.includes(memberCenter);
-  return !r.zoneScoped || a.zones.includes(memberZone as (typeof ZONE_IDS)[number]);
+  return !r.zoneScoped || a.zones.includes(memberZone);
 };
 /** The admin's Zakat approval level (0 = none). The dollar limit per level is in Zakat settings (F2). */
 export const zakatLevelOf = (doc: AccessDoc, a: AdminUser | null | undefined, today?: string) => (can(doc, a, 'zakat.approve', today) ? roleOf(doc, a)?.zakatLevel ?? 0 : 0);
@@ -304,7 +309,8 @@ export function permissionForDoc(key: string): Permission {
   if (key === 'donation-settings') return 'finance.manage';
   if (key === 'benefits') return 'benefits.manage';
   if (key === 'officials') return 'officials.manage';
-  if (key === 'prayer-times') return 'center.content';
+  if (key === 'prayer-times' || key === 'records') return 'center.content';
+  if (key === 'elections') return 'voters.freeze';
   if (key === 'finance-settings') return 'finance.manage';
   if (key === 'fundraising') return 'fundraising.manage';
   return 'settings.manage'; // membership-settings, join-form, org-config
@@ -323,7 +329,7 @@ export function permissionForPath(path: string): Permission | null {
   if (p.startsWith('/donations')) return 'donations.view';
   if (p.startsWith('/benefits')) return 'benefits.manage';
   if (p.startsWith('/officials')) return 'members.view';
-  if (p.startsWith('/prayer-times') || p.startsWith('/minutes')) return 'members.view';
+  if (p.startsWith('/prayer-times') || p.startsWith('/minutes') || p.startsWith('/records')) return 'members.view';
   if (p.startsWith('/finance')) return 'finance.view';
   if (p.startsWith('/fundraising')) return 'donations.view'; // leaders see them; changes need center.content // everyone who sees members sees who serves; changes need officials.manage
   if (p.startsWith('/zones')) return 'members.view'; // everyone who sees members sees the map; publishing needs settings.manage
@@ -407,3 +413,4 @@ export const mockAccess: AccessDoc = AccessObject.parse({
     { id: 'comms', homeZip: '77036', name: 'Communication manager', email: 'comms@isgh.org', roleId: 'communication-manager', zones: [], centers: [], status: 'active', twoStep: true, lastActive: '2026-10-14' },
   ],
 });
+

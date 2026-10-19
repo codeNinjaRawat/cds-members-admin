@@ -8,21 +8,22 @@
  *   (exports, voter-list snapshots, messages, acting-as) in one list with filters and a CSV.
  * Changes to admins and roles are published like any other document – versioned, with the publisher's name.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, Tabs, countIssues } from '@/components/editor/bits';
-import { MODULES, PERMISSIONS, PERMISSION_KEYS, ROLE_AREAS, ZAKAT_LEVELS, ZONE_IDS, accessWarnings, assignmentsOf, homeZipOf, modulesOf, permDef, whereOf, type AccessDoc, type AdminUser, type Permission, type Role, type RoleArea } from '@/lib/access/access';
+import { PAGE_LABEL, WIDGETS, WIDGET_SECTION } from '@/lib/dashboards/widgets';
+import { MODULES, PERMISSIONS, PERMISSION_KEYS, ROLE_AREAS, ZAKAT_LEVELS, accessWarnings, assignmentsOf, homeZipOf, modulesOf, permDef, whereOf, type AccessDoc, type AdminUser, type Permission, type Role, type RoleArea } from '@/lib/access/access';
 import { centerForZip, type OrgStructure } from '@/lib/community/org-structure';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import { DOC_KEYS, REGISTRY } from '@/lib/store/registry';
 import { AUDIT_EVENT, readAudit, type AuditEntry } from '@/lib/access/audit';
-import { membersWithEdits, fullName, ZONES, fmtDate, type ZoneId } from '@/lib/members/members';
+import { membersWithEdits, fullName, ZONES, fmtDate, type ZoneId, ORG_TZ } from '@/lib/members/members';
 import { csvCell } from '@/lib/community/member-records';
 import { useAccess } from '@/lib/access/use-access';
 import { AssignDialog, MasjidsOverview, OfficialsAccess, WorkingBody, useOrg, withoutAssignment } from './TeamViews';
 
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 type ADoc = { draft: AccessDoc; setDraft: (f: AccessDoc | ((d: AccessDoc) => AccessDoc)) => void; issues: Record<string, string> };
 const slug = (s: string, taken: string[]) => { const b = s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'admin'; let id = b, n = 2; while (taken.includes(id)) id = `${b}-${n++}`; return id; };
 
@@ -94,6 +95,7 @@ function Admins({ doc }: { doc: ADoc }) {
   // M5: everyone belongs to a masjid through their home ZIP code (Owners – the organization's super admins – may be without one)
   const homeOf = (a: AdminUser) => { const z = homeZipOf(a); return z ? centerForZip(org, z) : null; };
   const [newZip, setNewZip] = useState('');
+  const zoneList = useZones();
   const shown = d.admins.map((a, i) => ({ a, i })).filter(({ a }) => { const h = homeOf(a); return mf.keep(h?.zone ?? '', h?.name ?? '', homeZipOf(a)) || assignmentsOf(a).some((x) => x.centers.some((c) => mf.keep('', c)) || x.zones.some((z) => mf.keep(z))); });
   return (
     <Panel intro="Invited people get an email link to set up their sign-in (BE). Suspend instead of deleting – the audit log keeps their name. Everyone except an Owner belongs to a masjid through the ZIP code they live in.">
@@ -129,7 +131,7 @@ function Admins({ doc }: { doc: ADoc }) {
                   {err(i, 'roleId') && <small className="sf-err">{err(i, 'roleId')}</small>}</label>
                 {d.roles.find((r) => r.id === a.roleId)?.zoneScoped && (
                   <fieldset className="sf-field acc-zones"><legend className="sf-label">Zones this person may see</legend>
-                    {ZONE_IDS.map((z) => <label key={z} className="check"><input type="checkbox" checked={a.zones.includes(z)} onChange={() => set(i, { zones: a.zones.includes(z) ? a.zones.filter((x) => x !== z) : [...a.zones, z] })} /> <span>{ZONES[z]}</span></label>)}
+                    {zoneList.map((zz) => <label key={zz.id} className="check"><input type="checkbox" checked={a.zones.includes(zz.id)} onChange={() => set(i, { zones: a.zones.includes(zz.id) ? a.zones.filter((x) => x !== zz.id) : [...a.zones, zz.id] })} /> <span>{zz.name}</span></label>)}
                     {err(i, 'zones') && <small className="sf-err">{err(i, 'zones')}</small>}</fieldset>
                 )}
                 {d.roles.find((r) => r.id === a.roleId)?.centerScoped && (
@@ -138,7 +140,7 @@ function Admins({ doc }: { doc: ADoc }) {
                     {err(i, 'centers') && <small className="sf-err">{err(i, 'centers')}</small>}</fieldset>
                 )}
                 {a.more.length > 0 && <div className="sf-field acc-more"><span className="sf-label">Other roles</span>
-                  <ul>{a.more.map((x, k) => <li key={k} data-more={x.roleId}><b>{roleName(x.roleId)}</b> <small>{whereOf(d, x, (z) => ZONES[z as ZoneId] ?? z)}{x.givenBy ? ` · given by ${x.givenBy}` : ''}</small> <button type="button" className="icon-btn sm" aria-label={`Take ${roleName(x.roleId)} away from ${a.name}`} onClick={() => doc.setDraft((cur) => withoutAssignment(cur, a.id, k + 1))}>×</button>{err(i, `more.${k}.roleId`) || err(i, `more.${k}.zips`) || err(i, `more.${k}.centers`) ? <small className="sf-err block">{err(i, `more.${k}.roleId`) || err(i, `more.${k}.zips`) || err(i, `more.${k}.centers`)}</small> : null}</li>)}</ul></div>}
+                  <ul>{a.more.map((x, k) => <li key={k} data-more={x.roleId}><b>{roleName(x.roleId)}</b> <small>{whereOf(d, x, (z) => ZONES[z as ZoneId] ?? z)}{x.expiresOn ? ` · until ${fmtDate(x.expiresOn)}` : ' · no end date'}{x.givenBy ? ` · given by ${x.givenBy}` : ''}</small> <button type="button" className="icon-btn sm" aria-label={`Take ${roleName(x.roleId)} away from ${a.name}`} onClick={() => doc.setDraft((cur) => withoutAssignment(cur, a.id, k + 1))}>×</button>{err(i, `more.${k}.roleId`) || err(i, `more.${k}.zips`) || err(i, `more.${k}.centers`) ? <small className="sf-err block">{err(i, `more.${k}.roleId`) || err(i, `more.${k}.zips`) || err(i, `more.${k}.centers`)}</small> : null}</li>)}</ul></div>}
                 {d.roles.find((r) => r.id === a.roleId)?.areaScoped && <p className="muted">ZIP codes: {a.zips.join(', ') || 'none'} {err(i, 'zips') && <small className="sf-err">{err(i, 'zips')}</small>}</p>}
                 {a.roleId !== 'owner' && <label className="sf-field acc-zip"><span className="sf-label">Home ZIP code</span><input className="in" inputMode="numeric" maxLength={5} value={a.homeZip} aria-label={`Home ZIP of ${a.name}`} onChange={(e) => set(i, { homeZip: e.target.value.replace(/\D/g, '') })} />
                   <small className="block muted">{/^\d{5}$/.test(a.homeZip) ? (centerForZip(org, a.homeZip)?.name ?? 'No masjid serves this ZIP yet – add it under Masjids and zones › ZIP codes') : 'The ZIP code they live in puts them in a masjid.'}</small>{err(i, 'homeZip') && <small className="sf-err">{err(i, 'homeZip')}</small>}</label>}
@@ -171,7 +173,7 @@ function Roles({ doc }: { doc: ADoc }) {
   const holders = (id: string) => d.admins.filter((a) => assignmentsOf(a).some((x) => x.roleId === id));
   const used = (id: string) => holders(id).length;
   const scope = (x: Role) => (x.areaScoped ? 'Own ZIP codes' : x.centerScoped ? 'Own centers' : x.zoneScoped ? 'Own zones' : 'All');
-  const blank = () => { const id = slug('new role', d.roles.map((x) => x.id)); doc.setDraft((x) => ({ ...x, roles: [...x.roles, { id, name: 'New role', description: '', permissions: ['members.view'], area: 'general', zoneScoped: false, centerScoped: false, areaScoped: false, zakatLevel: 0, builtIn: false }] })); setSel(id); };
+  const blank = () => { const id = slug('new role', d.roles.map((x) => x.id)); doc.setDraft((x) => ({ ...x, roles: [...x.roles, { id, name: 'New role', description: '', permissions: ['members.view'], area: 'general', zoneScoped: false, centerScoped: false, areaScoped: false, zakatLevel: 0, builtIn: false, dashboard: { hide: [] } }] })); setSel(id); };
   const copy = () => { const id = slug(`${r.name} custom`, d.roles.map((x) => x.id)); doc.setDraft((x) => ({ ...x, roles: [...x.roles, { ...r, id, name: `${r.name} (custom)`, builtIn: false }] })); setSel(id); };
   const err = (k: string) => doc.issues[`roles.${ri}.${k}`];
   return (
@@ -238,6 +240,21 @@ function Roles({ doc }: { doc: ADoc }) {
           })}
         </div>
         {r.builtIn && <p className="muted acc-fixed">Built-in roles are fixed so everyone knows what they mean. Copy one to make your own.</p>}
+        {/* D1 – what this role sees on the dashboards: editable on every role, built-in ones too */}
+        <section className="acc-dash" aria-labelledby="acc-dash-h" data-dash-role={r.id}>
+          <h3 id="acc-dash-h">Dashboard <small>{r.id === 'owner' || r.permissions.includes('admins.manage') ? 'sees every card' : `${WIDGETS.length - (r.dashboard?.hide.length ?? 0)} of ${WIDGETS.length} cards`}</small></h3>
+          <p className="muted small">Fewer cards, fewer questions: show each role only what it acts on. The Owner and anyone who manages admins always see everything.</p>
+          {(['overview', 'members'] as const).map((pg) => (
+            <fieldset key={pg} className="acc-dash-page"><legend>{PAGE_LABEL[pg]}</legend>
+              <ul>{WIDGETS.filter((w) => w.page === pg).map((w, k, arr) => { const on = !(r.dashboard?.hide ?? []).includes(w.id); const sec = WIDGET_SECTION(w.id); const first = sec && (k === 0 || WIDGET_SECTION(arr[k - 1].id) !== sec); return (<Fragment key={w.id}>
+                {first && <li className="acc-dash-sec" aria-hidden="true">{sec} <small>(My appearance › Overview layout)</small></li>}
+                <li data-widget={w.id} className={on ? 'on' : ''}><label className="check">
+                  <input type="checkbox" checked={on} disabled={r.id === 'owner'} aria-label={`${r.name}: ${w.label}`} onChange={() => setRole(r.id, { dashboard: { hide: on ? [...(r.dashboard?.hide ?? []), w.id] : (r.dashboard?.hide ?? []).filter((x) => x !== w.id) } })} />
+                  <span><b>{w.label}</b><small className="block">{w.help}</small></span>
+                </label></li></Fragment>); })}</ul>
+            </fieldset>
+          ))}
+        </section>
       </section>
     </div>
   );
@@ -247,6 +264,12 @@ function RoleOptions({ roles }: { roles: Role[] }) {
   return <>{(Object.keys(ROLE_AREAS) as RoleArea[]).map((area) => { const l = roles.filter((r) => r.area === area); return l.length ? <optgroup key={area} label={ROLE_AREAS[area]}>{l.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</optgroup> : null; })}</>;
 }
 /** Center names from Zones and centers (for center-limited roles). */
+/** The organization's own zones (its map) – never a fixed list. */
+function useZones() {
+  const [list, setList] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { void fetch('/api/store/org-structure', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j: { data?: OrgStructure } | null) => setList((j?.data?.zones ?? []).filter((z) => z.active !== false).map((z) => ({ id: z.id, name: z.name })))).catch(() => setList([])); }, []);
+  return list;
+}
 function useCenters() {
   const [list, setList] = useState<string[]>([]);
   useEffect(() => { void fetch('/api/store/org-structure', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j: { data?: OrgStructure } | null) => setList((j?.data?.centers ?? []).filter((c) => c.active).map((c) => c.name))).catch(() => setList([])); }, []);
@@ -271,7 +294,7 @@ export function AuditView() {
   const rows: Row[] = [...local.map((e) => ({ ...e, by: nameOf(e.by) })), ...pubs, ...memberRows].sort((a, b) => b.at.localeCompare(a.at));
   const people = Array.from(new Set(rows.map((r) => r.by))).sort();
   const shown = rows.filter((r) => (!area || r.area === area) && (!who || r.by === who) && (!q || `${r.action} ${r.detail}`.toLowerCase().includes(q.toLowerCase())));
-  const when = (s: string) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? s : `${fmtDate(d.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }))} ${d.toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })}`; };
+  const when = (s: string) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? s : `${fmtDate(d.toLocaleDateString('en-CA', { timeZone: ORG_TZ }))} ${d.toLocaleTimeString('en-US', { timeZone: ORG_TZ, hour: 'numeric', minute: '2-digit' })}`; };
   const csv = () => {
     const text = [['When', 'Who', 'Area', 'Action', 'Detail'], ...shown.map((r) => [r.at, r.by, r.area, r.action, r.detail])].map((r) => r.map(csvCell).join(',')).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' })); a.download = `audit-log-${today()}.csv`; a.click(); URL.revokeObjectURL(a.href);

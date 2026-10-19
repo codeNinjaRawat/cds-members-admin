@@ -12,9 +12,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel } from '@/components/editor/bits';
-import { ROLE_AREAS, ZONE_IDS, assignmentsOf, cannotAssign, modulesOf, whereOf, type AccessDoc, type AdminUser, type Assignment, type Role, type RoleArea } from '@/lib/access/access';
+import { ROLE_AREAS, assignmentsOf, cannotAssign, modulesOf, whereOf, type AccessDoc, type AdminUser, type Assignment, type Role, type RoleArea } from '@/lib/access/access';
 import { mockOrgStructure, OrgStructureSchema, type Center, type OrgStructure } from '@/lib/community/org-structure';
-import { ZONES, centerOf, fmtDate, type ZoneId } from '@/lib/members/members';
+import { ZONES, centerOf, fmtDate, type ZoneId, ORG_TZ } from '@/lib/members/members';
 import { useAccess } from '@/lib/access/use-access';
 import { logAudit } from '@/lib/access/audit';
 import { useMembers } from './MembersView';
@@ -22,7 +22,7 @@ import { OfficialsSchema, mockOfficials, seatLabel, type Officials } from '@/lib
 import { reconcile, reconcileCounts, type Action, type Seat } from '@/lib/community/officials-access';
 
 export type ADoc = { draft: AccessDoc; setDraft: (f: AccessDoc | ((d: AccessDoc) => AccessDoc)) => void; issues: Record<string, string> };
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const zoneName = (id: string) => (ZONES[id as ZoneId] ? `${ZONES[id as ZoneId]} Zone` : id);
 const slug = (s: string, taken: string[]) => { const b = s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'admin'; let id = b, n = 2; while (taken.includes(id)) id = `${b}-${n++}`; return id; };
 /** The masjid seats on the org chart, in order. */
@@ -121,7 +121,7 @@ export function AssignDialog({ doc, org, giver, preset, personId, presetPerson, 
           {role && <li><span className="tm-step-n">3</span>
             <div className="sf-field"><span className="sf-label">Where</span>
               {!role.zoneScoped && !role.centerScoped && <p className="tm-where">Whole organization – every zone and masjid.</p>}
-              {role.zoneScoped && <fieldset className="acc-zones"><legend className="sr-only">Zones</legend>{ZONE_IDS.map((z) => <label key={z} className="check"><input type="checkbox" checked={zones.includes(z)} onChange={() => setZones(zones.includes(z) ? zones.filter((y) => y !== z) : [...zones, z])} /> <span>{zoneName(z)}</span></label>)}</fieldset>}
+              {role.zoneScoped && <fieldset className="acc-zones"><legend className="sr-only">Zones</legend>{org.zones.filter((zz) => zz.active !== false).map((zz) => zz.id).map((z) => <label key={z} className="check"><input type="checkbox" checked={zones.includes(z)} onChange={() => setZones(zones.includes(z) ? zones.filter((y) => y !== z) : [...zones, z])} /> <span>{org.zones.find((zz) => zz.id === z)?.name ?? zoneName(z)}</span></label>)}</fieldset>}
               {role.centerScoped && (
                 <select className="in" aria-label="Masjid" value={centers[0] ?? ''} disabled={!!preset?.centers?.length} onChange={(e) => { setCenters(e.target.value ? [e.target.value] : []); setZips([]); }}>
                   <option value="">Choose the masjid…</option>

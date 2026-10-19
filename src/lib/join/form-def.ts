@@ -169,7 +169,6 @@ export const defaultJoinForm: JoinForm = {
     {
       id: 'contact-more', title: 'A little more about you', placement: 'about', hidden: false, fields: [
         { id: 'gender', type: 'radio', label: 'Gender', help: 'Used for sisters’ and brothers’ programs only.', required: false, options: opt('Female', 'Male'), plans: [], visibility: 'staff', prefill: 'lastYear', hidden: false },
-        { id: 'language', type: 'select', label: 'Preferred language for messages', required: false, options: opt('English', 'Arabic', 'Urdu', 'Bengali', 'Somali', 'Spanish', 'French', 'Turkish'), plans: [], visibility: 'member', prefill: 'lastYear', hidden: false },
       ],
     },
     {

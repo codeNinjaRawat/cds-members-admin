@@ -57,11 +57,11 @@ export function Tabs({ tabs, initial, label }: { tabs: { id: string; label: stri
 export const countIssues = (issues: Record<string, string>, prefixes: string[]) =>
   Object.keys(issues).filter((p) => prefixes.some((x) => p === x || p.startsWith(x + '.'))).length;
 
-export function SwitchRow({ id, label, help, checked, onChange }: { id: string; label: string; help?: string; checked: boolean; onChange: (v: boolean) => void }) {
+export function SwitchRow({ id, label, help, checked, onChange, disabled = false }: { id: string; label: string; help?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <div className="sf-field sf-switch-row">
+    <div className={`sf-field sf-switch-row${disabled ? ' is-disabled' : ''}`}>
       <label className="switch" htmlFor={id}>
-        <input id={id} type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-describedby={help ? `${id}-h` : undefined} />
+        <input id={id} type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} aria-describedby={help ? `${id}-h` : undefined} />
         <span className="track" aria-hidden="true"><span className="thumb" /></span>
         <span className="sf-label">{label}</span>
       </label>

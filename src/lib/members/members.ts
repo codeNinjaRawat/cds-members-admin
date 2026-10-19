@@ -8,12 +8,13 @@
  *   or marriage) – Life members are exempt · residency (zone + Islamic Center) set · not resigned or expelled.
  */
 
-import { DEFAULT_LIFECYCLE, mockMembershipSettings, type Lifecycle, type Plan } from '@/lib/content/membership';
+import { DEFAULT_LIFECYCLE, memberClass, mockMembershipSettings, noVoteMessage, qualifiesByGifts, type Lifecycle, type MembershipRules, type Plan } from '@/lib/content/membership';
 import { coverageOfYear, duesCoverVote, standingOn, type Standing } from '@/lib/content/renewal';
 import { csvCell, fieldsFor, showValue, type FieldValues } from '@/lib/community/member-records';
 import type { ProfileField } from '@/lib/community/org-config';
 import type { Prefs } from '@/lib/community/campaigns';
 import { currentAdminName } from '@/lib/access/audit';
+import { LIVE, be } from '@/lib/live/live';
 
 export type PlanId = 'single' | 'family' | 'life' | 'associate';
 export type ZoneId = 'n' | 'nw' | 'sw' | 's' | 'se';
@@ -24,6 +25,12 @@ export type Member = {
   street: string; city: string; zip: string; zone: ZoneId; center: string; centerOverride?: { center: string; reason: string; lockedUntil?: string };
   plan: PlanId; joined: number; appliedOn: string; approvedOn: string | null;
   idCheck: 'verified' | 'pending' | 'not_started'; standing: 'good' | 'resigned' | 'expelled';
+  /** Live data: the end of the member's current paid membership term (null = none / lifetime). Absent in demo data. */
+  paidThrough?: string | null;
+  /** Live data: the database's status from the membership terms (a suspended lifetime member is 'expired'). */
+  termStatus?: string;
+  /** Never became a member: 'applied' = applied, waiting for a decision · 'incomplete' = never finished (no membership, never verified). */
+  joinStage?: 'applied' | 'incomplete';
   spouseId?: string; payments: Payment[]; notes: { at: string; by: string; text: string }[]; audit: AuditEntry[];
   commitment: 'programs' | 'contribution' | 'volunteer';
   /** Extra profile fields (Admin › Configuration › Profile fields), by field ID. */
@@ -40,13 +47,43 @@ export type Status = 'pending' | 'active' | 'life' | 'expired' | 'resigned' | 'e
 
 export const ZONES: Record<ZoneId, string> = { n: 'North', nw: 'Northwest', sw: 'Southwest', s: 'South', se: 'Southeast' };
 export const PLANS: Record<PlanId, { name: string; cents: number }> = { single: { name: 'Single', cents: 2500 }, family: { name: 'Family', cents: 4000 }, life: { name: 'Life', cents: 100000 }, associate: { name: 'Associate', cents: 2500 } };
-export const centersOf = (z: ZoneId) => [1, 2, 3, 4].map((n) => `${ZONES[z]} Islamic Center ${n}`);
+/** Zone and plan names are this organization's own (Masjids and zones, Membership plans) – the values above are ISGH's
+ *  starter labels for the demo. loadOrgLabels() replaces them in place, so every screen shows the right names. */
+export const LABELS_EVENT = 'ms:labels';
+/** Live: the organization's published Masjids and zones (null until loaded – demo screens use the demo structure). */
+export let ORG_STRUCTURE: unknown = null;
+export async function loadOrgLabels(): Promise<boolean> {
+  const get = (k: string) => fetch(`/api/store/${k}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null) as Promise<{ data?: unknown } | null>;
+  const [org, ms] = await Promise.all([get('org-structure'), get('membership-settings')]);
+  const zones = (org?.data as { zones?: { id: string; name: string }[] } | undefined)?.zones;
+  const centers = (org?.data as { centers?: { name: string; zone: string; active?: boolean }[] } | undefined)?.centers;
+  if (org?.data && Array.isArray(centers) && centers.length) ORG_STRUCTURE = org.data;   // the published Masjids and zones (live)
+  if (Array.isArray(centers) && centers.length) { for (const k of Object.keys(CENTERS)) delete CENTERS[k]; for (const c of centers) if (c.active !== false) (CENTERS[c.zone] ??= []).push(c.name); }
+  const plans = (ms?.data as { plans?: { id: string; name: string; priceCents: number }[] } | undefined)?.plans;
+  const before = JSON.stringify([ZONES, PLANS, CENTERS, YEAR, ORG_TZ, RECORD_MD]);
+  const set = ms?.data as { timezone?: string; recordDate?: string } | undefined;
+  if (typeof set?.timezone === 'string' && set.timezone) { try { new Intl.DateTimeFormat('en-US', { timeZone: set.timezone }); ORG_TZ = set.timezone; } catch { /* keep */ } }
+  if (typeof set?.recordDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(set.recordDate)) RECORD_MD = set.recordDate.slice(5, 10);
+  if (LIVE) YEAR = Number(orgToday().slice(0, 4));   // live: the organization's own calendar year (demo data stays in 2026)
+  if (Array.isArray(zones) && zones.length) { for (const k of Object.keys(ZONES)) delete (ZONES as Record<string, string>)[k]; for (const z of zones) (ZONES as Record<string, string>)[z.id] = z.name; }
+  if (Array.isArray(plans) && plans.length) { for (const k of Object.keys(PLANS)) delete (PLANS as Record<string, unknown>)[k]; for (const p of plans) (PLANS as Record<string, { name: string; cents: number }>)[p.id] = { name: p.name, cents: p.priceCents }; }
+  const changed = JSON.stringify([ZONES, PLANS, CENTERS, YEAR, ORG_TZ, RECORD_MD]) !== before;
+  if (changed && typeof window !== 'undefined') window.dispatchEvent(new Event(LABELS_EVENT));
+  return changed;
+}
+const CENTERS: Record<string, string[]> = {};   // filled by loadOrgLabels from Masjids and zones
+export const centersOf = (z: ZoneId) => CENTERS[z] ?? [1, 2, 3, 4].map((n) => `${ZONES[z]} Islamic Center ${n}`);
 export const STATUS_LABEL: Record<Status, string> = { pending: 'Pending approval', active: 'Active', life: 'Life', expired: 'Not renewed', resigned: 'Resigned', expelled: 'Expelled', archived: 'Archived' };
-export const COMMITMENT_LABEL = { programs: 'Takes part in an ISGH program', contribution: 'Contributes at least 1% of yearly income', volunteer: 'Volunteers in approved activities' };
+export const COMMITMENT_LABEL = { programs: 'Takes part in one of our programs', contribution: 'Contributes at least 1% of yearly income', volunteer: 'Volunteers in approved activities' };
 
-/** Current membership year for eligibility (record date June 30). Renewals for next year open Nov 1. */
-export const YEAR = 2026;
-export const recordDate = (y: number) => `${y}-06-30`;
+/** Current membership year (a calendar year) and the voting record date (month and day from Membership settings).
+ *  Demo: 2026, June 30, Houston's clock. Live: loadOrgLabels() sets them from the organization's settings and today. */
+export let YEAR = 2026;
+export let ORG_TZ = 'America/Chicago';
+let RECORD_MD = '06-30';
+export const recordDate = (y: number) => `${y}-${RECORD_MD}`;
+/** Today in the organization's time zone (demo: the demo data's date). */
+export const orgToday = () => (LIVE ? new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ }) : '2026-10-12');
 
 /* ---------- deterministic demo data ---------- */
 function rng(seed: number) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -65,7 +102,7 @@ const AREA_CODES = ['713', '281', '832', '346'];
 const pad = (n: number, w = 2) => String(n).padStart(w, '0');
 const iso = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
 const TODAY = '2026-10-12';
-function addDays(d: string, n: number) { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); const s = t.toISOString().slice(0, 10); return s > TODAY ? TODAY : s; }
+function addDays(d: string, n: number) { const t = Date.parse(`${String(d ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t)) return String(d ?? ''); const s = new Date(t + n * 86_400_000).toISOString().slice(0, 10); return s > TODAY ? TODAY : s; }
 
 let cache: Member[] | null = null;
 export function demoMembers(): Member[] {
@@ -160,8 +197,11 @@ export function statusOf(m: Member, year = YEAR): Status {
   if (m.archived) return 'archived';
   if (m.standing !== 'good') return m.standing;
   if (!m.approvedOn) return 'pending';
-  if (m.plan === 'life') return 'life';
-  return m.payments.some((p) => p.year === year) ? 'active' : 'expired';
+  if (m.plan === 'life') return m.termStatus && m.termStatus !== 'life' && !m.payments.length ? 'expired' : 'life';   // live: no lifetime term (e.g. suspended) = not current
+  if (m.payments.some((p) => p.year === year)) return 'active';
+  // live data: a membership term (e.g. imported from Wild Apricot) counts too – paid through today (this year) or the year's end
+  if (m.paidThrough) return m.paidThrough >= (year === YEAR ? orgToday() : `${year}-12-31`) ? 'active' : 'expired';
+  return 'expired';
 }
 
 /* ---------- renewal engine (shared contract lib/content/renewal.ts) ---------- */
@@ -181,21 +221,39 @@ export function renewalOf(m: Member, today: string, plans?: Plan[], lc: Lifecycl
 }
 
 export type Check = { id: string; label: string; ok: boolean; reason: string; fix?: 'approve' | 'payment' | 'center' };
-export function eligibility(m: Member, year = YEAR, plans?: Plan[]): { eligible: boolean; checks: Check[]; summary: string } {
+/** A1 – what the approval rule still needs before this application may be approved (empty = may approve). */
+export function approvalBlockers(m: Member, rules: MembershipRules = mockMembershipSettings.rules, year = YEAR, plans?: Plan[]): string[] {
+  const out: string[] = [];
+  const plan = planDef(m, plans);
+  if (rules.approval.requireFullPayment) {
+    const need = plan.term === 'lifetime' ? plan.priceCents : quoteCents(plan);
+    const paid = m.payments.filter((p) => plan.term === 'lifetime' || p.year === year).reduce((a, p) => a + p.amountCents, 0);
+    if (need > 0 && paid < need) out.push(`Dues not paid in full: ${fmtUsd(paid)} of ${fmtUsd(need)} for ${plan.term === 'lifetime' ? plan.name : year}.`);
+  }
+  if (rules.approval.requireIdCheck && m.idCheck !== 'verified') out.push('Photo ID not verified yet.');
+  return out;
+}
+const quoteCents = (p: Plan) => (p.term === 'recurring' ? 0 : p.priceCents);
+const fmtUsd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: c % 100 ? 2 : 0 });
+export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: MembershipRules = mockMembershipSettings.rules): { eligible: boolean; checks: Check[]; summary: string } {
   const rd = recordDate(year);
   const age = ageOn(m.dob, rd);
   const plan = planDef(m, plans);
   const pay = m.payments.find((p) => p.year === year);
   const life = plan.term === 'lifetime' && m.payments.some((p) => p.amountCents >= plan.priceCents);
+  // P2 – "monthly contributors are members": the year's contributions must reach the total by the cut-off (rule in Membership rules)
+  const q = rules?.qualifyingGifts; const byGifts = q?.enabled && plan.id === q.planId ? qualifiesByGifts(q, m.payments.map((p) => ({ on: p.paidOn, cents: p.amountCents, recurring: true })), year) : null;
   // Bylaws: own dues must COVER the record date and be paid ON OR BEFORE it (works for calendar-year and fixed-date renewals)
   const dues = duesCoverVote(plan, pay ? { paidThrough: coverageOfYear(plan, pay.year).through, paidOn: pay.paidOn } : null, rd);
-  const canVote = plan.votingEligible && plan.memberClass !== 'associate';
+  const cls = memberClass(rules, plan.memberClass); const canVote = plan.votingEligible && cls.canVote;
   const checks: Check[] = [
     { id: 'approved', label: 'Application approved by the Board', ok: !!m.approvedOn, reason: m.approvedOn ? `Approved ${fmtDate(m.approvedOn)}` : 'Waiting for Board approval', fix: m.approvedOn ? undefined : 'approve' },
-    { id: 'muslim', label: 'Voting member class (not Associate)', ok: canVote, reason: plan.memberClass === 'associate' ? 'Associate members support ISGH but do not vote (Constitution Art. III)' : canVote ? 'Natural member' : `The ${plan.name} plan does not include a vote` },
+    { id: 'muslim', label: 'Voting member class', ok: canVote, reason: !cls.canVote ? noVoteMessage(rules, plan.memberClass) : canVote ? cls.label : `The ${plan.name} plan does not include a vote` },
     { id: 'age', label: `18 or older on ${fmtDate(rd)}`, ok: age >= 18, reason: `Age ${age} on the record date` },
     life
       ? { id: 'dues', label: `Dues for ${year}`, ok: true, reason: 'Life member – no yearly dues' }
+      : byGifts
+      ? { id: 'dues', label: `${q!.label || 'Monthly contributions'} for ${year}: ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, ok: byGifts.ok, reason: byGifts.ok ? `${fmtUsd(byGifts.total)} given by ${fmtDate(byGifts.by)}` : `${fmtUsd(byGifts.total)} given – ${fmtUsd(byGifts.needed)} short of ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, fix: byGifts.ok ? undefined : 'payment' }
       : { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: !!pay && (dues.ok || !canVote) && pay.paidOn <= rd && pay.payer !== 'other',
           reason: !pay ? `No ${year} dues on record` : pay.paidOn > rd ? `Paid ${fmtDate(pay.paidOn)} – after the record date (renews membership, no vote this year)` : canVote && !dues.ok ? dues.reason : pay.payer === 'other' ? 'Paid by someone who is not a relative – the Bylaws need own dues or a relative by blood or marriage' : `Paid ${fmtDate(pay.paidOn)}${pay.payer === 'self' ? '' : ` by ${pay.payer}`}`,
           fix: !pay ? 'payment' : undefined },
@@ -220,14 +278,75 @@ export const MEMBERS_EVENT = 'isgh:members';
 const IMPORTS = 'isgh-admin-member-imports';
 const readImports = (): Member[] => { try { return JSON.parse(localStorage.getItem(IMPORTS) || '[]'); } catch { return []; } };
 export function membersWithEdits(): Member[] {
+  if (LIVE) { if (typeof window !== 'undefined' && !live) void loadLiveMembers(); return live ?? []; }
   const e = typeof window === 'undefined' ? {} : readEdits();
   const all = [...demoMembers(), ...(typeof window === 'undefined' ? [] : readImports())];
   return all.map((m) => (e[m.id] ? { ...m, ...e[m.id] } : m));
 }
-/** Add imported members (demo: this browser only; live: POST /admin/members/import after the same checks on the server). */
+/** Add imported members (demo: this browser only; live: POST /admin/members for each – the server checks duplicates again). */
 export function addImportedMembers(list: Member[]) {
+  if (LIVE) { void importLive(list); return; }
   try { localStorage.setItem(IMPORTS, JSON.stringify([...readImports(), ...list])); } catch { /* storage full */ }
   window.dispatchEvent(new Event(MEMBERS_EVENT));
+}
+
+/* ---------- live mode: the members in this admin's scope from the API; every change goes to its endpoint ---------- */
+/** Messages for the admin about live saves (AdminShell shows them). */
+export const NOTICE_EVENT = 'ms:notice';
+export const notice = (text: string, tone: 'ok' | 'error' = 'error') => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(NOTICE_EVENT, { detail: { text, tone } })); };
+let live: Member[] | null = null; let liveLoading: Promise<void> | null = null;
+export function loadLiveMembers(force = false): Promise<void> {
+  if (!force && live) return Promise.resolve();
+  if (!force && liveLoading) return liveLoading;
+  liveLoading = be<{ members: Member[] }>('GET', 'admin/members?view=any&limit=all').then((r) => {
+    liveLoading = null;
+    if (r.ok) live = r.data.members; else if (r.status !== 401) notice(`Members could not be loaded: ${r.message}`);
+    window.dispatchEvent(new Event(MEMBERS_EVENT));
+  });
+  return liveLoading;
+}
+async function refreshLive(id: string) {
+  const r = await be<{ member: Member }>('GET', `admin/members/${encodeURIComponent(id)}`);
+  if (r.ok && live) { const i = live.findIndex((x) => x.id === id); live = i >= 0 ? live.map((x, j) => (j === i ? r.data.member : x)) : [...live, r.data.member]; }
+  window.dispatchEvent(new Event(MEMBERS_EVENT));
+}
+const PATCH_KEYS = ['first', 'last', 'email', 'phone', 'dob', 'street', 'city', 'zip', 'plan', 'commitment', 'standing'] as const;
+const samePay = (p: Payment, q: Payment) => p.year === q.year && p.paidOn.slice(0, 10) === q.paidOn.slice(0, 10) && p.amountCents === q.amountCents;
+/** What changed between the server's copy and the edited one → the API calls that make the same change. */
+export function liveSteps(before: Member, m: Member, action: string, detail: string): [string, string, unknown][] {
+  const id = encodeURIComponent(m.id); const steps: [string, string, unknown][] = [];
+  const patch: Record<string, unknown> = {};
+  for (const k of PATCH_KEYS) if (m[k] !== before[k]) patch[k] = m[k];
+  if (JSON.stringify(m.extra ?? {}) !== JSON.stringify(before.extra ?? {})) patch.extra = m.extra ?? {};
+  if (Object.keys(patch).length) steps.push(['PATCH', `admin/members/${id}`, patch]);
+  if (m.centerOverride && m.centerOverride.center !== (before.centerOverride?.center ?? before.center)) steps.push(['POST', `admin/members/${id}/center`, { center: m.centerOverride.center, reason: m.centerOverride.reason || detail || action }]);
+  for (const p of m.payments.filter((p) => !before.payments.some((q) => samePay(p, q)))) steps.push(['POST', `admin/members/${id}/payments`, { year: p.year, amountCents: p.amountCents, method: p.method, paidOn: p.paidOn.slice(0, 10), ref: p.ref, payer: p.payer }]);
+  if (m.idCheck !== before.idCheck) steps.push(['POST', `admin/members/${id}/id-check`, m.idCheck === 'verified' ? { status: 'verified' } : { status: 'rejected', reason: detail || action }]);
+  if (!before.approvedOn && m.approvedOn) steps.push(['POST', `admin/members/${id}/approve`, { ref: detail || action }]);
+  for (const n of m.notes.slice(before.notes.length)) steps.push(['POST', `admin/members/${id}/notes`, { text: n.text }]);
+  for (const other of (m.notDuplicateOf ?? []).filter((x) => !(before.notDuplicateOf ?? []).includes(x))) steps.push(['POST', 'admin/duplicates/decide', { a: m.id, b: other, decision: 'not-duplicate' }]);
+  if (!before.archived && m.archived) steps.push(['POST', `admin/members/${id}/archive`, { reason: m.archived.reason || detail || action }]);
+  if (before.archived && !m.archived) steps.push(['POST', `admin/members/${id}/restore`, { reason: detail || action }]);
+  if (!steps.length) steps.push(['POST', `admin/members/${id}/activity`, { action, detail }]);   // nothing on the record changed: keep the step in its history
+  return steps;
+}
+async function saveLive(m: Member, action: string, detail: string) {
+  const before = live?.find((x) => x.id === m.id);
+  if (!before) { notice('This member is not loaded yet – try again in a moment.'); return; }
+  for (const [method, path, body] of liveSteps(before, m, action, detail)) {
+    const r = await be(method, path, body);
+    if (!r.ok) { notice(`${action}: ${r.message}`); break; }
+  }
+  await refreshLive(m.id);
+}
+async function importLive(list: Member[]) {
+  let added = 0; const problems: string[] = [];
+  for (const m of list) {
+    const r = await be('POST', 'admin/members', { first: m.first, last: m.last, email: m.email, phone: m.phone, dob: m.dob, street: m.street, city: m.city, zip: m.zip, plan: m.plan, commitment: m.commitment, approved: !!m.approvedOn, extra: m.extra ?? {} });
+    if (r.ok) added++; else problems.push(`${m.first} ${m.last}: ${r.message}`);
+  }
+  await loadLiveMembers(true);
+  notice(problems.length ? `${added} added. Not added – ${problems.slice(0, 3).join(' · ')}${problems.length > 3 ? ` (and ${problems.length - 3} more)` : ''}` : `${added} member${added === 1 ? '' : 's'} added.`, problems.length ? 'error' : 'ok');
 }
 /** Next free member ID for imports (HOU-9xxxxx so they never clash with existing numbers). */
 export function nextImportId(existing: { id: string }[], n = 0) {
@@ -235,6 +354,7 @@ export function nextImportId(existing: { id: string }[], n = 0) {
   return `HOU-${max + 1 + n}`;
 }
 export function saveMember(m: Member, action: string, detail: string) {
+  if (LIVE) { void saveLive(m, action, detail); return; }
   const e = readEdits();
   const audit = [...m.audit, { at: new Date().toISOString(), by: currentAdminName(), action, detail }];
   const { id, ...rest } = { ...m, audit };
@@ -243,13 +363,14 @@ export function saveMember(m: Member, action: string, detail: string) {
   window.dispatchEvent(new Event(MEMBERS_EVENT));
 }
 /** Undo support for work queues: take the saved edit of one member, and put it back later. */
-export function snapshotMemberEdit(id: string): Partial<Member> | null { return readEdits()[id] ?? null; }
+export function snapshotMemberEdit(id: string): Partial<Member> | null { return LIVE ? null : readEdits()[id] ?? null; }
 export function restoreMemberEdit(id: string, snap: Partial<Member> | null) {
+  if (LIVE) { notice('Saved decisions cannot be undone here – change the record instead.'); return; }
   const e = readEdits(); if (snap) e[id] = snap; else delete e[id];
   try { localStorage.setItem(EDITS, JSON.stringify(e)); } catch { /* */ }
   window.dispatchEvent(new Event(MEMBERS_EVENT));
 }
-export function resetMemberEdits() { try { localStorage.removeItem(EDITS); localStorage.removeItem(IMPORTS); } catch { /* */ } window.dispatchEvent(new Event(MEMBERS_EVENT)); }
+export function resetMemberEdits() { if (LIVE) return; try { localStorage.removeItem(EDITS); localStorage.removeItem(IMPORTS); } catch { /* */ } window.dispatchEvent(new Event(MEMBERS_EVENT)); }
 
 /* ---------- CSV export (current view only) ---------- */
 /**

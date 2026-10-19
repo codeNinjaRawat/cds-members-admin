@@ -36,9 +36,27 @@ export const CenterSchema = z.object({
   zips: z.array(ZIP).max(200).default([]),
   active: z.boolean().default(true),
 });
+/**
+ * D14 – how people are placed and may move (from the 10/17 call, a shura directive at ISGH): inside your zone you may
+ * pick any center (nearest by default); near a border only the nearest center of the next zone; a change is by
+ * application with proof, then locked for years unless the person moves. Every number here is the organization's.
+ */
+export const CenterRulesSchema = z.object({
+  choiceInZone: z.enum(['nearest', 'any-in-zone']).default('any-in-zone'),   // nearest only, or any center of the member's zone
+  borderMiles: z.number().min(0).max(100).default(5),                         // within this distance of a zone border…
+  borderChoice: z.enum(['none', 'nearest-next-zone', 'any-next-zone']).default('nearest-next-zone'), // …what may be asked for
+  needsProof: z.boolean().default(true),                                      // a change needs proof of address / ID
+  lockYears: z.number().int().min(0).max(20).default(5),                      // an approved change stays this long (0 = no lock)
+  unlockOnMove: z.boolean().default(true),                                    // a new address lifts the lock
+  requestDeadline: z.union([z.literal(''), z.string().regex(/^\d{2}-\d{2}$/)]).default(''),   // MM-DD each year, '' = any time
+  approvedBy: z.string().max(60).default('Board'),
+});
+export type CenterRules = z.infer<typeof CenterRulesSchema>;
+export const DEFAULT_CENTER_RULES: CenterRules = CenterRulesSchema.parse({});
 export const OrgStructureSchema = z.object({
   zones: z.array(ZoneSchema).max(30),
   centers: z.array(CenterSchema).max(200),
+  rules: CenterRulesSchema.default({}),
 }).superRefine((d, ctx) => {
   const zid = new Set<string>();
   d.zones.forEach((z, i) => { if (zid.has(z.id)) ctx.addIssue({ code: 'custom', path: ['zones', i, 'id'], message: `Two zones use the ID “${z.id}”.` }); zid.add(z.id); });
@@ -129,7 +147,7 @@ export const unassignedZips = (doc: OrgStructure, zips: string[]) => Array.from(
 
 export const fmt = (d: string) => (d ? `${d.slice(5, 7)}/${d.slice(8, 10)}/${d.slice(0, 4)}` : '');
 export const fmtTime = (t: string) => { const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
-function addDays(d: string, n: number) { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+function addDays(d: string, n: number) { const t = Date.parse(`${String(d ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t)) return String(d ?? ''); return new Date(t + n * 86_400_000).toISOString().slice(0, 10); }
 export function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'center'; }
 
 /* ---------------- ISGH demo data ----------------
@@ -145,6 +163,7 @@ const AREAS: Record<string, { name: string; areas: string; zips: string[]; city:
 };
 const TERMS: Record<string, string> = { n: '2026-12-31', nw: '2025-12-31', sw: '2026-12-31', s: '2026-12-31', se: '2026-12-31' };
 export const mockOrgStructure: OrgStructure = {
+  rules: { choiceInZone: 'any-in-zone', borderMiles: 5, borderChoice: 'nearest-next-zone', needsProof: true, lockYears: 5, unlockOnMove: true, requestDeadline: '03-31', approvedBy: 'Board' },
   zones: Object.entries(AREAS).map(([id, a]) => ({
     id, name: `${a.name} Zone`, areas: a.areas, zips: a.zips, active: true, termEnds: TERMS[id],
     director: { name: id === 'se' ? '' : `${a.name} Zone Director`, email: `dir.${id}z@isgh.org` },
@@ -159,3 +178,71 @@ export const mockOrgStructure: OrgStructure = {
     zips: a.zips.filter((_, i) => i % 4 === n - 1),         // demo: the zone's ZIPs shared round-robin (same rule as the demo members)
   }))),
 };
+
+/* ---------------- Z1/Z2 presets: the real map as a starting point, never the only option ----------------
+ * ISGH's Islamic Centers as isgh.org/islamic-centers lists them (read 17 Oct 2026, during the review calls). Every
+ * center's service area starts as its own ZIP code; the zone boundaries (ISGH's "Zones" map) are added by the admin
+ * on the ZIP codes tab or by pasting ZIP lists – the map itself is not in the product. Names marked "to confirm"
+ * were seen as addresses only. Directors are left empty (people are entered in the admin). */
+type PresetCenter = { name: string; aka?: string; street: string; city: string; zip: string; note?: string };
+const ISGH_CENTERS: Record<string, PresetCenter[]> = {
+  n: [
+    { name: 'Masjid Bilal', aka: 'Adel Road Islamic Center', street: '11815 Adel Rd', city: 'Houston', zip: '77067' },
+    { name: 'Masjid Al-Salam', aka: 'Champions Islamic Center', street: '16700 Old Louetta Rd', city: 'Spring', zip: '77379' },
+    { name: 'Cypress Islamic Center', street: '16103 Cypress Rosehill Rd', city: 'Cypress', zip: '77429' },
+    { name: 'Masjid al-Ansaar', aka: 'Woodlands Islamic Center', street: '15217 Sunset Trail', city: 'Conroe', zip: '77384' },
+    { name: 'Masjid Al-Sahabah', street: '11333 Whispering Oaks Dr', city: 'Conroe', zip: '77385' },
+  ],
+  nw: [
+    { name: 'Al-Mursaleen Community Center', street: '20049 House & Hahl Rd', city: 'Cypress', zip: '77433' },
+    { name: 'Conrad Sauer Islamic Center', aka: 'name to confirm', street: '1209 Conrad Sauer Dr', city: 'Houston', zip: '77043', note: 'Seen on the Zones map as an address only.' },
+    { name: 'Coventry Park Islamic Center', aka: 'name to confirm', street: '17250 Coventry Park Dr', city: 'Houston', zip: '77084', note: 'Seen on the Zones map as an address only.' },
+  ],
+  sw: [
+    { name: 'Synott Road Islamic Center', aka: 'name to confirm', street: '10415 Synott Rd', city: 'Houston', zip: '77072', note: 'Seen on the Zones map as an address only.' },
+    { name: 'Tres Lagunas Islamic Center', aka: 'name to confirm', street: '6233 Tres Lagunas Dr', city: 'Houston', zip: '77083', note: 'Seen on the Zones map as an address only.' },
+    { name: 'ISGH Main Center', aka: 'Eastside – headquarters', street: '3110 Eastside St', city: 'Houston', zip: '77098', note: 'The ISGH office; confirm whether it is listed as a center.' },
+  ],
+  s: [
+    { name: 'Masjid Al-Sabireen', aka: 'Brand Lane Islamic Center', street: '610 Brand Ln', city: 'Stafford', zip: '77477' },
+    { name: "Al-Ma'adah Musalla", aka: 'Medical Center', street: '6923 Almeda Rd', city: 'Houston', zip: '77021' },
+    { name: 'Riverstone Musalla', street: '4502 Riverstone Blvd', city: 'Missouri City', zip: '77459' },
+    { name: 'Masjid Ayesha', street: '4502 Watts Plantation Dr', city: 'Missouri City', zip: '77545' },
+  ],
+  se: [
+    { name: 'Masjid Abu-Bakr', aka: 'Hwy 3 Islamic Center', street: '8830 Galveston Rd', city: 'Houston', zip: '77034' },
+    { name: 'Pearland Islamic Center', street: '1530 Garden Rd', city: 'Pearland', zip: '77581' },
+    { name: 'Northshore Musalla', street: '13818 Brownsville St', city: 'Houston', zip: '77015' },
+    { name: 'Baytown Islamic Center', street: '4000 Emmett Hutto Blvd', city: 'Baytown', zip: '77521' },
+    { name: 'Alvin Musalla', street: '1704 South St', city: 'Alvin', zip: '77511' },
+    { name: 'Riverstone Ranch Musalla', street: '9700 Riverstone Ranch Rd', city: 'Houston', zip: '77089' },
+  ],
+};
+export const ISGH_REAL_STRUCTURE: OrgStructure = {
+  rules: { choiceInZone: 'any-in-zone', borderMiles: 5, borderChoice: 'nearest-next-zone', needsProof: true, lockYears: 5, unlockOnMove: true, requestDeadline: '03-31', approvedBy: 'Board' },
+  zones: Object.entries(AREAS).map(([id, a]) => ({
+    id, name: `${a.name} Zone`, areas: a.areas, active: true, termEnds: '', director: { name: '', email: '' },
+    zips: Array.from(new Set(ISGH_CENTERS[id].map((c) => c.zip))),
+  })),
+  centers: Object.entries(ISGH_CENTERS).flatMap(([zone, list]) => list.map((c) => ({
+    id: slugify(c.name), name: c.name, aka: c.aka ?? '', zone, active: true,
+    address: { street: c.street, city: c.city, zip: c.zip }, phone: '', website: '',
+    jumuah: [{ khutbah: '13:15', label: '' }], services: ['daily-prayers', 'jumuah'] as Center['services'],
+    zips: [c.zip],
+  }))),
+};
+/** Starting points for the map. The demo set matches the demo member records; the real set is ISGH's own list. */
+export const STRUCTURE_PRESETS: { id: string; name: string; blurb: string; doc: OrgStructure; notes: string[] }[] = [
+  { id: 'isgh-real', name: 'ISGH Islamic Centers (isgh.org)', blurb: 'The five zones with ISGH’s real masjids and musallas and their addresses. Each center’s service area starts as its own ZIP code; add the rest of each zone’s ZIP codes from the Zones map.',
+    doc: ISGH_REAL_STRUCTURE, notes: ['Names marked “to confirm” were seen as addresses only – check them before publishing.', 'Zone directors, phones, websites and Jumu‘ah times are empty – fill them in.', 'Demo members are placed by the demo map; after loading, members whose ZIP no masjid serves show on the ZIP codes tab.'] },
+  { id: 'demo', name: 'Demo map (four centers per zone)', blurb: 'Fictional centers that match the demo member records.', doc: mockOrgStructure, notes: [] },
+];
+
+/** D14 – the rules in one sentence for the join form, the profile dialog and the queue. */
+export function centerRulesInWords(r: CenterRules): string {
+  const parts = [r.choiceInZone === 'nearest' ? 'Members belong to the nearest center of their zone.' : 'Members belong to their zone and may choose any of its centers (the nearest is suggested).'];
+  if (r.borderChoice !== 'none' && r.borderMiles > 0) parts.push(`Within ${r.borderMiles} miles of a zone border they may ask for ${r.borderChoice === 'nearest-next-zone' ? 'the nearest center of the next zone' : 'a center of the next zone'}.`);
+  parts.push(`A change is by application${r.needsProof ? ' with proof of address' : ''}, approved by the ${r.approvedBy || 'Board'}${r.lockYears ? `, and stays for ${r.lockYears} year${r.lockYears === 1 ? '' : 's'}${r.unlockOnMove ? ' unless the member moves' : ''}` : ''}.`);
+  if (r.requestDeadline) parts.push(`Requests are taken until ${new Date(`2001-${r.requestDeadline}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} each year.`);
+  return parts.join(' ');
+}

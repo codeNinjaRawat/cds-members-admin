@@ -8,7 +8,7 @@ test.beforeEach(async ({ page, request }) => {
 
 test('status chips and readiness: DNS records and what other modules expect', async ({ page }) => {
   await page.goto('/settings/integrations');
-  await expect(page.locator('.integ-chip')).toHaveCount(4);
+  await expect(page.locator('.integ-chip')).toHaveCount(5);
   await expect(page.locator('.integ-chip[data-int="email"]')).toContainText('Needs attention');
   await expect(page.locator('[data-card="email"] .integ-checks')).toContainText('DMARC record for isgh.org');
   await expect(page.locator('[data-card="stripe"] .integ-checks')).toContainText('Apple Pay domain verified');
@@ -63,4 +63,36 @@ test('test sends go through the fake adapter; Stripe test payment only in test m
   await page.context().addCookies([{ name: 'isgh-acting', value: 'web-editor', url: 'http://localhost:4322' }]);
   await page.goto('/settings/integrations');
   await expect(page.getByRole('heading', { name: 'Not part of your role' })).toBeVisible();
+});
+
+test('I1 giving platforms: Zeffy for the organization and a masjid side by side; add a masjid account; one per platform and masjid', async ({ page }) => {
+  await page.goto('/settings/integrations');
+  await expect(page.locator('.integ-chip[data-int="giving"]')).toContainText('Live');
+  const card = page.locator('[data-card="giving"]');
+  await expect(card.locator('.integ-account')).toHaveCount(2);
+  await expect(card.locator('[data-account="zeffy-sw1"]')).toContainText('Southwest Islamic Center 1');
+  await expect(card.locator('.integ-checks')).toContainText('Form address only');
+  // a masjid adds its own PayPal Giving account
+  await card.getByRole('button', { name: '+ Add an account' }).click();
+  const form = card.getByRole('form', { name: 'New giving account' });
+  await form.getByLabel('Platform').selectOption('paypal');
+  await form.getByLabel('Belongs to').selectOption('center');
+  await form.locator('select').nth(2).selectOption('North Islamic Center 1');
+  await form.getByLabel('Giving form address').fill('https://www.paypal.com/donate/?hosted=demo');
+  await form.getByRole('button', { name: 'Add account' }).click();
+  await expect(card.locator('.integ-account')).toHaveCount(3);
+  await expect(card.locator('[data-account="paypal-north-islamic-center-1"]')).toContainText('North Islamic Center 1 – PayPal Giving');
+  await expect(page.locator('.integ-approve')).toHaveCount(0);                     // no key changed: no second admin needed
+  // a second Zeffy account for the same masjid is refused
+  await card.getByRole('button', { name: '+ Add an account' }).click();
+  await form.getByLabel('Platform').selectOption('zeffy');
+  await form.getByLabel('Belongs to').selectOption('center');
+  await form.locator('select').nth(2).selectOption('Southwest Islamic Center 1');
+  await form.getByRole('button', { name: 'Add account' }).click();
+  await expect(card.locator('[data-account="zeffy-southwest-islamic-center-1"] .sf-err').last()).toContainText('already a Zeffy account for Southwest Islamic Center 1');
+  await card.locator('[data-account="zeffy-southwest-islamic-center-1"]').getByRole('button', { name: /Remove/ }).click();
+  await expect(card.locator('.sf-err')).toHaveCount(0);
+  // the Zeffy gifts show in Donations among the platforms
+  await page.goto('/donations?tab=recon');
+  await expect(page.locator('.dn-plats')).toContainText('Zeffy');
 });

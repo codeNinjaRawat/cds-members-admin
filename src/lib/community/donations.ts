@@ -8,9 +8,11 @@
 import { z } from 'zod';
 
 const CENTS = z.number().int().min(0).max(100_000_000);
-export const PLATFORMS = { stripe: 'Stripe (website card)', paypal: 'PayPal', medina: 'Medina kiosk', bloomerang: 'Bloomerang', cash: 'Cash', check: 'Check' } as const;
+export const PLATFORMS = { stripe: 'Stripe (website card)', paypal: 'PayPal', medina: 'Medina kiosk', bloomerang: 'Bloomerang', zeffy: 'Zeffy', cash: 'Cash', check: 'Check' } as const;
+/** Online platforms the admin can switch on (I1: Zeffy – organization-wide or a masjid's own account – is one of them). */
+export const ONLINE_PLATFORMS = ['stripe', 'paypal', 'medina', 'bloomerang', 'zeffy'] as const;
 export type Platform = keyof typeof PLATFORMS;
-export const ONLINE: Platform[] = ['stripe', 'paypal', 'medina', 'bloomerang'];
+export const ONLINE: Platform[] = [...ONLINE_PLATFORMS];
 
 /* ---------------- settings (published document `donation-settings`) ---------------- */
 export const FundSchema = z.object({
@@ -21,10 +23,29 @@ export const FundSchema = z.object({
   zakat: z.boolean().default(false),                        // Zakat-eligible fund (feeds F2 payouts)
   active: z.boolean().default(true),
 });
+/**
+ * D12 – money per center (from the 10/17 call: 18 centers, each with its own bank account and card-processor key;
+ * Zakat, Sadaqah for the needy and Weekend school go to the organization). A center can have its own payment account
+ * (the key itself lives in Settings › Integrations – only the last 4 characters are kept here) and its own list of
+ * funds shown at sign-up and on its giving page. Funds routed to the main center or shared by all are "central".
+ */
+export const CenterMoneySchema = z.object({
+  account: z.object({
+    provider: z.enum(['organization', 'stripe', 'paypal', 'zeffy']).default('organization'),   // organization = the shared account
+    label: z.string().max(60).default(''),                                                       // e.g. "Abu Bakr Masjid – Chase"
+    last4: z.string().regex(/^[A-Za-z0-9]{0,4}$/).default(''),                                    // never the key, never the full account number
+    enabled: z.boolean().default(true),
+  }).default({}),
+  /** Fund ids this center offers (empty = every fund routed to the center given to). Central funds always show. */
+  funds: z.array(z.string()).max(40).default([]),
+});
+export type CenterMoney = z.infer<typeof CenterMoneySchema>;
 export const DonationSettingsSchema = z.object({
   funds: z.array(FundSchema).min(1).max(40),
   mainCenter: z.string().max(80),
-  platforms: z.record(z.enum(['stripe', 'paypal', 'medina', 'bloomerang']), z.object({ enabled: z.boolean(), lastSync: z.string().default('') })),
+  /** D12 – by center name (org-structure). Centers not listed use the organization's account and every 'given' fund. */
+  centers: z.record(z.string(), CenterMoneySchema).default({}),
+  platforms: z.record(z.enum(ONLINE_PLATFORMS), z.object({ enabled: z.boolean(), lastSync: z.string().default('') })),
   receiptAboveCents: CENTS,                                 // written acknowledgment (IRS: $250 or more)
   checkomatic: z.object({
     mode: z.enum(['off', 'supporter', 'application', 'member']),
@@ -36,6 +57,10 @@ export const DonationSettingsSchema = z.object({
   const ids = new Set<string>();
   s.funds.forEach((f, i) => { if (ids.has(f.id)) ctx.addIssue({ code: 'custom', path: ['funds', i, 'id'], message: `Two funds use “${f.id}”.` }); ids.add(f.id); });
   s.checkomatic.funds.forEach((f, i) => { if (!ids.has(f)) ctx.addIssue({ code: 'custom', path: ['checkomatic', 'funds', i], message: `There is no fund “${f}”.` }); });
+  for (const [c, m] of Object.entries(s.centers ?? {})) {
+    m.funds.forEach((f, i) => { if (!ids.has(f)) ctx.addIssue({ code: 'custom', path: ['centers', c, 'funds', i], message: `${c}: there is no fund “${f}”.` }); });
+    if (m.account.provider !== 'organization' && m.account.enabled && !m.account.label) ctx.addIssue({ code: 'custom', path: ['centers', c, 'account', 'label'], message: `${c}: name the account (e.g. the bank and the masjid).` });
+  }
   if (s.checkomatic.mode !== 'off' && !s.checkomatic.funds.length) ctx.addIssue({ code: 'custom', path: ['checkomatic', 'funds'], message: 'Pick at least one fund that counts.' });
   if (s.checkomatic.countsAsDues && s.checkomatic.mode !== 'member') ctx.addIssue({ code: 'custom', path: ['checkomatic', 'countsAsDues'], message: 'Only when a gift makes someone a member can it count as dues.' });
   if (s.funds.filter((f) => f.zakat && f.active).length === 0) ctx.addIssue({ code: 'custom', path: ['funds'], message: 'Keep one active Zakat fund – Zakat payouts are paid from it.' });
@@ -58,7 +83,12 @@ export const mockDonationSettings: DonationSettings = {
     { id: 'education', name: 'Education', restricted: true, route: 'all', zakat: false, active: true },
   ],
   mainCenter: 'Southwest Islamic Center 1',
-  platforms: { stripe: { enabled: true, lastSync: '2026-10-15T14:00:00.000Z' }, paypal: { enabled: true, lastSync: '2026-10-15T13:45:00.000Z' }, medina: { enabled: true, lastSync: '2026-10-15T13:30:00.000Z' }, bloomerang: { enabled: false, lastSync: '' } },
+  centers: {
+    'Southwest Islamic Center 1': { account: { provider: 'stripe', label: 'SW1 – operating (Stripe)', last4: '4k9Q', enabled: true }, funds: [] },
+    'North Islamic Center 1': { account: { provider: 'stripe', label: 'N1 – building fund account', last4: 'p7Ze', enabled: true }, funds: ['general', 'building'] },
+    'Southeast Islamic Center 1': { account: { provider: 'zeffy', label: 'SE1 – Zeffy', last4: '', enabled: true }, funds: ['general', 'sadaqah'] },
+  },
+  platforms: { stripe: { enabled: true, lastSync: '2026-10-15T14:00:00.000Z' }, paypal: { enabled: true, lastSync: '2026-10-15T13:45:00.000Z' }, medina: { enabled: true, lastSync: '2026-10-15T13:30:00.000Z' }, bloomerang: { enabled: false, lastSync: '' }, zeffy: { enabled: true, lastSync: '2026-10-15T12:50:00.000Z' } },
   receiptAboveCents: 25_000,
   checkomatic: { mode: 'application', minCents: 4_000, funds: ['general', 'sadaqah'], countsAsDues: false },
 };
@@ -99,6 +129,21 @@ export function routedCenter(d: Donation, s: DonationSettings): string {
   return f.route === 'main' ? s.mainCenter : f.route === 'all' ? 'All centers' : d.center;
 }
 export const netOf = (d: Donation) => (d.refunded ? 0 : d.amountCents - d.feeCents);
+/* ---------------- D12 – per-center money ---------------- */
+/** Central funds: booked to the main center or shared – they go to the organization whichever center the donor belongs to. */
+export const isCentralFund = (f: Fund) => f.route !== 'given';
+/** The funds a donor at this center is offered (sign-up, giving page): central funds + the center's own list (or every 'given' fund). */
+export function fundsForCenter(s: DonationSettings, center: string): Fund[] {
+  const own = s.centers?.[center]?.funds ?? [];
+  return s.funds.filter((f) => f.active && (isCentralFund(f) || (own.length ? own.includes(f.id) : true)));
+}
+/** Which payment account a gift settles into: central funds → the organization's account; otherwise the center's own, when it has one. */
+export function accountFor(s: DonationSettings, center: string, fundId: string): { owner: 'organization' | 'center'; provider: string; label: string; last4: string } {
+  const f = s.funds.find((x) => x.id === fundId);
+  const own = s.centers?.[center]?.account;
+  if ((!f || isCentralFund(f)) || !own || own.provider === 'organization' || !own.enabled) return { owner: 'organization', provider: 'organization', label: 'Organization account', last4: '' };
+  return { owner: 'center', provider: own.provider, label: own.label || `${center} account`, last4: own.last4 };
+}
 export const needsReceipt = (d: Donation, s: DonationSettings) => !d.refunded && !d.donor.anonymous && d.amountCents >= s.receiptAboveCents && !d.receiptSent;
 
 /** Problems with a gift entered by hand (cash or check at a center). */
@@ -160,7 +205,7 @@ const fmt = (d: string) => `${d.slice(5, 7)}/${d.slice(8, 10)}/${d.slice(0, 4)}`
 /* ---------------- demo gifts (fictional donors; centers match the F1 demo map) ---------------- */
 const CENTERS = ['North Islamic Center 1', 'North Islamic Center 2', 'Northwest Islamic Center 1', 'Southwest Islamic Center 1', 'Southwest Islamic Center 2', 'South Islamic Center 2', 'Southeast Islamic Center 1'];
 const FUNDS = ['general', 'general', 'zakat', 'sadaqah', 'sadaqah', 'building', 'ramadan', 'education'];
-const PLAT: Platform[] = ['stripe', 'stripe', 'stripe', 'paypal', 'medina', 'medina', 'cash', 'check'];
+const PLAT: Platform[] = ['stripe', 'stripe', 'zeffy', 'paypal', 'medina', 'medina', 'cash', 'check'];
 const AMTS = [2_500, 5_000, 4_000, 10_000, 25_000, 50_000, 3_000, 100_000, 7_500, 20_000, 150_000, 4_500];
 export const mockDonations: Donation[] = Array.from({ length: 48 }, (_, i) => {
   const plat = PLAT[i % PLAT.length];

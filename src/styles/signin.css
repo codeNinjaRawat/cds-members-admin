@@ -1,0 +1,89 @@
+/* Admin sign-in – split screen: the organization's artwork on the left, the sign-in card on the right.
+   Colors come from the theme (--accent, --second), so every organization's own palette shows. */
+.si {
+  min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+  background: var(--pane-solid); color: var(--ink);
+}
+
+/* ---- left: artwork ---- */
+.si-art {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 2rem;
+  padding: clamp(1.6rem, 4vw, 3.2rem);
+  color: #fff;
+  background:
+    radial-gradient(120% 80% at 85% 0%, color-mix(in srgb, var(--second) 38%, transparent) 0%, transparent 55%),
+    radial-gradient(90% 70% at 0% 100%, color-mix(in srgb, var(--accent) 60%, #000) 0%, transparent 70%),
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 88%, #fff 0%) 0%, color-mix(in srgb, var(--accent) 55%, #000) 100%);
+}
+.si-pattern { position: absolute; inset: 0; z-index: -1; color: var(--second); opacity: .16;
+  -webkit-mask-image: linear-gradient(115deg, #000 10%, transparent 75%); mask-image: linear-gradient(115deg, #000 10%, transparent 75%); }
+.si-arch { position: absolute; z-index: -1; right: -4%; bottom: 0; height: 82%; width: auto; max-width: 70%;
+  fill: none; stroke: color-mix(in srgb, var(--second) 75%, #fff); stroke-width: 1.4; opacity: .55; }
+.si-brand { display: flex; align-items: center; gap: .85rem; }
+.si-brand b { display: block; font-family: var(--font-display); font-size: 1.12rem; letter-spacing: -.01em; line-height: 1.2; }
+.si-brand small { display: block; opacity: .78; font-size: .86rem; margin-top: .1rem; }
+.si-mark {
+  flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.35rem;
+  color: color-mix(in srgb, var(--accent) 80%, #000);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--second) 65%, #fff), var(--second));
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+.si-mark.sm { width: 38px; height: 38px; border-radius: 11px; font-size: 1.1rem; }
+.si-copy { max-width: 30rem; }
+.si-copy h2 { margin: 0 0 1.4rem; font-family: var(--font-fraunces, var(--font-display)), Georgia, serif; font-weight: 600;
+  font-size: clamp(1.9rem, 3.4vw, 2.9rem); line-height: 1.08; letter-spacing: -.02em; text-wrap: balance; }
+.si-copy ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .7rem; }
+.si-copy li { display: flex; align-items: center; gap: .8rem; font-size: 1rem; opacity: .92; }
+.si-copy li span { font: 600 .74rem/1 var(--font-body); letter-spacing: .08em; padding: .38rem .5rem; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--second) 60%, transparent); color: color-mix(in srgb, var(--second) 70%, #fff); }
+.si-foot { margin: 0; font-size: .84rem; opacity: .7; letter-spacing: .02em; }
+
+/* ---- right: the card ---- */
+.si-side { display: grid; place-items: center; padding: clamp(1.2rem, 4vw, 3rem);
+  background:
+    radial-gradient(70% 60% at 100% 0%, color-mix(in srgb, var(--wall-2) 55%, transparent), transparent 70%),
+    radial-gradient(60% 50% at 0% 100%, color-mix(in srgb, var(--wall-1) 50%, transparent), transparent 70%); }
+.si-card { width: 100%; max-width: 27rem; padding: clamp(1.4rem, 3vw, 2.2rem); border-radius: 24px;
+  background: var(--pane-strong); border: 1px solid var(--line); box-shadow: var(--float-shadow);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat)); backdrop-filter: blur(var(--blur)) saturate(var(--sat)); }
+.si-card-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.6rem; }
+.si-steps { display: flex; gap: .35rem; list-style: none; margin: 0; padding: 0; font-size: .74rem; color: var(--ink-3); }
+.si-steps li { display: flex; align-items: center; gap: .35rem; }
+.si-steps li::before { content: ''; width: 18px; height: 4px; border-radius: 4px; background: var(--line-strong); }
+.si-steps li.done::before, .si-steps li.now::before { background: var(--accent); }
+.si-steps li.now { color: var(--ink); font-weight: 600; }
+.si-h { margin: 0 0 .4rem; font-family: var(--font-display); font-size: clamp(1.5rem, 2.4vw, 1.85rem); letter-spacing: -.02em; outline: none; }
+.si-lead { margin: 0 0 1.4rem; color: var(--ink-2); line-height: 1.5; }
+.si-card .field { display: grid; gap: .4rem; margin-bottom: 1rem; }
+.si-card .field > span { font-size: .84rem; font-weight: 600; color: var(--ink-2); }
+.si-in, .si-code { width: 100%; min-height: 50px; font-size: 1.02rem; border-radius: 14px; }
+.si-code { text-align: center; font-size: 1.55rem; letter-spacing: .55em; font-variant-numeric: tabular-nums; padding-left: .55em; }
+.si-go { width: 100%; min-height: 50px; border-radius: 14px; font-size: 1rem; font-weight: 600; justify-content: center; }
+.si-card .row-actions { display: grid; gap: .55rem; }
+.si-card .row-actions .btn { width: 100%; justify-content: center; }
+.si-dev { margin: -.2rem 0 1rem; padding: .6rem .8rem; border-radius: 12px; font-size: .86rem;
+  background: color-mix(in srgb, var(--second) 16%, transparent); border: 1px dashed color-mix(in srgb, var(--second) 60%, transparent); }
+.si-dev .linkish { margin-left: .4rem; }
+.si-card .field-error { margin: -.4rem 0 1rem; }
+.si-card .signin-dashes { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.si-card .signin-dashes .btn { width: 100%; justify-content: flex-start; min-height: 48px; border-radius: 14px; }
+.si-secure { display: flex; gap: .5rem; align-items: flex-start; margin: 1.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line);
+  font-size: .78rem; color: var(--ink-3); line-height: 1.45; }
+.si-secure svg { flex: none; margin-top: .1rem; color: var(--accent-ink); }
+
+/* ---- tablets and phones: the artwork becomes a short banner on top ---- */
+@media (max-width: 900px) {
+  .si { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .si-art { min-height: 0; padding: 1.4rem 1.2rem 1.6rem; gap: 1.2rem; }
+  .si-arch { height: 140%; right: -10%; opacity: .35; }
+  .si-copy h2 { font-size: 1.5rem; margin: 0; }
+  .si-copy ul, .si-foot { display: none; }
+  .si-side { padding: 1.2rem 1rem 2.4rem; align-items: start; }
+  .si-card { margin-top: -1rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .si-card { animation: si-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes si-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+}

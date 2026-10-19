@@ -5,6 +5,7 @@
  * Campaign settings publish as the `fundraising` document; gifts and pledges are records (live: from Donations).
  * DEMO: this browser only.
  */
+import { ORG_TZ } from '@/lib/members/members';
 import { DashBar, exportPage, useScope as useDashScope } from '@/components/charts/DashKit';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
@@ -23,9 +24,9 @@ import { addGift, addPledge, nextGiftId, useFundraisingRecords } from '@/lib/fun
 import { csvCell } from '@/lib/community/member-records';
 
 type Doc = { draft: Fundraising; setDraft: (f: Fundraising | ((d: Fundraising) => Fundraising)) => void; issues: Record<string, string> };
-const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const TONE: Record<CampaignState, string> = { draft: '', scheduled: '', live: 'good', ended: 'warn', closed: '' };
-const addDays = (s: string, n: number) => new Date(Date.parse(`${s}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+const addDays = (s: string, n: number) => { const t = Date.parse(`${String(s ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t)) return String(s ?? ''); return new Date(t + n * 86_400_000).toISOString().slice(0, 10); };
 
 export function FundraisingView() {
   return (

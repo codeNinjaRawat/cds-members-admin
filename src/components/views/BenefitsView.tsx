@@ -6,10 +6,11 @@
  * settings). Partners never see member contact details – they check a member on the Verify page (status only).
  * DEMO (no API). Live: GET/PUT /admin/benefits, GET/POST /admin/benefits/uses.
  */
+import { currentOrg } from '@/lib/access/masjid-filter';
 import { DashBar, exportPage, useScope as useDashScope } from '@/components/charts/DashKit';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
-import { centerOf } from '@/lib/members/members';
+import { centerOf, ORG_TZ } from '@/lib/members/members';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, SwitchRow, Tabs, countIssues } from '@/components/editor/bits';
@@ -27,8 +28,8 @@ import { useMembers } from './MembersView';
 
 type Doc = { draft: Benefits; setDraft: (f: Benefits | ((d: Benefits) => Benefits)) => void; issues: Record<string, string> };
 type Open = { kind: 'offer' | 'partner'; id: string } | null;
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: '2-digit', day: '2-digit', year: 'numeric' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
+const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: ORG_TZ, month: '2-digit', day: '2-digit', year: 'numeric' });
 const OFFER_TONE: Record<OfferState, string> = { live: 'good', scheduled: '', draft: '', paused: 'warn', expired: 'bad', 'partner-off': 'warn' };
 const PARTNER_TONE: Record<PartnerState, string> = { approved: 'good', proposed: '', review: 'warn', paused: 'warn', ended: 'bad', expired: 'bad' };
 const VIA = { portal: 'Member portal', partner: 'Partner checked the card', office: 'Office' } as const;
@@ -268,7 +269,7 @@ function PartnerPanel({ doc, i, set, onClose, onOffer }: { doc: Doc; i: number; 
   const e = (f: string) => doc.issues[`partners.${i}.${f}`];
   const up = (patch: Partial<Partner>) => set((x) => { x.partners[i] = { ...x.partners[i], ...patch }; });
   const st = partnerState(p, d, t);
-  const centers = mockOrgStructure.centers.filter((c) => c.active).map((c) => c.name);
+  const centers = currentOrg().centers.filter((c) => c.active).map((c) => c.name);
   const offers = d.offers.filter((o) => o.partnerId === p.id);
   return (
     <PanelFrame label={`Partner ${p.name}`} data={{ 'data-open-partner': p.id }} pos={`Partner · ${p.id}`} onClose={onClose}>

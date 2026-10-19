@@ -6,7 +6,7 @@
  */
 import type { Tenant } from './platform';
 
-export type SeedKey = 'site-config' | 'home' | 'membership-settings' | 'giving' | 'pages' | 'news' | 'themes' | 'join-form' | 'events' | 'groups' | 'communication' | 'org-config' | 'benefits' | 'officials' | 'org-structure' | 'prayer-times' | 'finance-settings' | 'fundraising' | 'sign-in';
+export type SeedKey = 'site-config' | 'home' | 'membership-settings' | 'giving' | 'pages' | 'news' | 'themes' | 'join-form' | 'events' | 'groups' | 'communication' | 'org-config' | 'benefits' | 'officials' | 'org-structure' | 'prayer-times' | 'finance-settings' | 'fundraising' | 'sign-in' | 'records' | 'elections';
 type Profile = Pick<Tenant, 'slug' | 'name' | 'shortName' | 'city' | 'state' | 'address' | 'phone' | 'email' | 'template' | 'usage' | 'createdOn'>;
 
 /** Replace ISGH's names in every text (never inside links, images or ids). */
@@ -61,6 +61,8 @@ export function seedFor<T>(key: SeedKey, isghDefault: T, t: Profile): T {
     case 'org-config': v.discounts = { enabled: false, codes: [] }; return v;
     case 'org-structure': return { zones: [{ id: 'main', name: t.city || 'Main', areas: '', director: { name: '', email: '' }, termEnds: '', zips: [], active: true }], centers: [] } as T;
     case 'fundraising': return { campaigns: [], pages: [], website: { enabled: false } } as T;
+    case 'records': return { items: [], website: { enabled: false, title: 'Records', intro: '' } } as T;
+    case 'elections': return { ...v, elections: [] } as T;
     case 'finance-settings': return { ...v, accounts: [], budgets: [], openingCents: {}, plan: { approvedOn: '' }, audit: { ...v.audit, presentedOn: '' } } as T;
     case 'prayer-times': return { ...v, centers: [], special: [], location: { ...v.location, label: t.city } } as T; // starter: Houston coordinates until the organization sets its own
     case 'officials': return { ...v, holders: [], website: { ...v.website, enabled: false } } as T; // ISGH's officials are ISGH's own

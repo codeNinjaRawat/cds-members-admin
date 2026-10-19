@@ -10,18 +10,29 @@ import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Tabs } from '@/components/editor/bits';
 import { useMembers } from './MembersView';
-import { centerOf, YEAR, fmtDate, fmtMoney, recordDate, type Member } from '@/lib/members/members';
+import { centerOf, YEAR, fmtDate, fmtMoney, recordDate, type Member, ORG_TZ } from '@/lib/members/members';
 import type { EventsDoc } from '@/lib/community/events';
 import {
   approvedAfterRecord, areaReps, candidates, countBy, csvOf, diffSnapshots, duesReport, eventsReport, membershipSummary, nonVoters, voterRows, voterSnapshot,
-  type Pt, type Snapshot,
+  type Pt, type Snapshot, type VoterRow,
 } from '@/lib/reports/reports';
 import { useAccess } from '@/lib/access/use-access';
 import { currentAdminName, logAudit } from '@/lib/access/audit';
+import { LIVE, be } from '@/lib/live/live';
+
+/** Live: the frozen versions kept by the server (rows and SHA-256 fingerprint checked there). */
+async function loadLiveSnapshots(year: number): Promise<Snapshot[]> {
+  const r = await be<{ recordDate: string; versions: { version: number; frozenAt: string; frozenBy: string; reason: string; fingerprint: string }[] }>('GET', `admin/voters/${year}`);
+  if (!r.ok) return [];
+  return Promise.all(r.data.versions.map(async (v) => {
+    const d = await be<{ voters: VoterRow[] }>('GET', `admin/voters/${year}/${v.version}`);
+    return { year, recordDate: r.data.recordDate, version: v.version, takenAt: v.frozenAt, takenBy: v.frozenBy, reason: v.reason, rows: d.ok ? d.data.voters : [], fingerprint: v.fingerprint };
+  }));
+}
 
 const KEY = 'isgh-admin-voter-snapshots';
 const readSnaps = (): Snapshot[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
-const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
 const n = (x: number) => x.toLocaleString('en-US');
 function download(name: string, csv: string) {
@@ -165,7 +176,7 @@ function Voters({ members, year }: { members: Member[]; year: number }) {
   const [err, setErr] = useState('');
   const [zone, setZone] = useState('');
   const [q, setQ] = useState('');
-  useEffect(() => { setSnaps(readSnaps()); }, []);
+  useEffect(() => { if (LIVE) void loadLiveSnapshots(year).then(setSnaps); else setSnaps(readSnaps()); }, [year]);
   const mine = snaps.filter((s) => s.year === year).sort((a, b) => b.version - a.version);
   const latest = mine[0];
   const now = useMemo(() => voterRows(members, year), [members, year]);
@@ -174,6 +185,11 @@ function Voters({ members, year }: { members: Member[]; year: number }) {
   const diff = latest ? diffSnapshots(latest, { ...latest, rows: now }) : null;
   const take = async () => {
     setErr('');
+    if (LIVE) {   // the server freezes the list from its own records and keeps the fingerprint
+      const r = await be<{ version: number; voters: number }>('POST', `admin/voters/${year}/freeze`, reason ? { reason } : {});
+      if (!r.ok) { setErr(r.message); return; }
+      setReason(''); setSnaps(await loadLiveSnapshots(year)); return;
+    }
     try {
       const s = await voterSnapshot(members, year, currentAdminName(), new Date().toISOString(), snaps, reason);
       const next = [...snaps, s]; setSnaps(next); setReason('');

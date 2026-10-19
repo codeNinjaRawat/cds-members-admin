@@ -5,22 +5,24 @@
  * and mode, masked keys (only the last 4 are ever kept here), the webhook address, and a test send through the
  * fake adapter. Changing a provider, a mode or a key needs a second admin's approval (checked by the server too).
  */
+import { ORG_TZ } from '@/lib/members/members';
 import { useEffect, useState, type ReactNode } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel } from '@/components/editor/bits';
 import {
-  EMAIL_PROVIDERS, SMS_PROVIDERS, checkKey, fakeSend, masked, readiness, sensitiveChanges, webhookUrl,
+  GIVING_PROVIDERS, EMAIL_PROVIDERS, SMS_PROVIDERS, checkKey, fakeSend, masked, readiness, sensitiveChanges, webhookUrl,
   type IntegrationsDoc, type Ready,
 } from '@/lib/integrations/integrations';
 import type { CommunicationDoc } from '@/lib/community/communication';
 import type { OrgConfig } from '@/lib/community/org-config';
+import { mockOrgStructure, type OrgStructure } from '@/lib/community/org-structure';
 import { useAccess } from '@/lib/access/use-access';
 import { can as canDo } from '@/lib/access/access';
 import { logAudit } from '@/lib/access/audit';
 import { useOrg } from '@/lib/platform/use-org';
 
 type IDoc = { draft: IntegrationsDoc; base: IntegrationsDoc; setDraft: (f: IntegrationsDoc | ((d: IntegrationsDoc) => IntegrationsDoc)) => void; issues: Record<string, string> };
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const STATUS = { live: 'Live', test: 'Test mode', off: 'Off', problem: 'Needs attention' } as const;
 function useStore<T>(key: string) {
   const [v, setV] = useState<T | null>(null);
@@ -114,6 +116,8 @@ function Body({ doc }: { doc: IDoc }) {
         <TestSend kind="stripe" d={d} />
       </Card>
 
+      <Giving doc={doc} r={card('giving')} origin={origin} org={org} />
+
       <Card r={card('google')} id="google" on={d.google.enabled} onToggle={(v) => set('google', { enabled: v })}>
         <div className="integ-grid">
           <Field label="Client ID" value={d.google.clientId} onChange={(v) => set('google', { clientId: v.trim() })} err={doc.issues['google.clientId']} />
@@ -125,6 +129,58 @@ function Body({ doc }: { doc: IDoc }) {
   );
 }
 
+/** I1 Giving platforms: accounts – one for the organization or a masjid's own (Zeffy, PayPal Giving, Bloomerang…). */
+function Giving({ doc, r, origin, org }: { doc: IDoc; r: Ready; origin: string; org: string }) {
+  const d = doc.draft;
+  const map = useStore<OrgStructure>('org-structure') ?? mockOrgStructure;
+  const [adding, setAdding] = useState(false);
+  const [f, setF] = useState<{ provider: keyof typeof GIVING_PROVIDERS; label: string; scope: 'organization' | 'center'; center: string; formUrl: string }>({ provider: 'zeffy', label: '', scope: 'organization', center: map.centers[0]?.name ?? '', formUrl: '' });
+  const up = (i: number, patch: Partial<IntegrationsDoc['giving']['accounts'][number]>) => doc.setDraft((x) => ({ ...x, giving: { accounts: x.giving.accounts.map((a, k) => (k === i ? { ...a, ...patch } : a)) } }));
+  const add = () => {
+    const base = `${f.provider}-${(f.scope === 'center' ? f.center : 'org').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`.slice(0, 36);
+    let id = base; let n = 2; while (d.giving.accounts.some((a) => a.id === id)) id = `${base}-${n++}`;
+    doc.setDraft((x) => ({ ...x, giving: { accounts: [...x.giving.accounts, { id, provider: f.provider, enabled: true, label: f.label.trim() || `${f.scope === 'center' ? f.center : 'Organization'} – ${GIVING_PROVIDERS[f.provider]}`, scope: f.scope, center: f.scope === 'center' ? f.center : '', formUrl: f.formUrl.trim(), lastSync: '' }] } }));
+    setAdding(false); setF({ ...f, label: '', formUrl: '' });
+  };
+  const err = (i: number, k: string) => doc.issues[`giving.accounts.${i}.${k}`];
+  return (
+    <Panel title="Giving platforms" intro="Where online gifts come from besides Stripe: Zeffy, PayPal Giving, Bloomerang, Givelify, a kiosk… One account for the whole organization, or a masjid's own account – both can exist side by side. Gifts land in Donations under the masjid of the account.">
+      <section id="int-giving" className={`integ-card st-${r.status}`} data-card="giving">
+        <div className="integ-head"><span className={`pill integ-status st-${r.status}`}>{STATUS[r.status]}</span><span className="muted small">{d.giving.accounts.length} account{d.giving.accounts.length === 1 ? '' : 's'}</span></div>
+        <ul className="integ-checks">{r.checks.map((c) => <li key={c.label} className={`c-${c.state}`}><span aria-hidden="true">{c.state === 'ok' ? '✓' : c.state === 'warn' ? '!' : '✕'}</span><span>{c.label}{c.help && <small className="block">{c.help}</small>}</span></li>)}</ul>
+        <ul className="integ-accounts">{d.giving.accounts.map((a, i) => (
+          <li key={a.id} className={`integ-account${a.enabled ? '' : ' off'}`} data-account={a.id}>
+            <div className="integ-acc-head">
+              <b>{a.label}</b><span className="pill">{GIVING_PROVIDERS[a.provider]}</span><span className="pill">{a.scope === 'center' ? a.center : 'Organization'}</span>
+              <label className="switch"><input type="checkbox" role="switch" aria-label={`Use ${a.label}`} checked={a.enabled} onChange={(e) => up(i, { enabled: e.target.checked })} /><span className="track" aria-hidden="true"><span className="thumb" /></span></label>
+              <button type="button" className="btn sm ghost" onClick={() => doc.setDraft((x) => ({ ...x, giving: { accounts: x.giving.accounts.filter((_, k) => k !== i) } }))}>Remove<span className="sr-only"> {a.label}</span></button>
+            </div>
+            <div className="integ-grid">
+              <Field label="Account name" value={a.label} onChange={(v) => up(i, { label: v })} err={err(i, 'label')} />
+              {a.scope === 'center' && <Sel label="Masjid" value={a.center} options={Object.fromEntries(map.centers.map((c) => [c.name, c.name]))} onChange={(v) => up(i, { center: v })} err={err(i, 'center')} />}
+              <Field label="Giving form address (shown on the website)" value={a.formUrl} onChange={(v) => up(i, { formUrl: v.trim() })} err={err(i, 'formUrl')} />
+              <Key label="API key" kind="giving" value={a.apiKey} onSet={(s) => up(i, { apiKey: s })} err={err(i, 'apiKey')} />
+              <Key label="Webhook signing secret" kind="webhook" value={a.webhookSecret} onSet={(s) => up(i, { webhookSecret: s })} />
+              <Hook url={webhookUrl(origin, org, `giving/${a.id}`)} />
+              {err(i, 'provider') && <p className="sf-err" role="alert">{err(i, 'provider')}</p>}
+              <p className="muted small">{a.lastSync ? `Last sync ${new Date(a.lastSync).toLocaleString('en-US', { timeZone: ORG_TZ, dateStyle: 'medium', timeStyle: 'short' })}` : 'Never synced'} · {a.apiKey ? 'gifts and payouts are read from the platform' : 'without a key, import the platform’s export in Donations'}.</p>
+            </div>
+          </li>
+        ))}</ul>
+        {!adding ? <button type="button" className="btn sm" onClick={() => setAdding(true)}>+ Add an account</button> : (
+          <form className="integ-grid integ-add" onSubmit={(e) => { e.preventDefault(); add(); }} aria-label="New giving account">
+            <Sel label="Platform" value={f.provider} options={GIVING_PROVIDERS} onChange={(v) => setF({ ...f, provider: v as keyof typeof GIVING_PROVIDERS })} />
+            <Sel label="Belongs to" value={f.scope} options={{ organization: 'The whole organization', center: 'One masjid' }} onChange={(v) => setF({ ...f, scope: v as 'organization' | 'center' })} />
+            {f.scope === 'center' && <Sel label="Masjid" value={f.center} options={Object.fromEntries(map.centers.map((c) => [c.name, c.name]))} onChange={(v) => setF({ ...f, center: v })} />}
+            <Field label="Account name (optional)" value={f.label} onChange={(v) => setF({ ...f, label: v })} />
+            <Field label="Giving form address" value={f.formUrl} onChange={(v) => setF({ ...f, formUrl: v })} />
+            <div className="row-actions"><button type="button" className="btn sm" onClick={() => setAdding(false)}>Cancel</button><button className="btn sm primary">Add account</button></div>
+          </form>
+        )}
+      </section>
+    </Panel>
+  );
+}
 function Card({ r, id, on, onToggle, children }: { r: Ready; id: string; on: boolean; onToggle: (v: boolean) => void; children: ReactNode }) {
   return (
     <Panel title={r.title}>
@@ -172,7 +228,7 @@ function TestSend({ kind, d, placeholder, quiet }: { kind: 'email' | 'sms' | 'st
   return (
     <div className="integ-test">
       {kind !== 'stripe' && <input className="in" aria-label={kind === 'email' ? 'Test email address' : 'Test mobile number'} placeholder={placeholder} value={to} onChange={(e) => setTo(e.target.value)} />}
-      <button type="button" className="btn sm" onClick={() => { const now = new Date().toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit' }); const r = fakeSend(kind, to.trim(), d, now, quiet); setRes(r); if (r.ok) logAudit({ area: 'messages', action: label, detail: r.message }); }}>{label}</button>
+      <button type="button" className="btn sm" onClick={() => { const now = new Date().toLocaleTimeString('en-GB', { timeZone: ORG_TZ, hour: '2-digit', minute: '2-digit' }); const r = fakeSend(kind, to.trim(), d, now, quiet); setRes(r); if (r.ok) logAudit({ area: 'messages', action: label, detail: r.message }); }}>{label}</button>
       {res && <p className={`integ-res ${res.ok ? 'ok' : 'bad'}`} role="status">{res.message}</p>}
     </div>
   );

@@ -1,7 +1,8 @@
 'use client';
 /**
- * A2 overview – "smoked glass" dashboard (owner reference, 2026-10-13). DEMO numbers until the BE exists
- * (live: GET /admin/stats, /admin/applications?status=…, /admin/giving/summary).
+ * A2 overview – "smoked glass" dashboard (owner reference, 2026-10-13). Every number comes from the records the admin
+ * loads (members and their dues, the work queues, gifts, membership settings – lib/dashboard/home-stats.ts): demo
+ * records in demo mode, the API's in live mode.
  * Charts follow the dataviz rules: one series per chart (accent), categorical donut with validated palette +
  * direct labels + legend, hover tooltips, a table view for every chart, no dual axes.
  */
@@ -10,35 +11,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { DOC_KEYS, REGISTRY, type DocKey } from '@/lib/store/registry';
 import { useAppearance } from '@/lib/appearance/appearance';
 import { CommandCenter } from './CommandCenter';
+import { MyWorkCard } from './MyWorkCard';
 import { MasjidHome, ZoneHome } from './MasjidHome';
 import { useAccess } from '@/lib/access/use-access';
+import { useWidgets } from '@/lib/dashboards/widgets';
+import type { QueueRow } from '@/lib/dashboard/home-stats';
+import { ORG_TZ, YEAR } from '@/lib/members/members';
+import { LIVE } from '@/lib/live/live';
+import { useHomeStats } from './useHomeStats';
 
-/* ---------------- demo data ---------------- */
-type Status = 'New' | 'ID check' | 'Needs info' | 'Approved';
-const QUEUE: { id: string; name: string; plan: string; zone: string; status: Status; age: string }[] = [
-  { id: 'APP-2027-4182', name: 'Amina K.', plan: 'Family', zone: 'Southwest', status: 'New', age: '12 min' },
-  { id: 'APP-2027-4179', name: 'Yusuf R.', plan: 'Single', zone: 'North', status: 'ID check', age: '2 h' },
-  { id: 'APP-2027-4171', name: 'Fatima S.', plan: 'Family', zone: 'Northwest', status: 'Needs info', age: '1 day' },
-  { id: 'APP-2027-4166', name: 'Omar H.', plan: 'Life', zone: 'South', status: 'ID check', age: '1 day' },
-  { id: 'APP-2027-4160', name: 'Maryam A.', plan: 'Single', zone: 'Southeast', status: 'Approved', age: '2 days' },
-  { id: 'APP-2027-4155', name: 'Bilal T.', plan: 'Family', zone: 'Southwest', status: 'New', age: '3 days' },
-  { id: 'APP-2027-4149', name: 'Zainab M.', plan: 'Associate', zone: 'North', status: 'Approved', age: '4 days' },
-];
-const RENEWALS = [ // per month, last 12
-  { m: 'Nov', n: 40 }, { m: 'Dec', n: 96 }, { m: 'Jan', n: 612 }, { m: 'Feb', n: 488 }, { m: 'Mar', n: 401 }, { m: 'Apr', n: 523 },
-  { m: 'May', n: 891 }, { m: 'Jun', n: 1467 }, { m: 'Jul', n: 96 }, { m: 'Aug', n: 71 }, { m: 'Sep', n: 64 }, { m: 'Oct', n: 58 },
-];
-const ZONES = [{ z: 'Southwest', n: 1490 }, { z: 'North', n: 1012 }, { z: 'Northwest', n: 905 }, { z: 'Southeast', n: 801 }, { z: 'South', n: 604 }];
-const FUNDS = [ // validated categorical palette (dataviz reference slots 1–4), dark + light steps
-  { f: 'Zakat', v: 182400, dark: '#3987e5', light: '#2a78d6' },
-  { f: 'Sadaqah', v: 96300, dark: '#d95926', light: '#eb6834' },
-  { f: 'Membership dues', v: 61800, dark: '#199e70', light: '#1baf7a' },
-  { f: 'Cemetery', v: 24900, dark: '#c98500', light: '#eda100' },
-];
-const GIVING_MONTHS = [{ m: 'May', v: 41 }, { m: 'Jun', v: 38 }, { m: 'Jul', v: 22 }, { m: 'Aug', v: 25 }, { m: 'Sep', v: 31 }, { m: 'Oct', v: 36 }]; // $k
-const EDIT: Record<DocKey, string> = { 'sign-in': '/settings/sign-in', fundraising: '/fundraising?tab=campaigns', 'finance-settings': '/finance?tab=rules', 'prayer-times': '/prayer-times?tab=settings', officials: '/officials?tab=rules', benefits: '/benefits?tab=rules', 'donation-settings': '/donations/settings', 'zakat-settings': '/zakat/settings', 'org-structure': '/zones', integrations: '/settings/integrations', 'admin-access': '/settings/admins', 'site-config': '/website/menus', home: '/website/home', 'membership-settings': '/membership', giving: '/website/giving', pages: '/website/pages', news: '/website/news', themes: '/website/theme', 'join-form': '/membership/form', events: '/events', groups: '/groups', communication: '/communication', 'org-config': '/settings/configuration' };
+/* ---------------- the numbers ---------------- */
+const PALETTE = [{ dark: '#3987e5', light: '#2a78d6' }, { dark: '#d95926', light: '#eb6834' }, { dark: '#199e70', light: '#1baf7a' }, { dark: '#c98500', light: '#eda100' }]; // validated categorical slots 1–4
+const EDIT: Record<DocKey, string> = { 'work-settings': '/settings/work', records: '/records', elections: '/elections/run', 'sign-in': '/settings/sign-in', fundraising: '/fundraising?tab=campaigns', 'finance-settings': '/finance?tab=rules', 'prayer-times': '/prayer-times?tab=settings', officials: '/officials?tab=rules', benefits: '/benefits?tab=rules', 'donation-settings': '/donations/settings', 'zakat-settings': '/zakat/settings', 'org-structure': '/zones', integrations: '/settings/integrations', 'admin-access': '/settings/admins', 'site-config': '/website/menus', home: '/website/home', 'membership-settings': '/membership', giving: '/website/giving', pages: '/website/pages', news: '/website/news', themes: '/website/theme', 'join-form': '/membership/form', events: '/events', groups: '/groups', communication: '/communication', 'org-config': '/settings/configuration' };
 const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-const days = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
+const md = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const mdy = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const pctText = (p: number | null, what: string) => (p === null ? `nothing to compare ${what}` : `${p >= 0 ? '+' : ''}${p}% ${what}`);
 
 /** Overview: layout follows My appearance › Overview layout (focus | command). */
 export function OverviewView() {
@@ -51,8 +39,9 @@ export function OverviewView() {
 }
 
 function FocusOverview() {
+  const { show, hiddenCount, roleName } = useWidgets('ov');   // D1 – cards this role does not need stay out of the way
+  const st = useHomeStats();
   const [docs, setDocs] = useState<Record<string, { source: string; version: number }>>({});
-  const [period, setPeriod] = useState('12m');
   useEffect(() => {
     void Promise.all(DOC_KEYS.map((k) => fetch(`/api/store/${k}`, { cache: 'no-store' }).then((r) => r.json()).then((j) => [k, j] as const).catch(() => [k, null] as const)))
       .then((rows) => setDocs(Object.fromEntries(rows.filter(([, j]) => j))));
@@ -63,60 +52,57 @@ function FocusOverview() {
     <div className="page dash">
       <header className="page-head">
         <div>
-          <h1>Membership and renewals <span className="live-pill"><i aria-hidden="true" />Demo data</span></h1>
-          <p className="page-intro">Applications waiting, the June 30 renewal rush, members by zone and giving – in one view.</p>
+          <h1>Membership and renewals {!LIVE && <span className="live-pill"><i aria-hidden="true" />Demo data</span>}</h1>
+          <p className="page-intro">Applications waiting, the renewals before the {md(st.dates.recordDate)} record date, members by zone and giving – in one view.</p>
         </div>
         <div className="page-actions">
-          <span className="date-chip" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Chicago' })}</span>
-          <label className="sr-only" htmlFor="period">Period</label>
-          <select id="period" className="in pill-select" value={period} onChange={(e) => setPeriod(e.target.value)}>
-            <option value="12m">Last 12 months</option><option value="ytd">This year</option><option value="30d">Last 30 days</option>
-          </select>
+          <span className="date-chip" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: ORG_TZ })}</span>
         </div>
       </header>
 
       <div className="dash-grid">
-        <Queue />
-        <section className="d-card d-curve glass-pane" aria-labelledby="curve-h">
+        {show('ov.queue') && <Queue rows={st.queueRows} />}
+        {show('ov.mywork') && <MyWorkCard />}
+        {show('ov.curve') && <section className="d-card d-curve glass-pane" aria-labelledby="curve-h">
           <div className="d-head"><h2 id="curve-h">Renewal curve <small>dues paid per month</small></h2></div>
-          <Spline data={RENEWALS.map((r) => ({ label: r.m, value: r.n }))} unit="renewals" peakNote="June 30 rush" />
+          <Spline data={st.labels.map((l, i) => ({ label: l, value: st.renewals[i] }))} unit="renewals" peakNote={st.renewals[st.peak] ? `${st.labels[st.peak]} – busiest` : undefined} />
           <dl className="strip">
-            <div><dt>Last 12 months</dt><dd>{RENEWALS.reduce((s, r) => s + r.n, 0).toLocaleString('en-US')}</dd></div>
-            <div><dt>Paid in May–June</dt><dd>{Math.round(((891 + 1467) / RENEWALS.reduce((s, r) => s + r.n, 0)) * 100)}%</dd></div>
-            <div><dt>Reminders before June 30</dt><dd>3 emails</dd></div>
+            <div><dt>Last 12 months</dt><dd>{st.renewals.reduce((s, r) => s + r, 0).toLocaleString('en-US')}</dd></div>
+            <div><dt>Busiest month</dt><dd>{st.renewals[st.peak] ? `${st.labels[st.peak]} · ${st.renewals[st.peak].toLocaleString('en-US')}` : '—'}</dd></div>
+            <div><dt>This week</dt><dd>{st.renewWeek.toLocaleString('en-US')}</dd></div>
           </dl>
-        </section>
-        <section className="d-card d-zones glass-pane" aria-labelledby="zones-h">
+        </section>}
+        {show('ov.zones') && <section className="d-card d-zones glass-pane" aria-labelledby="zones-h">
           <div className="d-head"><h2 id="zones-h">Members by zone <small>active</small></h2></div>
-          <Allocation rows={ZONES.map((z) => ({ label: z.z, value: z.n }))} />
+          {st.zones.length ? <Allocation rows={st.zones.map((z) => ({ label: z.f, value: z.v }))} /> : <p className="cc-note">No current members yet.</p>}
           <ul className="mini-rows">
-            <li><span>Busiest center</span><b>Southwest Islamic Center 1</b></li>
-            <li><span>Fastest growing</span><b>Northwest · +11%</b></li>
-            <li><span>Border requests</span><b>9 waiting</b></li>
+            <li><span>Busiest masjid</span><b>{st.busiestCenter || '—'}</b></li>
+            <li><span>Most new members</span><b>{st.grow ? `${st.grow.z} · ${st.grow.now}${st.grow.pct !== null ? ` (${st.grow.pct >= 0 ? '+' : ''}${st.grow.pct}%)` : ''}` : '—'}</b></li>
+            <li><span>Masjid-change requests</span><b>{st.centerWaiting} waiting</b></li>
           </ul>
-        </section>
-        <div className="d-kpis">
-          <Kpi icon="clock" label="Average approval time" value="2.4 days" change="0.6 days faster" good />
-          <Kpi icon="repeat" label="Renewals this week" value="142" change="+18% vs last week" good />
-          <Kpi icon="vote" label="Eligible to vote in 2027" value="31%" change="Most renew in May–June" />
-        </div>
-        <section className="d-card d-funds glass-pane" aria-labelledby="funds-h">
+        </section>}
+        {show('ov.kpis') && <div className="d-kpis">
+          <Kpi icon="clock" label="Average approval time" value={st.avgApprovalDays === null ? '—' : `${st.avgApprovalDays.toFixed(1)} days`} change="from applying to approval, last 12 months" />
+          <Kpi icon="repeat" label="Renewals this week" value={st.renewWeek.toLocaleString('en-US')} change={pctText(st.renewPrevWeek ? Math.round(((st.renewWeek - st.renewPrevWeek) / st.renewPrevWeek) * 100) : null, 'vs last week')} good={st.renewWeek > st.renewPrevWeek} />
+          <Kpi icon="vote" label={`Eligible to vote in ${st.votingYear}`} value={`${st.votersPct}%`} change={`${st.voters.toLocaleString('en-US')} of ${st.current.toLocaleString('en-US')} current members`} />
+        </div>}
+        {show('ov.funds') && <section className="d-card d-funds glass-pane" aria-labelledby="funds-h">
           <div className="d-head"><h2 id="funds-h">Giving by fund <small>this year</small></h2></div>
-          <Donut rows={FUNDS} />
-        </section>
-        <section className="d-card d-gmonth glass-pane" aria-labelledby="gm-h">
+          {st.funds.length ? <Donut rows={st.funds.map((f, i) => ({ ...f, ...PALETTE[i % PALETTE.length] }))} /> : <p className="cc-note">No gifts recorded this year yet.</p>}
+        </section>}
+        {show('ov.gmonth') && <section className="d-card d-gmonth glass-pane" aria-labelledby="gm-h">
           <div className="d-head"><h2 id="gm-h">Giving by month <small>thousand dollars</small></h2></div>
-          <Bars data={GIVING_MONTHS.map((g) => ({ label: g.m, value: g.v }))} format={(v) => `$${v}k`} />
-        </section>
-        <section className="d-card d-dates glass-pane" aria-labelledby="dates-h">
+          <Bars data={st.giving6.map((g) => ({ label: g.label, value: Math.round(g.cents / 1000) / 100 }))} format={(v) => `$${v}k`} />
+        </section>}
+        {show('ov.dates') && <section className="d-card d-dates glass-pane" aria-labelledby="dates-h">
           <div className="d-head"><h2 id="dates-h">Key dates</h2></div>
-          <div className="count"><b>{days('2027-06-30T23:59:59-05:00')}</b><span>days to June 30, 2027<br />last day to pay and vote</span></div>
+          <div className="count"><b>{st.dates.daysTo(st.dates.recordDate)}</b><span>days to {mdy(st.dates.recordDate)}<br />last day to pay and vote</span></div>
           <ul className="mini-rows">
-            <li><span>Renewal opens</span><b>Nov 1 · {days('2026-11-01T00:00:00-05:00')} days</b></li>
-            <li><span>2026 memberships end</span><b>Dec 31 · {days('2026-12-31T23:59:59-06:00')} days</b></li>
+            <li><span>Renewal opens</span><b>{st.dates.opens ? `${md(st.dates.opens)} · ${st.dates.daysTo(st.dates.opens)} days` : 'Open now'}</b></li>
+            <li><span>{YEAR} memberships end</span><b>{md(st.dates.yearEnd)} · {st.dates.daysTo(st.dates.yearEnd)} days</b></li>
           </ul>
-        </section>
-        <section className="d-card d-site glass-pane" aria-labelledby="site-h">
+        </section>}
+        {show('ov.site') && <section className="d-card d-site glass-pane" aria-labelledby="site-h">
           <div className="d-head"><h2 id="site-h">Website content <small>{published} of {DOC_KEYS.length} published from admin</small></h2></div>
           <ul className="doc-chips">
             {DOC_KEYS.map((k) => (
@@ -125,18 +111,20 @@ function FocusOverview() {
               </Link></li>
             ))}
           </ul>
-        </section>
+        </section>}
       </div>
+      {hiddenCount > 0 ? <p className="muted small dash-note">{`${hiddenCount} card${hiddenCount === 1 ? '' : 's'} hidden for the ${roleName} role – Settings › Admins and roles › Dashboard decides what each role sees.`}</p> : null}
     </div>
   );
 }
 
 /* ---------------- application queue ---------------- */
-function Queue() {
+type Status = QueueRow['status'];
+function Queue({ rows }: { rows: QueueRow[] }) {
   const [f, setF] = useState<'All' | Status>('All');
-  const all = QUEUE.filter((q) => f === 'All' || q.status === f);
+  const all = rows.filter((q) => f === 'All' || q.status === f);
   const list = all.slice(0, 5);
-  const count = (s: Status) => QUEUE.filter((q) => q.status === s).length;
+  const count = (s: Status) => rows.filter((q) => q.status === s).length;
   return (
     <section className="d-card d-queue glass-pane" aria-labelledby="q-h">
       <div className="d-head"><h2 id="q-h">Application queue <small>newest first</small></h2><span className="live-dot" title="Updates as people apply">Live</span></div>
@@ -145,15 +133,16 @@ function Queue() {
           <button key={s} type="button" aria-pressed={f === s} onClick={() => setF(s)}>{s}{s !== 'All' && <span>{count(s)}</span>}</button>
         ))}
       </div>
+      {!list.length && <p className="cc-note">Nothing waiting{f === 'All' ? '' : ` in “${f}”`}.</p>}
       <ul className="q-list" aria-live="polite">
         {list.map((q) => (
           <li key={q.id}>
-            <div><b>{q.name}</b><span className="mono">{q.id}</span><small>{q.plan} · {q.zone} · {q.age} ago</small></div>
+            <div><b><Link href={`/members/${q.memberId}`}>{q.name}</Link></b><span className="mono">{q.memberId}</span><small>{q.plan} · {q.zone} · {q.age === 'today' ? 'today' : `${q.age} ago`}</small></div>
             <span className={`st st-${q.status.replace(' ', '-').toLowerCase()}`}>{q.status}</span>
           </li>
         ))}
       </ul>
-      <p className="q-foot">{all.length > 5 ? `+${all.length - 5} more · ` : ''}The full work queue with approve and request-info actions comes in module A4.</p>
+      <p className="q-foot">{all.length > 5 ? `+${all.length - 5} more · ` : ''}<Link href="/queues?tab=applications">Open the work queue</Link> to approve or ask for more information.</p>
     </section>
   );
 }
@@ -175,7 +164,7 @@ type Pt = { label: string; value: number };
 function Spline({ data, unit, peakNote }: { data: Pt[]; unit: string; peakNote?: string }) {
   const W = 600, H = 230, P = { l: 36, r: 12, t: 26, b: 26 };
   const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(...data.map((d) => d.value)) * 1.12;
+  const max = Math.max(4, ...data.map((d) => d.value)) * 1.12;
   const x = (i: number) => P.l + (i * (W - P.l - P.r)) / (data.length - 1);
   const y = (v: number) => H - P.b - (v / max) * (H - P.t - P.b);
   const pts = data.map((d, i) => [x(i), y(d.value)] as const);
@@ -186,7 +175,8 @@ function Spline({ data, unit, peakNote }: { data: Pt[]; unit: string; peakNote?:
     return `${acc} C${c1[0]},${Math.min(H - P.b, c1[1])} ${c2[0]},${Math.min(H - P.b, c2[1])} ${p[0]},${p[1]}`;
   }, ''), [pts]);
   const peak = data.reduce((b, d, i) => (d.value > data[b].value ? i : b), 0);
-  const ticks = [0, 0.5, 1].map((t) => Math.round((max / 1.12) * t / 100) * 100);
+  const top = max / 1.12; const unitStep = top >= 1000 ? 100 : top >= 100 ? 10 : 1;
+  const ticks = [0, 0.5, 1].map((t) => Math.round((top * t) / unitStep) * unitStep);
   const show = hover ?? peak;
   return (
     <figure className="chart">
@@ -218,7 +208,7 @@ function Spline({ data, unit, peakNote }: { data: Pt[]; unit: string; peakNote?:
 
 export function Bars({ data, format, highlight }: { data: Pt[]; format: (v: number) => string; highlight?: number }) {
   const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(...data.map((d) => d.value));
+  const max = Math.max(0.01, ...data.map((d) => d.value));
   return (
     <figure className="chart">
       <div className="gbars" role="img" aria-label={data.map((d) => `${d.label} ${format(d.value)}`).join(', ')}>

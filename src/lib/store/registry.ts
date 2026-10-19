@@ -19,6 +19,8 @@ import { CommunicationSchema, mockCommunication } from '@/lib/community/communic
 import { mockOrgConfig, OrgConfigSchema } from '@/lib/community/org-config';
 import { AccessSchema, mockAccess } from '@/lib/access/access';
 import { IntegrationsSchema, mockIntegrations } from '@/lib/integrations/integrations';
+import { RecordsSchema, mockRecords } from '@/lib/community/records';
+import { ElectionsSchema, mockElections } from '@/lib/community/elections';
 import { OrgStructureSchema, mockOrgStructure } from '@/lib/community/org-structure';
 import { SignInSchema, mockSignIn } from '@/lib/community/sign-in';
 import { ZakatSettingsSchema, mockZakatSettings } from '@/lib/community/zakat';
@@ -28,6 +30,7 @@ import { OfficialsSchema, mockOfficials } from '@/lib/community/officials';
 import { PrayerSettingsSchema, mockPrayerSettings } from '@/lib/community/prayer';
 import { FinanceSettingsSchema, mockFinanceSettings } from '@/lib/community/finance';
 import { FundraisingSchema, mockFundraising } from '@/lib/community/fundraising';
+import { WorkSettingsSchema, mockWorkSettings } from '@/lib/community/work';
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a 6-digit color like #0E5A45');
 export const ThemesSchema = z.object({
@@ -40,7 +43,7 @@ export const ThemesSchema = z.object({
   })),
 });
 
-export type DocKey = 'site-config' | 'home' | 'membership-settings' | 'giving' | 'pages' | 'news' | 'themes' | 'join-form' | 'events' | 'groups' | 'communication' | 'org-config' | 'admin-access' | 'integrations' | 'org-structure' | 'zakat-settings' | 'donation-settings' | 'benefits' | 'officials' | 'prayer-times' | 'finance-settings' | 'fundraising' | 'sign-in';
+export type DocKey = 'site-config' | 'home' | 'membership-settings' | 'giving' | 'pages' | 'news' | 'themes' | 'join-form' | 'events' | 'groups' | 'communication' | 'org-config' | 'admin-access' | 'integrations' | 'org-structure' | 'zakat-settings' | 'donation-settings' | 'benefits' | 'officials' | 'prayer-times' | 'finance-settings' | 'fundraising' | 'sign-in' | 'records' | 'elections' | 'work-settings';
 type Entry = { key: DocKey; label: string; schema: ZodTypeAny; initial: unknown; preview: string[]; api: string };
 
 export const REGISTRY: Record<DocKey, Entry> = {
@@ -66,6 +69,9 @@ export const REGISTRY: Record<DocKey, Entry> = {
   'finance-settings': { key: 'finance-settings', label: 'Finance rules and budgets', schema: FinanceSettingsSchema, initial: mockFinanceSettings, preview: [], api: 'GET/PUT /admin/finance/settings (F7)' },
   'sign-in': { key: 'sign-in', label: 'Sign-in and dashboards', schema: SignInSchema, initial: mockSignIn, preview: ['/sign-in'], api: 'GET/PUT /admin/sign-in · GET /public/sign-in · GET /auth/dashboards (M4)' },
   fundraising: { key: 'fundraising', label: 'Fundraising campaigns', schema: FundraisingSchema, initial: mockFundraising, preview: ['/campaigns'], api: 'GET/PUT /admin/fundraising · GET /public/campaigns (F8)' },
+  elections: { key: 'elections', label: 'Elections', schema: ElectionsSchema, initial: mockElections, preview: [], api: 'GET/PUT /admin/elections · POST /admin/elections/:year/swear-in' },
+  records: { key: 'records', label: 'Records library', schema: RecordsSchema, initial: mockRecords, preview: ['/records'], api: 'GET/PUT /admin/records · GET /public/records · GET /member/records (R1)' },
+  'work-settings': { key: 'work-settings', label: 'Help desk and tasks settings', schema: WorkSettingsSchema, initial: mockWorkSettings, preview: [], api: 'GET/PUT /admin/work-settings · GET /public/helpdesk/categories' },
   themes: { key: 'themes', label: 'Website theme', schema: ThemesSchema, initial: defaultThemes, preview: ['/'], api: 'GET /public/theme' },
 };
 export const DOC_KEYS = Object.keys(REGISTRY) as DocKey[];

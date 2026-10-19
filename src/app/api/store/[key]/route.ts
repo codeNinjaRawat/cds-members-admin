@@ -1,11 +1,37 @@
 /**
- * DEMO admin API (no BE yet). GET current document (+ ?history=1), PUT publish, DELETE reset to default.
- * Disabled in production unless ISGH_DEMO_STORE is set explicitly.
+ * The admin's documents: GET current document (+ ?history=1), PUT publish, DELETE reset to the starter content.
+ * Demo: the demo store (disabled in production unless ISGH_DEMO_STORE is set). Live: the API (/admin/documents/:key).
  */
 import { getDoc, getHistory, publishDoc, resetDoc, storeEnabled } from '@/lib/store/server-store';
 import { isDocKey } from '@/lib/store/registry';
 import { tenantForHost } from '@/lib/platform/platform-store';
 import { actorName, canManageAdmins, denyPublish, fourEyesProblem, teamProblem } from '@/lib/access/server-access';
+import { apiCall, apiConfig } from '@/lib/api/client';
+
+/* ---------- live mode (ISGH_USE_MOCK_API=false): the same answers, from the API's /admin/documents/:key ---------- */
+type ApiDoc = { data: unknown; version: number; publishedAt: string | null; by: string | null; source: string; versions?: { version: number; publishedAt: string; by: string; note?: string; data?: unknown }[] };
+const fail = (r: { status: number; body: unknown }) => { const b = (r.body ?? {}) as { error?: string; detail?: unknown; code?: string }; return Response.json({ error: b.error ?? 'The server refused this.', issues: Array.isArray(b.detail) ? b.detail : undefined, code: b.code }, { status: r.status }); };
+async function live(method: string, key: string, req: Request): Promise<Response> {
+  try {
+    if (method === 'GET') {
+      const history = !!new URL(req.url).searchParams.get('history');
+      const r = await apiCall('GET', `/admin/documents/${key}${history ? '?versions=full' : ''}`);
+      if (r.status >= 400) return fail(r);
+      const d = r.body as ApiDoc;
+      if (history) return Response.json(d.versions ?? []);
+      return Response.json({ data: d.data, version: d.version, publishedAt: d.publishedAt, by: d.by, source: d.source === 'published' ? 'published' : 'default' }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (method === 'PUT') {
+      const text = await req.text();
+      if (text.length > 2_000_000) return Response.json({ error: 'This document is too large (2 MB max). Use smaller images.' }, { status: 413 });
+      let body: unknown; try { body = JSON.parse(text); } catch { return Response.json({ error: 'Invalid JSON.' }, { status: 400 }); }
+      const r = await apiCall('PUT', `/admin/documents/${key}`, body);
+      return r.status >= 400 ? fail(r) : Response.json(r.body);
+    }
+    const r = await apiCall('DELETE', `/admin/documents/${key}`);
+    return r.status >= 400 ? fail(r) : Response.json({ ok: true });
+  } catch { return Response.json({ error: 'We could not reach the server. Your draft is saved in this browser.' }, { status: 503 }); }
+}
 
 /** SaaS: which organization this admin address belongs to (Host header only). */
 const org = (req: Request) => tenantForHost(req.headers.get('host')).tenant;
@@ -18,7 +44,7 @@ const bad = () => Response.json({ error: 'Unknown document.' }, { status: 404 })
 
 type Ctx = { params: Promise<{ key: string }> };
 /** Writes only from the admin itself (blocks cross-site requests). */
-/** Behind a proxy (https://member-admin.nextgrow.pro → Node on :3001) the request URL may say http or an inner host,
+/** Behind a proxy (https://member-admin.masajidsolutions.com → Node on :3001) the request URL may say http or an inner host,
  *  so the forwarded host and the configured public admin URL are trusted too. */
 const sameOrigin = (req: Request) => {
   const o = req.headers.get('origin'); if (!o) return true;
@@ -30,6 +56,7 @@ const sameOrigin = (req: Request) => {
 export async function GET(req: Request, { params }: Ctx) {
   const { key } = await params;
   if (!isDocKey(key)) return bad();
+  if (!apiConfig.useMock) return live('GET', key, req);
   const t = org(req); if (!t) return noOrg();
   if (new URL(req.url).searchParams.get('history')) return Response.json(getHistory(key, t.slug));
   return Response.json(getDoc(key, t.slug), { headers: { 'Cache-Control': 'no-store' } });
@@ -38,6 +65,7 @@ export async function GET(req: Request, { params }: Ctx) {
 export async function PUT(req: Request, { params }: Ctx) {
   const { key } = await params;
   if (!isDocKey(key)) return bad();
+  if (!apiConfig.useMock) return sameOrigin(req) ? live('PUT', key, req) : deny();   // the API checks role, versions, four eyes, team
   if (!allowed() || !sameOrigin(req)) return deny();
   const t = org(req); if (!t) return noOrg();
   if (t.status === 'suspended' || t.status === 'cancelled') return locked(t.status);
@@ -55,6 +83,7 @@ export async function PUT(req: Request, { params }: Ctx) {
 export async function DELETE(req: Request, { params }: Ctx) {
   const { key } = await params;
   if (!isDocKey(key)) return bad();
+  if (!apiConfig.useMock) return sameOrigin(req) ? live('DELETE', key, req) : deny();
   if (!allowed() || !sameOrigin(req)) return deny();
   const t = org(req); if (!t) return noOrg();
   if (t.status === 'suspended' || t.status === 'cancelled') return locked(t.status);

@@ -39,13 +39,14 @@ test('each dashboard has the toolbar: report link, Download CSV and Print; no pa
   expect(errors).toEqual([]);
 });
 
-test('every menu group with children starts with Dashboard', async ({ page }) => {
+test('every menu group with children starts with Dashboard (Members: Overview, D2)', async ({ page }) => {
   await page.goto('/');
   for (const group of ['Members', 'Work queues', 'Communication', 'Masjids and zones', 'Events', 'Zakat and Sadaqah', 'Donations', 'Fundraising', 'Finance', 'Member benefits', 'Elected officials', 'Meetings and minutes', 'Elections', 'Website']) {
-    const btn = page.locator('nav').getByRole('button', { name: new RegExp(`^${group}`) }).first();
-    if ((await btn.getAttribute('aria-expanded')) !== 'true') await btn.click();
+    const btn = page.locator('nav .side-link.parent').filter({ hasText: new RegExp(`^${group}`) }).first();
+    const toggle = (await btn.locator('.chev-btn').count()) ? btn.locator('.chev-btn') : btn;   // D2: a group with its own page folds with the chevron
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
     const first = btn.locator('xpath=following-sibling::*[1]').locator('a').first();
-    await expect(first, group).toHaveText('Dashboard');
+    await expect(first, group).toHaveText(group === 'Members' ? 'Overview' : 'Dashboard');
   }
 });
 

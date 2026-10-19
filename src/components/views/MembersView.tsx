@@ -9,9 +9,9 @@ import Link from 'next/link';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   centerOf, centersOf, demoMembers, digits, eligibility, fmtDate, fullName, initials, lastPayment, MEMBERS_EVENT, membersWithEdits, PLANS, recordDate,
-  renewalOf, STATUS_LABEL, statusOf, toCsv, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId,
-} from '@/lib/members/members';
+  renewalOf, STATUS_LABEL, statusOf, toCsv, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId, ORG_TZ } from '@/lib/members/members';
 import { useOrgConfig } from '@/lib/members/use-org-config';
+import { LIVE } from '@/lib/live/live';
 import { useAccess } from '@/lib/access/use-access';
 import { logAudit } from '@/lib/access/audit';
 import { MemberImport } from './MemberImport';
@@ -43,8 +43,8 @@ function readQ(search = typeof window === 'undefined' ? '' : window.location.sea
 
 /** Demo data is deterministic, so the server renders real rows at once (fast first paint); this browser's edits merge in after. */
 export function useMembers() {
-  const [list, setList] = useState<Member[] | null>(() => demoMembers());
-  useEffect(() => { const load = () => setList(membersWithEdits()); load(); window.addEventListener(MEMBERS_EVENT, load); return () => window.removeEventListener(MEMBERS_EVENT, load); }, []);
+  const [list, setList] = useState<Member[] | null>(() => (LIVE ? null : demoMembers()));   // live: nothing until the API answers
+  useEffect(() => { const load = () => setList(LIVE && !membersWithEdits().length ? null : membersWithEdits()); load(); window.addEventListener(MEMBERS_EVENT, load); return () => window.removeEventListener(MEMBERS_EVENT, load); }, []);
   return list;
 }
 
@@ -72,7 +72,8 @@ export function MembersView({ search = '' }: { search?: string }) {
   const needle = useDeferredValue(q.q);
 
   const access = useAccess();
-  const rows: Row[] = useMemo(() => (members ?? []).filter((m) => access.inScope(m.zone, centerOf(m), m.zip)).map((m) => { const lp = lastPayment(m); return { m, status: statusOf(m), vote: eligibility(m), paid: lp?.paidOn ?? '' }; }), [members, access.ready, access.me?.id, access.dashIndex]);
+  // nothing is listed until the signed-in person's scope is known – a zone or area role must never see the whole list for a moment
+  const rows: Row[] = useMemo(() => (access.ready ? (members ?? []) : []).filter((m) => access.inScope(m.zone, centerOf(m), m.zip)).map((m) => { const lp = lastPayment(m); return { m, status: statusOf(m), vote: eligibility(m), paid: lp?.paidOn ?? '' }; }), [members, access.ready, access.me?.id, access.dashIndex]);
   const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, rows.filter(v.test).length])) as Record<ViewId, number>, [rows]);
 
   const filtered = useMemo(() => {
@@ -116,7 +117,7 @@ export function MembersView({ search = '' }: { search?: string }) {
   const peekIdx = q.peek ? filtered.findIndex((r) => r.m.id === q.peek) : -1;
   const peekRow = peekIdx >= 0 ? filtered[peekIdx] : q.peek ? rows.find((r) => r.m.id === q.peek) : undefined;
   const openPeek = (id: string) => setQ({ peek: id, page });
-  const purgeDue = (() => { const keep = cfg.security.idDocuments.keepDays; const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const purgeDue = (() => { const keep = cfg.security.idDocuments.keepDays; const today = new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
     return { keep, n: (members ?? []).filter((m) => m.idCheck === 'verified' && idPurgeDue(m.approvedOn, keep, today)).length }; })();
 
   return (
@@ -198,7 +199,7 @@ export function MembersView({ search = '' }: { search?: string }) {
           </div>
         )}
 
-        <p className="m-count" aria-live="polite">{!members ? 'Loading members…' : filtered.length ? `Showing ${((page - 1) * q.size + 1).toLocaleString('en-US')}–${Math.min(page * q.size, filtered.length).toLocaleString('en-US')} of ${filtered.length.toLocaleString('en-US')}` : 'No members match. Try fewer filters.'}</p>
+        <p className="m-count" aria-live="polite">{!members || !access.ready ? 'Loading members…' : filtered.length ? `Showing ${((page - 1) * q.size + 1).toLocaleString('en-US')}–${Math.min(page * q.size, filtered.length).toLocaleString('en-US')} of ${filtered.length.toLocaleString('en-US')}` : 'No members match. Try fewer filters.'}</p>
 
         <div className="m-scroll">
           <table className="m-grid">
@@ -250,7 +251,7 @@ export function MembersView({ search = '' }: { search?: string }) {
 /** Quick look: the facts staff need most, without leaving the list. The full record stays one click away. */
 function MemberPeek({ row, contact, canPay, pos, onPrev, onNext, onClose }: { row: Row; contact: boolean; canPay: boolean; pos: string; onPrev?: () => void; onNext?: () => void; onClose: () => void }) {
   const { m, status, vote, paid } = row;
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
   const ren = renewalOf(m, today);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { ref.current?.focus(); }, [m.id]);

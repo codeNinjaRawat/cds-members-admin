@@ -7,7 +7,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel } from '@/components/editor/bits';
-import { CHECKOMATIC_MODES, PLATFORMS, usd, type DonationSettings, type Fund } from '@/lib/community/donations';
+import { CHECKOMATIC_MODES, ONLINE_PLATFORMS, PLATFORMS, accountFor, fundsForCenter, isCentralFund, usd, type DonationSettings, type Fund } from '@/lib/community/donations';
 import { mockOrgStructure, OrgStructureSchema, type OrgStructure } from '@/lib/community/org-structure';
 
 type Doc = { draft: DonationSettings; setDraft: (f: DonationSettings | ((d: DonationSettings) => DonationSettings)) => void; issues: Record<string, string> };
@@ -84,8 +84,35 @@ function Body({ doc }: { doc: Doc }) {
         </div>
       </Panel>
 
+      {/* D12 – money per center */}
+      <Panel title="Each center’s account and funds" intro="From the review call: a gift to a masjid goes to that masjid’s own account, except the central funds (Zakat, Sadaqah for the needy, Weekend school…), which go to the organization. Keys stay in Settings › Integrations – only a name and the last 4 characters are kept here. A center with no row uses the organization’s account and every fund marked “the center it was given to”.">
+        <p className="muted small">Central funds now: {d.funds.filter((f) => f.active && isCentralFund(f)).map((f) => f.name).join(', ') || 'none'} (a fund is central when “Goes to” is the main center or shared).</p>
+        <div className="table-wrap"><table className="m-grid compact dn-centers">
+          <thead><tr><th scope="col">Center</th><th scope="col">Payment account</th><th scope="col">Account name · last 4</th><th scope="col">Funds this center offers</th><th scope="col">Example: a $10 gift to General goes to</th></tr></thead>
+          <tbody>{map.centers.filter((c) => c.active).map((c) => {
+            const row = d.centers?.[c.name] ?? { account: { provider: 'organization' as const, label: '', last4: '', enabled: true }, funds: [] };
+            const up = (f: (r: typeof row) => void) => set((x) => { x.centers ??= {}; x.centers[c.name] ??= structuredClone(row); f(x.centers[c.name]); return x; });
+            const given = d.funds.filter((f) => f.active && !isCentralFund(f));
+            const acc = accountFor(d, c.name, 'general');
+            return (
+              <tr key={c.id} data-center={c.id}>
+                <th scope="row">{c.name}</th>
+                <td><select className="in sm" aria-label={`${c.name} – payment account`} value={row.account.provider} onChange={(ev) => up((r) => { r.account.provider = ev.target.value as 'stripe'; })}>
+                  <option value="organization">Organization’s account</option><option value="stripe">Own Stripe account</option><option value="paypal">Own PayPal</option><option value="zeffy">Own Zeffy</option></select></td>
+                <td>{row.account.provider === 'organization' ? <span className="muted small">shared</span> : <span className="dn-acc">
+                  <input className="in sm" aria-label={`${c.name} – account name`} placeholder="Bank and masjid, e.g. Chase – Abu Bakr" value={row.account.label} aria-invalid={!!e(`centers.${c.name}.account.label`)} onChange={(ev) => up((r) => { r.account.label = ev.target.value; })} />
+                  <input className="in sm in-last4" aria-label={`${c.name} – last 4`} placeholder="last 4" maxLength={4} value={row.account.last4} onChange={(ev) => up((r) => { r.account.last4 = ev.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 4); })} />
+                  {e(`centers.${c.name}.account.label`) && <small className="sf-err block">{e(`centers.${c.name}.account.label`)}</small>}</span>}</td>
+                <td><div className="chip-row sm" role="group" aria-label={`${c.name} – funds`}>
+                  {given.map((f) => { const on = row.funds.length ? row.funds.includes(f.id) : true; return <button key={f.id} type="button" aria-pressed={on} onClick={() => up((r) => { const all = given.map((g) => g.id); const cur = r.funds.length ? r.funds : all; r.funds = cur.includes(f.id) ? cur.filter((x) => x !== f.id) : [...cur, f.id]; if (r.funds.length === all.length) r.funds = []; })}>{f.name}</button>; })}
+                  <small className="muted block">+ central funds always · {fundsForCenter(d, c.name).length} shown to donors</small></div></td>
+                <td className="small muted">{acc.owner === 'center' ? `${acc.label}${acc.last4 ? ` ····${acc.last4}` : ''}` : 'the organization’s account'}</td>
+              </tr>);
+          })}</tbody>
+        </table></div>
+      </Panel>
       <Panel title="Where gifts come from" intro="Switch a platform off and its gifts stop arriving here. Keys and accounts live in Settings › Integrations.">
-        <ul className="dn-plats">{(['stripe', 'paypal', 'medina', 'bloomerang'] as const).map((p) => (
+        <ul className="dn-plats">{ONLINE_PLATFORMS.map((p) => (
           <li key={p}><label className="check"><input type="checkbox" checked={d.platforms[p]?.enabled ?? false} onChange={(ev) => set((x) => { x.platforms[p] = { enabled: ev.target.checked, lastSync: x.platforms[p]?.lastSync ?? '' }; return x; })} /> <span>{PLATFORMS[p]}</span></label></li>
         ))}</ul>
       </Panel>

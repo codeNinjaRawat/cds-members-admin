@@ -5,6 +5,7 @@
  * centers set iqamah rules (fixed time or minutes after the adhan, by season). Jumu'ah comes from Zones and centers.
  * Center-limited admins edit only their centers; the calculation needs "Manage settings". DEMO (no API).
  */
+import { ORG_TZ } from '@/lib/members/members';
 import { useEffect, useMemo, useState } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, SwitchRow, Tabs, countIssues } from '@/components/editor/bits';
@@ -17,8 +18,8 @@ import { useAccess } from '@/lib/access/use-access';
 import { csvCell } from '@/lib/community/member-records';
 
 type Doc = { draft: PrayerSettings; setDraft: (f: PrayerSettings | ((d: PrayerSettings) => PrayerSettings)) => void; issues: Record<string, string> };
-const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-const nowMinCT = () => { const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date()); return Number(p.find((x) => x.type === 'hour')?.value) * 60 + Number(p.find((x) => x.type === 'minute')?.value); };
+const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
+const nowMinCT = () => { const p = new Intl.DateTimeFormat('en-US', { timeZone: ORG_TZ, hourCycle: 'h23', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date()); return Number(p.find((x) => x.type === 'hour')?.value) * 60 + Number(p.find((x) => x.type === 'minute')?.value); };
 const fmtDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'UTC' });
 
 export function PrayerTimesView() {

@@ -7,6 +7,8 @@
  *   useScope  – the filter state; masjid- and zone-limited roles are locked to their own area
  * Exports never contain more than the role may see (inScope), and contact details only with members.contact.
  */
+import { LIVE } from '@/lib/live/live';
+import { ORG_TZ } from '@/lib/members/members';
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { useAccess } from '@/lib/access/use-access';
@@ -17,7 +19,8 @@ import { MasjidPicker } from '@/components/shell/MasjidPicker';
 export type Period = '30d' | '90d' | 'year' | '12m' | 'all';
 export const PERIODS: Record<Period, string> = { '30d': 'Last 30 days', '90d': 'Last 3 months', year: 'This year', '12m': 'Last 12 months', all: 'All time' };
 export const FUTURE: Record<Period, string> = { '30d': 'Next 30 days', '90d': 'Next 3 months', year: 'Rest of the year', '12m': 'Next 12 months', all: 'Everything ahead' };
-export const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+/** Today in the organization's time zone (the name stays from when every organization was in Houston). */
+export const todayCT = () => (LIVE ? new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ }) : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }));
 const add = (d: string, n: number) => { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
 
 /** Is a date inside the period (past periods look back from today; `ahead` looks forward instead). */

@@ -6,6 +6,7 @@
  * "Prayer times and meeting minutes"; Board, Joint and General Assembly minutes: admins with "Manage settings".
  * Records are saved as they are written (not published as a document). DEMO: this browser only.
  */
+import { ORG_TZ } from '@/lib/members/members';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Tabs } from '@/components/editor/bits';
 import {
@@ -17,7 +18,7 @@ import { OrgStructureSchema, mockOrgStructure, type OrgStructure } from '@/lib/c
 import { useAccess } from '@/lib/access/use-access';
 import { saveMeeting, useMeetings } from '@/lib/minutes/use-meetings';
 
-const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const todayCT = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const STATUS = { draft: 'Draft', approved: 'Approved', published: 'Published' } as const;
 

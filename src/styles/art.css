@@ -1,0 +1,72 @@
+/* ── Photos across the admin (lib/images.ts) ──
+   Every picture sits under a veil so text stays readable in light and dark; the photo never carries meaning alone. */
+.photo { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* section strip at the top of every module page */
+.sec-art { position: relative; height: 150px; margin: 0 0 1rem; border-radius: var(--r-lg, 18px); overflow: hidden; isolation: isolate; border: 1px solid var(--edge); }
+.sec-art .photo { filter: saturate(1.05); transform: scale(1.02); }
+.sec-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--wall-2) 78%, transparent) 0%, color-mix(in srgb, var(--wall-2) 30%, transparent) 55%, transparent 100%), linear-gradient(to top, color-mix(in srgb, var(--wall-2) 70%, transparent), transparent 60%); }
+.sec-art-name { position: absolute; left: 1.4rem; bottom: .9rem; z-index: 1; font: 700 .72rem var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--accent) 80%, #fff); text-shadow: 0 1px 6px rgb(0 0 0 / .5); }
+:root[data-mode="light"] .sec-art::after { background: linear-gradient(90deg, rgb(255 255 255 / .82) 0%, rgb(255 255 255 / .35) 55%, transparent 100%), linear-gradient(to top, rgb(255 255 255 / .75), transparent 60%); }
+:root[data-mode="light"] .sec-art-name { color: var(--ink-2); text-shadow: none; }
+:root[data-density="compact"] .sec-art { height: 110px; }
+@media (max-width: 720px) { .sec-art { height: 96px; margin-bottom: .7rem; } }
+@media print { .sec-art { display: none; } }
+
+/* photo wallpapers (My appearance) */
+.wall .wall-photo { position: absolute; inset: -4%; width: 108%; height: 108%; object-fit: cover; filter: blur(2px) saturate(1.1) brightness(.62); }
+:root[data-mode="light"] .wall .wall-photo { filter: blur(3px) saturate(.9) brightness(1.08) contrast(.85); opacity: .55; }
+:root[data-wall="arches"] .wall::before, :root[data-wall="ceiling"] .wall::before, :root[data-wall="mosaic"] .wall::before, :root[data-wall="skyline"] .wall::before, :root[data-wall="moon"] .wall::before, :root[data-wall="dusk"] .wall::before { background: linear-gradient(160deg, color-mix(in srgb, var(--wall-1) 40%, transparent), color-mix(in srgb, var(--wall-3) 45%, transparent)); z-index: 1; animation: none; filter: none; transform: none; inset: 0; }
+:root[data-wall="dusk"] .wall { background: var(--wall-2); }
+
+/* photo band behind a hero (Overview, masjid home, welcome) */
+.art-band { position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.art-band .photo { filter: saturate(1.05); }
+.art-band::after { content: ""; position: absolute; inset: 0; }
+.art-band.veil-left::after { background: linear-gradient(90deg, color-mix(in srgb, var(--wall-2) 92%, transparent) 0%, color-mix(in srgb, var(--wall-2) 72%, transparent) 45%, color-mix(in srgb, var(--wall-2) 25%, transparent) 100%); }
+.art-band.veil-right::after { background: linear-gradient(270deg, color-mix(in srgb, var(--wall-2) 92%, transparent) 0%, color-mix(in srgb, var(--wall-2) 72%, transparent) 45%, color-mix(in srgb, var(--wall-2) 25%, transparent) 100%); }
+.art-band.veil-top::after { background: linear-gradient(to bottom, color-mix(in srgb, var(--wall-2) 85%, transparent), color-mix(in srgb, var(--wall-2) 55%, transparent)); }
+.art-band.veil-all::after { background: color-mix(in srgb, var(--wall-2) 72%, transparent); }
+.art-band.veil-strong::after { opacity: 1; filter: brightness(.8); }
+.art-band.veil-soft::after { opacity: .8; }
+:root[data-mode="light"] .art-band::after { filter: none; }
+:root[data-mode="light"] .art-band.veil-left::after { background: linear-gradient(90deg, rgb(255 255 255 / .94) 0%, rgb(255 255 255 / .78) 45%, rgb(255 255 255 / .35) 100%); }
+:root[data-mode="light"] .art-band.veil-all::after { background: rgb(255 255 255 / .8); }
+.has-art { position: relative; isolation: isolate; }
+.has-art > :not(.art-band) { position: relative; }
+.has-art .art-band { z-index: -1; }
+
+/* faint photo behind filter bars and search panes of the section ("which looks better": 8% – a texture, not a picture) */
+.dbar, .zk-filters, .m-filters, .cv-bar, .bn-bar.acc-filter { position: relative; overflow: hidden; isolation: isolate; }
+.dbar::before, .zk-filters::before, .m-filters::before, .cv-bar::before, .bn-bar.acc-filter::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--sec-img) center / cover no-repeat; opacity: .09; filter: saturate(.6) blur(1px); pointer-events: none; }
+:root[data-mode="light"] .dbar::before, :root[data-mode="light"] .zk-filters::before, :root[data-mode="light"] .m-filters::before, :root[data-mode="light"] .cv-bar::before, :root[data-mode="light"] .bn-bar.acc-filter::before { opacity: .07; }
+
+/* empty states carry the section photo */
+.cv-empty, .wq-empty, .empty-state { position: relative; overflow: hidden; isolation: isolate; min-height: 120px; display: grid; align-content: end; padding: 1rem 1.2rem; border-radius: var(--r-lg, 18px); border: 1px solid var(--edge); color: var(--ink); }
+.cv-empty::before, .wq-empty::before, .empty-state::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--sec-img) center / cover no-repeat; opacity: .55; filter: saturate(.8); }
+.cv-empty::after, .wq-empty::after, .empty-state::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, color-mix(in srgb, var(--wall-2) 92%, transparent) 30%, color-mix(in srgb, var(--wall-2) 45%, transparent)); }
+:root[data-mode="light"] .cv-empty::after, :root[data-mode="light"] .wq-empty::after, :root[data-mode="light"] .empty-state::after { background: linear-gradient(to top, rgb(255 255 255 / .94) 30%, rgb(255 255 255 / .55)); }
+
+/* small picture card in the appearance picker */
+.wall-card .wall-art.is-photo { padding: 0; overflow: hidden; }
+.wall-card .wall-art.is-photo .photo { filter: brightness(.75); }
+.cc-head.has-art { padding: 1.4rem 1.6rem 1.2rem; border-radius: var(--r-lg, 18px); border: 1px solid var(--edge); margin-bottom: var(--gap, 1rem); min-height: 150px; }
+.cc-head.has-art .art-band .photo { object-position: center 40%; }
+.mh-hero.has-art .art-band .photo { object-position: center 55%; }
+/* welcome (invitation) page: full-bleed photo behind the card */
+.page.welcome { position: relative; min-height: calc(100vh - 140px); display: grid; align-content: center; }
+.welcome-art { position: fixed; inset: 0; z-index: -1; }
+.welcome-art .photo { filter: brightness(.55) saturate(1.1); }
+.welcome-art-veil { position: absolute; inset: 0; background: radial-gradient(60% 70% at 50% 45%, transparent, color-mix(in srgb, var(--wall-2) 80%, transparent)); }
+:root[data-mode="light"] .welcome-art .photo { filter: brightness(1.05) saturate(.9); opacity: .6; }
+.welcome-card { position: relative; }
+/* the page title sits inside the lower part of the photo */
+.sec-art { height: 210px; margin-bottom: 0; }
+.sec-art::after { background: linear-gradient(90deg, color-mix(in srgb, var(--wall-2) 70%, transparent) 0%, color-mix(in srgb, var(--wall-2) 25%, transparent) 55%, transparent 100%), linear-gradient(to top, var(--wall-2) 0%, color-mix(in srgb, var(--wall-2) 88%, transparent) 34%, transparent 72%); }
+.sec-art-name { bottom: auto; top: 1rem; }
+.sec-art + .page, .sec-art + div > .page, .sec-art ~ .page { margin-top: -92px; position: relative; }
+.sec-art + .page > .page-head, .sec-art ~ .page > .page-head { padding-left: 1.4rem; padding-right: 1.4rem; }
+:root[data-mode="light"] .sec-art::after { background: linear-gradient(90deg, rgb(255 255 255 / .7) 0%, rgb(255 255 255 / .3) 55%, transparent 100%), linear-gradient(to top, var(--wall-2) 0%, color-mix(in srgb, var(--wall-2) 88%, transparent) 34%, transparent 72%); }
+@media (max-width: 720px) { .sec-art { height: 150px; } .sec-art + .page, .sec-art ~ .page { margin-top: -60px; } }
+/* the band dissolves into the page instead of ending on a hard edge */
+.sec-art { border: 0; border-radius: var(--r-lg, 18px) var(--r-lg, 18px) 0 0; -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%); mask-image: linear-gradient(to bottom, #000 50%, transparent 100%); }

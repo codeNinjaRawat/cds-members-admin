@@ -1,5 +1,7 @@
 'use client';
 /** My appearance – each admin picks their own look. Saved in this browser (live: on the admin's user record). */
+import { Photo } from '@/components/shell/Photo';
+import { WALL_PHOTOS } from '@/lib/images';
 import { contrast, DEFAULT_APPEARANCE, PRESETS, useAppearance, type Appearance } from '@/lib/appearance/appearance';
 
 const WALLS: { id: Appearance['wallpaper']; name: string; what: string }[] = [
@@ -8,7 +10,12 @@ const WALLS: { id: Appearance['wallpaper']; name: string; what: string }[] = [
   { id: 'obsidian', name: 'Obsidian', what: 'Dark glass shards with soft colored light' },
   { id: 'aurora', name: 'Soft light', what: 'Slow color washes from your theme' },
   { id: 'girih', name: 'Girih', what: 'Eight-point star pattern over color' },
-  { id: 'dusk', name: 'Houston dusk', what: 'Skyline photo, heavily blurred' },
+  { id: 'dusk', name: 'Houston at night', what: 'City streets at night, softened' },
+  { id: 'skyline', name: 'Houston skyline', what: 'Downtown towers under a cloudy sky' },
+  { id: 'arches', name: 'Arches', what: 'Striped arches of a historic mosque' },
+  { id: 'ceiling', name: 'Geometric ceiling', what: 'Calligraphy and geometry overhead' },
+  { id: 'mosaic', name: 'Blue mosaic', what: 'Tilework in blues and gold' },
+  { id: 'moon', name: 'Crescent night', what: 'A minaret under the crescent moon' },
   { id: 'plain', name: 'Plain', what: 'One calm color, no pattern' },
 ];
 
@@ -53,6 +60,8 @@ export function AppearanceView() {
           help="Command center adds a side column with today's tasks, recent activity and suggestions." />
         <Choice title="Sidebar" value={a.nav} onChange={(v) => update({ nav: v })} options={[['rail', 'Icons only'], ['full', 'Icons and names']]}
           help="Icons only gives the page more room – point at the sidebar (or press Tab) to see the names." />
+        <Choice title="Page width" value={a.width} onChange={(v) => update({ width: v })} options={[['centered', 'Centered'], ['full', 'Whole screen']]}
+          help="Whole screen lets tables and dashboards use a big monitor. Work mode (the button in the top bar, Ctrl+Shift+F) also hides the photo band and banners and folds the sidebar to icons." />
         <Choice title="Spacing" value={a.density} onChange={(v) => update({ density: v })} options={[['comfortable', 'Comfortable'], ['compact', 'Compact']]} />
         <Choice title="Text size" value={a.text} onChange={(v) => update({ text: v })} options={[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']]} />
         <Choice title="Motion" value={a.motion} onChange={(v) => update({ motion: v })} options={[['full', 'Normal'], ['reduced', 'Reduced']]} />
@@ -63,7 +72,7 @@ export function AppearanceView() {
         <div className="wall-grid" role="radiogroup" aria-labelledby="ap-wall">
           {WALLS.map((w) => (
             <button key={w.id} type="button" role="radio" aria-checked={a.wallpaper === w.id} className={`wall-card w-${w.id}${a.wallpaper === w.id ? ' active' : ''}`} onClick={() => update({ wallpaper: w.id })}>
-              <span className="wall-art" aria-hidden="true" /><b>{w.name}</b><small>{w.what}</small>
+              <span className={`wall-art${WALL_PHOTOS[w.id] ? ' is-photo' : ''}`} aria-hidden="true">{WALL_PHOTOS[w.id] && <Photo k={WALL_PHOTOS[w.id]} width={600} />}</span><b>{w.name}</b><small>{w.what}</small>
             </button>
           ))}
         </div>

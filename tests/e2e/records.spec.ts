@@ -21,7 +21,7 @@ test('extra profile fields: shown with who can see them, edited with checks, aud
 
 test('archive hides the record from lists and the vote; restore brings it back', async ({ page }) => {
   await page.goto('/members/HOU-200000');
-  await page.getByRole('button', { name: 'Archive' }).click();
+  await page.getByRole('button', { name: 'More actions' }).click(); await page.getByRole('button', { name: 'Archive' }).click();
   await page.getByRole('dialog').getByLabel(/Reason/).fill('Test record created by mistake');
   await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
   await expect(page.locator('.m-archived')).toContainText('Test record created by mistake');
@@ -31,7 +31,7 @@ test('archive hides the record from lists and the vote; restore brings it back',
   await page.goto('/members?view=archived');
   await expect(page.locator('tbody tr')).toHaveCount(1);
   await page.goto('/members/HOU-200000');
-  await page.getByRole('button', { name: 'Restore' }).click();
+  await page.getByRole('button', { name: 'More actions' }).click(); await page.getByRole('button', { name: 'Restore' }).click();
   await expect(page.locator('.m-archived')).toHaveCount(0);
 });
 
@@ -48,6 +48,9 @@ test('import: rows are checked first – errors, duplicates and ready rows; only
     'Bad,Row,not-an-email,12,02/30/1990,7703,Gold,',
     '=HYPERLINK("x"),Khan,formula@example.com,,,,,',
   ].join('\n'));
+  await dlg.getByRole('button', { name: 'Next: match the columns' }).click();
+  await expect(dlg.locator('tr[data-col="E-mail"] select')).toHaveValue('email');            // matched by heading
+  await expect(dlg.locator('tr[data-col="Profession or skills"] select')).toHaveValue('field:profession');
   await dlg.getByRole('button', { name: 'Check the file' }).click();
   await expect(dlg.locator('.imp-sum')).toContainText('2 ready');
   await expect(dlg.locator('.imp-sum')).toContainText('1 possible duplicate');
@@ -59,7 +62,7 @@ test('import: rows are checked first – errors, duplicates and ready rows; only
   await expect(page.locator('.m-toast')).toContainText('Imported 2 members');
   await page.goto('/members?q=amina.yusuf');
   await expect(page.locator('tbody tr')).toHaveCount(1);
-  await page.locator('tbody tr .m-who').click();
+  await page.locator('tbody tr .m-who').click(); await page.getByRole('link', { name: 'Open full profile' }).click();
   await expect(page.locator('.m-extra')).toContainText('Teacher');
   await expect(page.locator('.st').first()).toHaveText('Pending approval');
 });
@@ -68,9 +71,56 @@ test('import: a file without the needed columns is refused before anything else'
   await page.getByRole('button', { name: 'Import' }).click();
   const dlg = page.getByRole('dialog', { name: 'Import members' });
   await dlg.getByLabel(/paste the rows/).fill('Name,Phone\nAmina Yusuf,7135550101');
+  await dlg.getByRole('button', { name: 'Next: match the columns' }).click();
+  await expect(dlg.getByRole('alert')).toContainText('Still needed: First name, Last name, Email');
+  await expect(dlg.getByRole('button', { name: 'Check the file' })).toBeDisabled();
+  // matching a column by hand clears that need; the same column cannot feed two fields
+  await dlg.locator('tr[data-col="Name"] select').selectOption('first');
+  await expect(dlg.getByRole('alert')).toContainText('Still needed: Last name, Email');
+  await dlg.locator('tr[data-col="Phone"] select').selectOption('first');
+  await expect(dlg.getByRole('alert').last()).toContainText('Matched twice: First name');
+});
+
+test('M1 import: a Wild Apricot export – preset matches the columns, statuses become ours, consents and the old ID are kept', async ({ page }) => {
+  await page.getByRole('button', { name: 'Import' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Import members' });
+  await dlg.getByLabel(/paste the rows/).fill([
+    'User ID,First name,Last name,Phone,Email,Company,Follow up,Entered by,Payment processed,Membership level,Membership status,Member since,Renewal due,Text/SMS consent,Subscribed to emails,Archived',
+    '10234,Example,Activeperson,713-555-0199,example.active@example.com,,Call about family plan,Staff,Yes,Family,Active,03/01/2019,12/31/2026,Yes,Yes,No',
+    '10235,Example,Lapsedperson,,example.lapsed@example.com,,,,,Single,Lapsed,06/15/2021,12/31/2025,No,No,No',
+    '10236,Example,Newperson,,example.new@example.com,,,,,Single,Pending - New,10/10/2026,,Yes,Yes,No',
+    '10237,Example,Oldperson,,example.old@example.com,,,,,Single,Active,01/01/2010,,,,Yes',
+    '10238,Example,Odd,,example.odd@example.com,,,,,Single,Frozen,,,,,',
+  ].join('\n'));
+  await dlg.getByRole('button', { name: 'Next: match the columns' }).click();
+  await dlg.getByLabel('Import preset').selectOption('wildapricot');
+  await expect(dlg.locator('tr[data-col="User ID"] select')).toHaveValue('externalId');
+  await expect(dlg.locator('tr[data-col="Membership status"] select')).toHaveValue('status');
+  await expect(dlg.locator('tr[data-col="Entered by"] select')).toHaveValue('');
+  await expect(dlg.locator('tr[data-col="Follow up"] select')).toHaveValue('notes');
   await dlg.getByRole('button', { name: 'Check the file' }).click();
-  await expect(dlg.getByRole('alert')).toContainText('First name, Last name, Email');
-  await expect(dlg.getByRole('button', { name: /^Import \d/ })).toBeDisabled();
+  await expect(dlg.locator('.imp-sum')).toContainText('4 ready');
+  await expect(dlg.locator('.imp-sum')).toContainText('1 with errors');
+  await expect(dlg.locator('tr[data-line="6"]')).toContainText('Status “Frozen” is not one we know');
+  await expect(dlg.locator('.imp-sum')).toContainText('1 lapsed');
+  await expect(dlg.locator('.imp-sum')).toContainText('1 archived');
+  await dlg.getByRole('button', { name: 'Import 4 members' }).click();
+  await expect(page.locator('.m-toast')).toContainText('Imported 4 members');
+  await page.goto('/members?q=example.active');
+  await page.locator('.m-who').first().click(); await page.getByRole('link', { name: 'Open full profile' }).click();
+  await expect(page.locator('.st').first()).toHaveText('Active');
+  await expect(page.getByText('Family plan · member since 2019')).toBeVisible();
+  await page.getByRole('tab', { name: /Notes/ }).click();
+  await expect(page.locator('section[aria-label="Notes"]')).toContainText('ID in the old system: 10234');
+  await expect(page.locator('section[aria-label="Notes"]')).toContainText('Call about family plan');
+  await page.goto('/members?q=example.lapsed');
+  await page.locator('.m-who').first().click(); await page.getByRole('link', { name: 'Open full profile' }).click();
+  await expect(page.locator('.st').first()).toHaveText('Not renewed');
+  await page.goto('/members?q=example.new');
+  await page.locator('.m-who').first().click(); await page.getByRole('link', { name: 'Open full profile' }).click();
+  await expect(page.locator('.st').first()).toHaveText('Pending approval');
+  await page.goto('/members?q=example.old');
+  await expect(page.locator('tbody tr')).toHaveCount(0);                      // archived rows stay out of the lists
 });
 
 test('export: formulas are neutralized and admin-only fields need an extra tick', async ({ page }) => {
@@ -101,11 +151,12 @@ test('possible duplicate is flagged on the member page and can be marked as diff
   await page.getByRole('button', { name: 'Import' }).click();
   const dlg = page.getByRole('dialog', { name: 'Import members' });
   await dlg.getByLabel(/paste the rows/).fill(`First name,Last name,Email,Phone\nZed,Other,zed.other@example.com,${phone}`);
+  await dlg.getByRole('button', { name: 'Next: match the columns' }).click();
   await dlg.getByRole('button', { name: 'Check the file' }).click();
   await dlg.getByLabel(/Import the possible duplicates too/).check();
   await dlg.getByRole('button', { name: 'Import 1 member' }).click();
   await page.goto('/members?q=zed.other');
-  await page.locator('tbody tr .m-who').click();
+  await page.locator('tbody tr .m-who').click(); await page.getByRole('link', { name: 'Open full profile' }).click();
   await expect(page.locator('.m-dups')).toContainText('Same phone');
   await page.locator('.m-dups').getByRole('button', { name: 'Not the same person' }).first().click();
   await expect(page.locator('.m-dups')).toHaveCount(0);

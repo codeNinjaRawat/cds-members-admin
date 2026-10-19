@@ -18,9 +18,14 @@ const luxe = Fraunces({ subsets: ['latin'], axes: ['opsz', 'SOFT'], variable: '-
 export const metadata: Metadata = {
   title: { default: 'ISGH Admin', template: '%s – ISGH Admin' },
   robots: { index: false, follow: false },
-  icons: { icon: [{ url: '/brand/favicon.svg', type: 'image/svg+xml' }] },
+  icons: {
+    icon: [{ url: '/brand/favicon.ico', sizes: '48x48' }, { url: '/brand/favicon.svg', type: 'image/svg+xml' }, { url: '/brand/favicon-32x32.png', sizes: '32x32', type: 'image/png' }],
+    apple: [{ url: '/brand/apple-touch-icon.png', sizes: '180x180' }],
+  },
+  manifest: '/manifest.webmanifest',
+  openGraph: { images: ['/brand/og-default.png'] },
 };
-export const viewport: Viewport = { themeColor: '#0E5A45' };
+export const viewport: Viewport = { themeColor: '#0B0B0E' };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

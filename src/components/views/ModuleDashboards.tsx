@@ -12,12 +12,18 @@ import { ChartCard, Columns, ShareBar, StackedBars, StatTile } from '@/component
 import { centerOf, eligibility, prefsOf, recordDate, statusOf, YEAR, ZONES, type Member, type ZoneId } from '@/lib/members/members';
 import { useMembers } from './MembersView';
 import { allCases, useQueueState } from './QueuesView';
-import { QUEUES, daysWaiting, isOpen, sla } from '@/lib/queues/queues';
+import { QUEUES, assigneeOf, daysWaiting, escalation, isOpen, sla, throughput } from '@/lib/queues/queues';
+import { useWorkSettings } from '@/lib/work/work-store';
+import { useAccess } from '@/lib/access/use-access';
+import type { AdminLike } from '@/lib/community/work';
 import { holdersAt, SEATS, useOrg } from './TeamViews';
 import { centerForZip, structureWarnings, unservedZips } from '@/lib/community/org-structure';
 import { AccessSchema, mockAccess, type AccessDoc } from '@/lib/access/access';
 import { EventsSchema, mockEvents, type EventsDoc, CATEGORY_LABEL } from '@/lib/community/events';
-import { eventWarnings, mockEventHistory, eventStats } from '@/lib/community/event-ops';
+import { eventWarnings, eventStats } from '@/lib/community/event-ops';
+import { usePastEvents, useSends } from '@/lib/dashboard/live-history';
+import { TODAY as QUEUE_TODAY } from '@/lib/queues/queues';
+import { LIVE } from '@/lib/live/live';
 import { useMeetings } from '@/lib/minutes/use-meetings';
 import { BODIES, calendarWarnings, quorumMet } from '@/lib/community/minutes';
 import { electionDay } from '@/lib/community/officials';
@@ -41,23 +47,40 @@ export function QueuesDashboard() {
   const members = useMembers() ?? [];
   const qs = useQueueState();
   const who = useMemo(() => byId(members), [members]);
-  const cases = allCases().filter((c) => { const m = who.get(c.memberId); return !!m && s.keep(m.zone, centerOf(m), m.zip) && inPeriod(c.submitted, s.period, '2026-10-13'); });
+  const cases = allCases().filter((c) => { const m = who.get(c.memberId); return !!m && s.keep(m.zone, centerOf(m), m.zip) && inPeriod(c.submitted, s.period, QUEUE_TODAY); });
   const open = cases.filter((c) => isOpen(c, qs));
   const late = open.filter((c) => sla(c).tone === 'late');
+  // D5 – who the open work is on (by rule or by hand), escalations, and how fast people decide
+  const ws = useWorkSettings(); const access = useAccess();
+  const admins = (access.doc?.admins ?? []) as unknown as AdminLike[];
+  const nameOf = (id: string) => admins.find((a) => a.id === id)?.name ?? id;
+  const desk = new Map<string, { open: number; late: number }>();
+  for (const c of open) { const a = assigneeOf(c, qs, ws.queues, admins, who.get(c.memberId) ? centerOf(who.get(c.memberId)!) : '').id || ''; const r = desk.get(a) ?? { open: 0, late: 0 }; r.open += 1; if (sla(c).tone === 'late') r.late += 1; desk.set(a, r); }
+  const deskRows = [...desk.entries()].sort((a, b) => b[1].open - a[1].open);
+  const escalated = open.filter((c) => escalation(c, qs, ws.queues));
+  const speed = throughput(cases, qs);
   const decided = cases.length - open.length;
   const oldest = [...open].sort((a, b) => daysWaiting(b) - daysWaiting(a));
   const buckets = [['0–2 days', 0, 2], ['3–7 days', 3, 7], ['8–14 days', 8, 14], ['15–30 days', 15, 30], ['Over 30 days', 31, 9999]] as const;
   const exp = () => downloadCsv('work-queues', ['Case', 'Queue', 'Member ID', 'Zone', 'Masjid', 'Submitted', 'Days waiting', 'Target days', 'State'],
     open.map((c) => { const m = who.get(c.memberId)!; const t = sla(c); return [c.id, QUEUES.find((q) => q.id === c.queue)!.label, c.memberId, ZONES[m.zone], centerOf(m), fmtD(c.submitted), t.days, t.target, t.tone === 'late' ? 'Past target' : t.tone === 'due' ? 'Due' : 'On time']; }));
   return (
-    <DashPage title="Work queues dashboard" intro={<>{s.label} · cases sent in during the {PERIODS[s.period].toLowerCase()} · demo data</>}
+    <DashPage title="Work queues dashboard" intro={<>{s.label} · cases sent in during the {PERIODS[s.period].toLowerCase()}{LIVE ? '' : ' · demo data'}</>}
       bar={<DashBar s={s} show={{ period: 'past', zone: true, masjid: true }} report={{ href: '/queues?tab=applications', label: 'Open the queues' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="open" hero label="Open cases" value={n(open.length)} note={`${n(cases.length)} came in · ${n(decided)} decided`} meter={{ value: decided, of: Math.max(1, cases.length) }} />
-        <StatTile id="late" label="Past their target" value={n(late.length)} note={`${pct(late.length, open.length)}% of open cases`} tone={late.length ? 'down' : undefined} />
+        <StatTile id="late" label="Past their target" value={n(late.length)} note={escalated.length ? `${pct(late.length, open.length)}% of open · ${n(escalated.length)} escalated to ${[...new Set(escalated.map((c) => escalation(c, qs, ws.queues).replace(/-/g, ' ')))].join(', ')}` : `${pct(late.length, open.length)}% of open cases`} tone={late.length ? 'down' : undefined} />
         <StatTile id="oldest" label="Oldest waiting" value={oldest[0] ? `${daysWaiting(oldest[0])} days` : '—'} note={oldest[0] ? QUEUES.find((q) => q.id === oldest[0].queue)!.label : 'nothing open'} />
         <StatTile id="photo" label="Photo IDs to check" value={n(open.filter((c) => c.queue === 'id').length)} note="voters need them before June 30" />
       </div>
+      <ChartCard id="q-desk" className="mo-half" title="Whose desk the open work is on" note="By the routing rule (Settings › Help desk and tasks › Work queues) or taken by hand."
+        table={{ head: ['Person', 'Open', 'Past target'], rows: deskRows.map(([id, r]) => [id ? nameOf(id) : 'Unassigned', r.open, r.late]) }}>
+        <StackedBars label="Open cases by person" parts={[{ name: 'On time', slot: 1 }, { name: 'Past target', slot: 2 }]} rows={deskRows.map(([id, r]) => ({ id: id || 'none', label: id ? nameOf(id) : 'Unassigned', values: [r.open - r.late, r.late] }))} />
+      </ChartCard>
+      <ChartCard id="q-speed" className="mo-half" title="How fast cases get decided" note="Decided cases in the period: how many each person closed, the average days from arrival to decision, and how many passed the target."
+        table={{ head: ['Decided by', 'Cases', 'Average days', 'Past target'], rows: speed.length ? speed.map((r) => [r.by, r.decided, r.avgDays, r.late]) : [['No decisions in this period yet', '—', '—', '—']] }}>
+        {speed.length ? <Columns label="Average days to decide" items={speed.map((r) => ({ label: r.by, value: r.avgDays }))} /> : <p className="muted small">No decisions recorded in this period yet – decide a few cases and the averages appear here.</p>}
+      </ChartCard>
       <ChartCard id="q-by" className="mo-wide" title="Open cases by queue" note="On time, due today or tomorrow, and past the target each queue promises."
         table={{ head: ['Queue', 'On time', 'Due', 'Past target'], rows: QUEUES.map((q) => { const l = open.filter((c) => c.queue === q.id); return [q.label, l.filter((c) => sla(c).tone === 'ok').length, l.filter((c) => sla(c).tone === 'due').length, l.filter((c) => sla(c).tone === 'late').length]; }) }}>
         <StackedBars label="Open cases by queue" parts={[{ name: 'On time', slot: 1 }, { name: 'Due today or tomorrow', slot: 4 }, { name: 'Past target', slot: 2 }]}
@@ -76,20 +99,11 @@ export function QueuesDashboard() {
 }
 
 /* ================= Communication ================= */
-const SENDS = [ // demo delivery results (live: GET /admin/messages/stats)
-  { on: '2026-10-14', what: 'Renewal reminder 1', kind: 'Automatic', to: 1840, delivered: 1812, opened: 1105 },
-  { on: '2026-10-12', what: 'Monthly newsletter (October)', kind: 'Sent by staff', to: 4102, delivered: 4066, opened: 1952 },
-  { on: '2026-10-12', what: 'Event reminder – Weekend school open house', kind: 'Automatic', to: 96, delivered: 96, opened: 71 },
-  { on: '2026-09-28', what: 'Zakat appeal', kind: 'Sent by staff', to: 3980, delivered: 3921, opened: 1490 },
-  { on: '2026-09-12', what: 'Monthly newsletter (September)', kind: 'Sent by staff', to: 4060, delivered: 4019, opened: 1888 },
-  { on: '2026-08-15', what: 'Annual General Meeting notice', kind: 'Sent by staff', to: 4012, delivered: 3990, opened: 2394 },
-  { on: '2026-06-20', what: 'Last call: pay by June 30 to vote', kind: 'Sent by staff', to: 1310, delivered: 1301, opened: 949 },
-  { on: '2026-05-01', what: 'Renewal reminder 2', kind: 'Automatic', to: 1652, delivered: 1630, opened: 912 },
-];
+
 export function CommsDashboard() {
   const s = useScope('90d');
   const members = (useMembers() ?? []).filter((m) => !m.archived && s.keep(m.zone, centerOf(m), m.zip));
-  const sends = SENDS.filter((x) => inPeriod(x.on, s.period));
+  const sends = useSends().filter((x) => inPeriod(x.on, s.period));
   const sum = (k: 'to' | 'delivered' | 'opened') => sends.reduce((a, x) => a + x[k], 0);
   const prefs = members.map(prefsOf);
   const reach = [
@@ -99,7 +113,7 @@ export function CommsDashboard() {
   ];
   const exp = () => downloadCsv('messages', ['Sent', 'Message', 'Kind', 'To', 'Delivered', 'Opened', 'Open rate'], sends.map((x) => [fmtD(x.on), x.what, x.kind, x.to, x.delivered, x.opened, `${pct(x.opened, x.delivered)}%`]));
   return (
-    <DashPage title="Communication dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()} · demo data</>}
+    <DashPage title="Communication dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()}{LIVE ? '' : ' · demo data'}</>}
       bar={<DashBar s={s} show={{ period: 'past', zone: true, masjid: true }} report={{ href: '/communication?tab=log', label: 'Delivery log' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="sent" hero label="Messages sent" value={n(sends.length)} note={`${n(sum('to'))} emails in all`} />
@@ -145,7 +159,7 @@ export function MasjidsDashboard() {
   const warns = structureWarnings(org, todayCT()).filter((w) => (!w.zone || zonesShown.some((z) => z.id === w.zone)) && (!w.center || masjids.some((c) => c.id === w.center)));
   const exp = () => downloadCsv('masjids', ['Masjid', 'Zone', 'Service-area ZIP codes', 'Members', 'Renewed', 'Associate Director', 'Seats filled'], rows.map((r) => [r.c.name, org.zones.find((z) => z.id === r.c.zone)?.name ?? '', r.c.zips.join(' '), r.members, r.current, r.ad || 'Vacant', `${r.filled}/${SEATS.length}`]));
   return (
-    <DashPage title="Masjids and zones dashboard" intro={<>{s.label} · {n(masjids.length)} masjids · demo data</>}
+    <DashPage title="Masjids and zones dashboard" intro={<>{s.label} · {n(masjids.length)} masjids{LIVE ? '' : ' · demo data'}</>}
       bar={<DashBar s={s} show={{ zone: true }} report={{ href: '/masjids', label: 'Masjid working bodies' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="masjids" hero label="Masjids" value={n(masjids.length)} note={`in ${zonesShown.length} zone${zonesShown.length === 1 ? '' : 's'}`} />
@@ -176,7 +190,8 @@ export function EventsDashboard() {
   const t = todayCT();
   const placeOk = (center?: string) => !s.masjid || center === s.masjid;
   const ahead = doc.events.filter((e) => e.status !== 'cancelled' && placeOk(e.location.center) && inPeriod(e.start, s.period, t, true));
-  const past = mockEventHistory.filter((x) => placeOk(x.center) && inPeriod(x.date, s.period, '2026-09-30'));
+  const history = usePastEvents();
+  const past = history.filter((x) => placeOk(x.center) && inPeriod(x.date, s.period, LIVE ? t : '2026-09-30'));
   const st = eventStats(past);
   const waiting = doc.events.filter((e) => e.approval.state === 'pending' && placeOk(e.location.center));
   const warns = eventWarnings(doc, t).filter((w) => !w.event || placeOk(doc.events.find((e) => e.id === w.event)?.location.center));
@@ -189,7 +204,7 @@ export function EventsDashboard() {
     : Array.from({ length: s.period === 'year' ? 13 - Number(t.slice(5, 7)) : 12 }, (_, i) => { const m0 = Number(t.slice(5, 7)) - 1 + i; const m = `${Number(t.slice(0, 4)) + Math.floor(m0 / 12)}-${String((m0 % 12) + 1).padStart(2, '0')}`; return { label: `${MONTH[m0 % 12]} ${m.slice(0, 4)}`, value: ahead.filter((e) => e.start.startsWith(m)).length }; });
   const exp = () => downloadCsv('events', ['Date', 'Event', 'Place', 'Kind', 'Status', 'Registered', 'Capacity'], ahead.map((e) => [fmtD(e.start), e.title, e.location.center || e.location.name, CATEGORY_LABEL[e.category], e.approval.state === 'pending' ? 'Waiting for approval' : e.status, e.registration.enabled ? e.registered : '', e.registration.capacity || '']));
   return (
-    <DashPage title="Events dashboard" intro={<>{s.masjid || 'All places'} · {FUTURE[s.period].toLowerCase()} ahead, {PERIODS[s.period].toLowerCase()} behind · demo data</>}
+    <DashPage title="Events dashboard" intro={<>{s.masjid || 'All places'} · {FUTURE[s.period].toLowerCase()} ahead, {PERIODS[s.period].toLowerCase()} behind{LIVE ? '' : ' · demo data'}</>}
       bar={<DashBar s={s} show={{ period: 'ahead', masjid: true }} report={{ href: '/events/plan?tab=analytics', label: 'Event analytics' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="ahead" hero label="Coming up" value={n(ahead.length)} note={`${n(ahead.filter((e) => e.status === 'published').length)} on the website`} />
@@ -228,7 +243,7 @@ export function MeetingsDashboard() {
   const months = MONTH.map((mo, i) => ({ label: mo, value: held.filter((m) => Number(m.date.slice(5, 7)) === i + 1).length }));
   const exp = () => downloadCsv('meetings', ['Meeting', 'Body', 'Masjid', 'Date', 'Present', 'Seats', 'Quorum', 'Decisions', 'Minutes'], ms.map((m) => [m.id, BODIES[m.body], m.center, fmtD(m.date), m.present, m.seats, quorumMet(m) ? 'Yes' : 'No', m.decisions.length, m.status]));
   return (
-    <DashPage title="Meetings dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()} · demo records</>}
+    <DashPage title="Meetings dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()}{LIVE ? '' : ' · demo data'}</>}
       bar={<DashBar s={s} show={{ period: 'past', zone: true, masjid: true }} report={{ href: '/minutes?tab=calendar', label: 'Required meetings check' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="held" hero label="Meetings held" value={n(held.length)} note={`${n(ms.length - held.length)} planned`} />
@@ -264,7 +279,7 @@ export function ElectionsDashboard() {
   const zones = (Object.keys(ZONES) as ZoneId[]).filter((z) => ms.some((m) => m.zone === z));
   const exp = () => downloadCsv('voters-by-masjid', ['Zone', 'Masjid', 'Members', 'Can vote', 'Share'], Array.from(new Set(ms.map(centerOf))).sort().map((c) => { const l = el.filter((x) => centerOf(x.m) === c); const v = l.filter((x) => x.e.eligible).length; return [ZONES[l[0].m.zone], c, l.length, v, `${pct(v, l.length)}%`]; }));
   return (
-    <DashPage title="Elections dashboard" intro={<>{s.label} · voting year {YEAR} · demo data</>}
+    <DashPage title="Elections dashboard" intro={<>{s.label} · voting year {YEAR}{LIVE ? '' : ' · demo data'}</>}
       bar={<DashBar s={s} show={{ zone: true, masjid: true }} report={{ href: '/reports?tab=voters', label: 'Voter list' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="voters" hero label={`Can vote in ${YEAR}`} value={n(voters.length)} note={`${pct(voters.length, ms.length)}% of ${n(ms.length)} members`} meter={{ value: voters.length, of: Math.max(1, ms.length) }} />
@@ -307,7 +322,7 @@ export function WebsiteDashboard() {
   const exp = () => downloadCsv('website-content', ['Content', 'State', 'Version', 'Published', 'By'], rows.map((r) => [r.label, r.d?.source === 'published' ? 'Published' : 'Built-in', r.d?.version ?? 0, r.d?.publishedAt ? fmtD(String(r.d.publishedAt).slice(0, 10)) : '', r.d?.by ?? '']));
   void s;
   return (
-    <DashPage title="Website dashboard" intro="What the website shows and what you have changed from the built-in content · demo store"
+    <DashPage title="Website dashboard" intro={`What the website shows and what you have changed from the built-in content${LIVE ? '' : ' · demo store'}`}
       bar={<DashBar s={s} show={{}} report={{ href: '/website/pages', label: 'Pages' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="pub" hero label="Changed and published" value={`${published.length} of ${rows.length}`} meter={{ value: published.length, of: rows.length }} note="the rest use the built-in content" />

@@ -1,5 +1,6 @@
 'use client';
 /** Accept an admin invitation from the platform (SaaS): shows who it is for, then a first-steps checklist. */
+import { Photo } from '@/components/shell/Photo';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -21,6 +22,7 @@ export function WelcomeView({ token }: { token: string }) {
   };
   return (
     <div className="page welcome">
+      <div className="welcome-art" aria-hidden="true"><Photo k="mosque-hall" priority /><span className="welcome-art-veil" /></div>
       <section className="panel glass-pane welcome-card">
         {err ? <><h1>Invitation not found</h1><p>{err}</p></>
           : !info ? <p role="status">Checking your invitation…</p>

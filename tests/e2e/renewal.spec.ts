@@ -5,7 +5,8 @@ test.beforeEach(async ({ request }) => { await request.delete('/api/store/member
 
 test('renewals tab previews real dates for each plan from the draft', async ({ page }) => {
   await page.goto('/membership?tab=plans');
-  await page.getByRole('button', { name: /Use ISGH’s current levels/ }).click();
+  await page.getByLabel('Plan preset').selectOption('wildapricot');
+  await page.getByRole('button', { name: 'Load into the draft' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Load into the draft' }).click();
   await page.getByRole('tab', { name: 'Renewals and reminders' }).click();
   const pv = page.locator('.ren-preview');
@@ -33,7 +34,7 @@ test('contradicting plan settings are refused by the server', async ({ request }
 
 test('member page shows the renewal status and paid-through date', async ({ page }) => {
   await page.goto('/members/HOU-200000');
-  await expect(page.locator('.ren-chip')).toContainText('paid through 12/31/2026');
+  await expect(page.locator('.ren-chip')).toContainText(/paid through 12\/31\/2026/i);
   await page.goto('/members/HOU-200473');
   await expect(page.locator('.ren-chip')).toHaveText('Lapsed · paid through 12/31/2025');
   await page.goto('/members/HOU-200064');

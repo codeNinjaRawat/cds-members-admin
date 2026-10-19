@@ -8,7 +8,7 @@ import type { EventItem, EventsDoc } from './events';
 import { dayTimes, PRAYER_NAME, clock, type PrayerSettings } from './prayer';
 
 const D = (s: string) => new Date(`${s.slice(0, 10)}T12:00:00Z`);
-export const addDays = (s: string, n: number) => new Date(D(s).getTime() + n * 86_400_000).toISOString().slice(0, 10);
+export const addDays = (s: string, n: number) => { const t = D(s ?? '').getTime(); return Number.isNaN(t) ? String(s ?? '') : new Date(t + n * 86_400_000).toISOString().slice(0, 10); };
 const daysBetween = (a: string, b: string) => Math.round((D(b).getTime() - D(a).getTime()) / 86_400_000);
 const mins = (iso: string) => Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16));
 export const fmt = (s: string) => (s ? `${s.slice(5, 7)}/${s.slice(8, 10)}/${s.slice(0, 4)}` : '');

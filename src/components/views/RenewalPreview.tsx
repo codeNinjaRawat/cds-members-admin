@@ -3,11 +3,12 @@
  * "What this means": runs the shared renewal engine on the DRAFT so staff see the real dates before publishing.
  * Pick a join date; each plan shows the paid-through date, when renewal opens, and every reminder / grace / overdue step.
  */
+import { ORG_TZ } from '@/lib/members/members';
 import { useState } from 'react';
 import { DEFAULT_LIFECYCLE, formatUSD, type MembershipSettings } from '@/lib/content/membership';
 import { canRenew, fmtDay, isISODate, priceFor, timeline } from '@/lib/content/renewal';
 
-const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 
 export function RenewalPreview({ settings }: { settings: MembershipSettings }) {
   const [start, setStart] = useState(chicagoToday);

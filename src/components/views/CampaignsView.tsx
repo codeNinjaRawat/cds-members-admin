@@ -4,7 +4,7 @@
  * (research: WildApricot email wizard – recipients → compose → review & send; Mailchimp checklist – To → From → Subject
  * → Send time → Content): 1 How and what kind → 2 Who gets it → 3 Write it → 4 When → review, test, send.
  * The right column always shows how many people get it, who is left out and why, the preview and what is still missing.
- * DEMO: saved in this browser, nothing is sent. Live: POST /admin/campaigns (server runs checkCampaign + resolveAudience again).
+ * Demo: saved in this browser, nothing is sent. Live: /admin/messages – the server runs checkCampaign + the audience again and sends.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MACROS, SAMPLE_VALUES, type CommunicationDoc } from '@/lib/community/communication';
@@ -14,6 +14,30 @@ import {
 } from '@/lib/community/campaigns';
 import type { GroupsDoc } from '@/lib/community/groups';
 import { logAudit } from '@/lib/access/audit';
+import { LIVE, be } from '@/lib/live/live';
+import { notice } from '@/lib/members/members';
+
+/* ---------- live mode: messages on the server (it checks the audience, preferences and quiet hours again and sends) ---------- */
+const UUID = /^[0-9a-f-]{36}$/;
+export async function loadLiveCampaigns(): Promise<Campaign[]> {
+  const r = await be<{ messages: { campaign: Campaign }[] }>('GET', 'admin/messages?full=1');
+  if (!r.ok) { if (r.status !== 401) notice(`Messages could not be loaded: ${r.message}`); return []; }
+  return r.data.messages.map((m) => m.campaign);
+}
+/** Save a draft, schedule or send – the steps the server needs. Returns the server's id, or null when it refused. */
+export async function saveLiveCampaign(x: Campaign, before?: Campaign): Promise<string | null> {
+  const body = { name: x.name, channel: x.channel, topic: x.topic, subject: x.subject, body: x.body, audience: x.audience, sendAt: x.sendAt };
+  let id = UUID.test(x.id) ? x.id : '';
+  if (x.status === 'cancelled') { const r = await be('POST', `admin/messages/${id}/cancel`, {}); if (!r.ok) { notice(r.message); return null; } return id; }
+  if (!id) { const r = await be<{ id: string }>('POST', 'admin/messages', body); if (!r.ok) { notice(r.message); return null; } id = r.data.id; }
+  else if (!before || before.status === 'draft') { const r = await be('PUT', `admin/messages/${id}`, body); if (!r.ok) { notice(r.message); return null; } }
+  if (x.status === 'scheduled' || x.status === 'sent') {
+    const r = await be<{ status: string; sent?: number }>('POST', `admin/messages/${id}/send`, {});
+    if (!r.ok) { notice(r.message); return null; }
+    notice(r.data.status === 'scheduled' ? `“${x.name}” is scheduled.` : `“${x.name}” was sent to ${(r.data.sent ?? 0).toLocaleString('en-US')} people.`, 'ok');
+  }
+  return id;
+}
 
 const KEY = 'isgh-admin-campaigns';
 export const readCampaigns = (): Campaign[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
@@ -29,9 +53,12 @@ export function CampaignsView({ comm, people, now }: { comm: CommunicationDoc; p
   const [c, setC] = useState<Campaign | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [flash, setFlash] = useState('');
-  useEffect(() => { setList(readCampaigns()); void fetch('/api/store/groups').then((r) => (r.ok ? r.json() : null)).then((j) => setGroups(j?.data ?? { enabled: true, groups: [] })).catch(() => setGroups({ enabled: true, groups: [] })); }, []);
+  useEffect(() => { if (LIVE) void loadLiveCampaigns().then(setList); else setList(readCampaigns()); void fetch('/api/store/groups').then((r) => (r.ok ? r.json() : null)).then((j) => setGroups(j?.data ?? { enabled: true, groups: [] })).catch(() => setGroups({ enabled: true, groups: [] })); }, []);
   const save = (next: Campaign[]) => { setList(next); write(next); };
-  const upsert = (x: Campaign) => save([{ ...x, updatedAt: now }, ...list.filter((y) => y.id !== x.id)]);
+  const upsert = (x: Campaign) => {
+    if (LIVE) { void saveLiveCampaign(x, list.find((y) => y.id === x.id)).then(() => loadLiveCampaigns()).then(setList); return; }
+    save([{ ...x, updatedAt: now }, ...list.filter((y) => y.id !== x.id)]);
+  };
   const say = (t: string) => { setFlash(t); window.setTimeout(() => setFlash(''), 5000); };
 
   if (c && groups) return <Composer c={c} setC={setC} comm={comm} people={people} groups={groups} now={now}
@@ -123,7 +150,7 @@ function Composer({ c, setC, comm, people, groups, now, onClose, onSave }: {
   const finish = () => {
     logAudit({ area: 'messages', action: when === 'later' ? 'Message scheduled' : 'Message sent', detail: `“${named.name}” by ${c.channel === 'email' ? 'email' : 'text'} to ${aud.to.length} people` });
     if (when === 'later') onSave({ ...named, status: 'scheduled' }, `“${named.name}” is scheduled for ${fmtWhen(c.sendAt!)} to ${aud.to.length.toLocaleString('en-US')} people.`);
-    else onSave({ ...named, status: 'sent', sendAt: null, sentTo: aud.to.length }, `Demo: “${named.name}” would now go to ${aud.to.length.toLocaleString('en-US')} people. Nothing was sent.`);
+    else onSave({ ...named, status: 'sent', sendAt: null, sentTo: aud.to.length }, LIVE ? `Sending “${named.name}”…` : `Demo: “${named.name}” would now go to ${aud.to.length.toLocaleString('en-US')} people. Nothing was sent.`);
   };
   const steps: { id: Step; n: number; title: string; summary: string }[] = [
     { id: 'how', n: 1, title: 'How and what kind', summary: `${c.channel === 'email' ? 'Email' : 'Text message'} · ${TOPICS[c.topic].label}` },
