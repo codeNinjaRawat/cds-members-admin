@@ -45,7 +45,9 @@ export function visitorIp(h: Headers): string {
 }
 /** Headers for one API call made on behalf of this request (`session`: pass the member's cookie through). */
 export function edgeHeaders(h: Headers, session = false): Record<string, string> {
-  const out: Record<string, string> = { accept: 'application/json', 'x-org-host': visitorHost(h) };
+  // MS_ORG_HOST (development against a shared server): the organization address to present – e.g. isgh.nextgrow.pro –
+  // because this PC's own address (isgh.localhost) means nothing to the server. Unset everywhere else.
+  const out: Record<string, string> = { accept: 'application/json', 'x-org-host': process.env.MS_ORG_HOST || visitorHost(h) };
   if (process.env.MS_EDGE_KEY) out['x-edge-key'] = process.env.MS_EDGE_KEY;
   if (process.env.MS_ORG && !out['x-org-host']) out['x-org'] = process.env.MS_ORG;           // one fixed organization (a single-tenant install)
   const ip = visitorIp(h); if (ip) out['x-client-ip'] = ip;
