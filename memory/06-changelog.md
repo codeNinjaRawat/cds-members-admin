@@ -543,3 +543,5 @@ Everything is configuration with the client's values as a preset; nothing is wir
 - Tests: wb membership-classes (4), queue-routing (3), dashboards (1), center-money (3); e2e plans/queues/dashboard/
   dashboards/access updated for the new labels; members list waits for the signed-in person's scope before listing anyone.
 - Merged with Agent B's live-stats home pages (home-stats.ts: `feesMonth`/`feesPrevMonth` added).
+- 2026-10-20 – **Members › Contacts** (`/members/contacts`, ContactsView, nav entry): visitors who left name, email and mobile in the member app – list with search and Not members / Members filters, KPI tiles, member match link, note (members.edit), Invite to join (mailto), Remove, CSV. Live: `GET /admin/contacts`, `PATCH /admin/contacts/:id`, `DELETE /admin/contacts/:id`; demo rows otherwise. Commit 071dd16.
+
