@@ -113,7 +113,7 @@ export function PagesView() {
   const [slug, setSlug] = useState('');
   const [removing, setRemoving] = useState<string | null>(null);
   return (
-    <DocEditor<Record<string, Page>> storeKey="pages" title="Pages" intro="Every content page on the website, built from blocks: headings, text, lists, callouts, FAQs, facts, buttons and contact lists." previewPaths={[`/${sel}`]}>
+    <DocEditor<Record<string, Page>> storeKey="pages" title="Pages" intro="Every content page on the website, built from blocks: headings, text, lists, callouts, FAQs, facts, buttons and contact lists." previewPaths={[`/${sel}?preview=1`]}>
       {(doc) => {
         const pages = doc.draft;
         const slugs = Object.keys(pages).filter((s) => !q || `${s} ${pages[s].title}`.toLowerCase().includes(q.toLowerCase())).sort();

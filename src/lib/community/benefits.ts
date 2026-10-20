@@ -108,7 +108,7 @@ export type Redemption = z.infer<typeof RedemptionSchema>;
 /* ---------------- rules ---------------- */
 export const fmt = (iso: string) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '');
 const usd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: c % 100 ? 2 : 0 });
-export const addDays = (iso: string, n: number) => { const t = Date.parse(`${String(iso ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t)) return String(iso ?? ''); return new Date(t + n * 86_400_000).toISOString().slice(0, 10); };
+export const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 export function discountLabel(o: Pick<Offer, 'kind' | 'value' | 'title'>): string {
   if (o.kind === 'percent') return `${o.value}% off`;

@@ -7,28 +7,104 @@
 import { z } from 'zod';
 import { ImageRefSchema, pexels } from './home';
 
-export const BlockSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('heading'), text: z.string() }),
-  z.object({ type: z.literal('paragraph'), text: z.string() }),
-  z.object({ type: z.literal('list'), items: z.array(z.string()), ordered: z.boolean().optional() }),
-  z.object({ type: z.literal('callout'), tone: z.enum(['info', 'warning', 'success']), title: z.string(), text: z.string() }),
-  z.object({ type: z.literal('faq'), items: z.array(z.object({ q: z.string(), a: z.string() })) }),
-  z.object({ type: z.literal('facts'), items: z.array(z.object({ value: z.string(), label: z.string() })) }),
-  z.object({ type: z.literal('cta'), title: z.string(), text: z.string(), label: z.string(), href: z.string() }),
-  z.object({ type: z.literal('contact'), lines: z.array(z.object({ label: z.string(), value: z.string(), href: z.string().optional() })) }),
-]);
+/* ---------- Blocks v2 (O1) ----------
+ * Static blocks are typed by admins; LIVE blocks only name what to show – the data comes from the admin modules
+ * (prayer times, events, campaigns, officials, centers, membership) and is rendered on the server. Unknown block
+ * types are skipped by the website, so older content never breaks. Widths: block-level `width` overrides the template.
+ */
+const Width = z.enum(['narrow', 'wide', 'full']).optional();
+const Href = z.string().max(500);
+const Text = z.string().max(4000);
+export const ALLOWED_EMBED_HOSTS = ['www.youtube.com', 'youtube.com', 'www.youtube-nocookie.com', 'player.vimeo.com', 'www.google.com', 'maps.google.com', 'docs.google.com'] as const;
+export const EMBED_KINDS = ['video', 'map', 'form', 'other'] as const;
+export const LIVE_VIEWS = ['today', 'week', 'month'] as const;
+export const LEADERSHIP_SCOPES = ['board', 'zone', 'masjid'] as const;
+export const FORM_KINDS = ['feedback', 'complaint', 'verify'] as const;
+/** Which masjid a live block is about: a center id from Admin › Zones and centers; empty = the page's masjid (or all). */
+const Masjid = z.string().max(40).default('');
+
+const STATIC_BLOCKS = [
+  z.object({ type: z.literal('heading'), text: z.string().max(200), level: z.enum(['2', '3']).optional(), width: Width }),
+  z.object({ type: z.literal('paragraph'), text: Text, width: Width }),
+  z.object({ type: z.literal('list'), items: z.array(z.string().max(600)).max(40), ordered: z.boolean().optional(), width: Width }),
+  z.object({ type: z.literal('callout'), tone: z.enum(['info', 'warning', 'success']), title: z.string().max(120), text: Text, width: Width }),
+  z.object({ type: z.literal('faq'), items: z.array(z.object({ q: z.string().max(200), a: Text })).max(40), width: Width }),
+  z.object({ type: z.literal('facts'), items: z.array(z.object({ value: z.string().max(40), label: z.string().max(60) })).max(8), width: Width }),
+  z.object({ type: z.literal('cta'), title: z.string().max(120), text: Text, label: z.string().max(60), href: Href, width: Width }),
+  z.object({ type: z.literal('contact'), lines: z.array(z.object({ label: z.string().max(40), value: z.string().max(200), href: Href.optional() })).max(12), width: Width }),
+  // --- new in v2 ---
+  z.object({ type: z.literal('image'), image: ImageRefSchema, caption: z.string().max(200).optional(), width: Width }),
+  z.object({ type: z.literal('gallery'), images: z.array(ImageRefSchema).max(24), caption: z.string().max(200).optional(), width: Width }),
+  z.object({ type: z.literal('columns'), columns: z.array(z.object({ title: z.string().max(120).optional(), text: Text })).min(2).max(3), width: Width }),
+  z.object({ type: z.literal('cards'), items: z.array(z.object({ title: z.string().max(120), text: Text.optional(), href: Href.optional(), label: z.string().max(40).optional(), image: ImageRefSchema.optional() })).max(24), columns: z.enum(['2', '3', '4']).optional(), width: Width }),
+  z.object({ type: z.literal('steps'), items: z.array(z.object({ title: z.string().max(120), text: Text.optional() })).max(12), width: Width }),
+  z.object({ type: z.literal('people'), items: z.array(z.object({ name: z.string().max(80), role: z.string().max(120).optional(), note: z.string().max(200).optional(), email: z.string().max(120).optional(), phone: z.string().max(40).optional(), image: ImageRefSchema.optional() })).max(40), width: Width }),
+  z.object({ type: z.literal('buttons'), items: z.array(z.object({ label: z.string().max(60), href: Href, style: z.enum(['primary', 'secondary', 'ghost']).optional() })).min(1).max(6), width: Width }),
+  z.object({ type: z.literal('documents'), items: z.array(z.object({ title: z.string().max(160), href: Href, kind: z.string().max(12).optional(), size: z.string().max(20).optional(), date: z.string().max(10).optional() })).max(60), width: Width }),
+  z.object({ type: z.literal('table'), caption: z.string().max(160).optional(), header: z.array(z.string().max(80)).max(12), rows: z.array(z.array(z.string().max(200)).max(12)).max(200), width: Width }),
+  z.object({ type: z.literal('embed'), kind: z.enum(EMBED_KINDS).default('other'), url: Href, title: z.string().max(160), width: Width }),
+  z.object({ type: z.literal('verse'), text: Text, arabic: z.string().max(1000).optional(), source: z.string().min(1).max(160), width: Width }),
+  z.object({ type: z.literal('divider'), label: z.string().max(60).optional() }),
+] as const;
+const LIVE_BLOCKS = [
+  z.object({ type: z.literal('prayer-times'), masjid: Masjid, view: z.enum(LIVE_VIEWS).default('today'), showIqamah: z.boolean().default(true), width: Width }),
+  z.object({ type: z.literal('next-jumuah'), masjid: Masjid, width: Width }),
+  z.object({ type: z.literal('events'), masjid: Masjid, category: z.string().max(20).default(''), limit: z.number().int().min(1).max(24).default(6), emptyText: z.string().max(200).default(''), width: Width }),
+  z.object({ type: z.literal('campaigns'), masjid: Masjid, limit: z.number().int().min(1).max(12).default(3), emptyText: z.string().max(200).default(''), width: Width }),
+  z.object({ type: z.literal('leadership'), scope: z.enum(LEADERSHIP_SCOPES).default('board'), masjid: Masjid, zone: z.string().max(40).default(''), width: Width }),
+  z.object({ type: z.literal('masjid-cards'), zone: z.string().max(40).default(''), width: Width }),
+  z.object({ type: z.literal('deadline'), title: z.string().max(120).default(''), width: Width }),
+  z.object({ type: z.literal('news'), limit: z.number().int().min(1).max(12).default(3), width: Width }),
+  z.object({ type: z.literal('plans'), width: Width }),
+  z.object({ type: z.literal('form'), kind: z.enum(FORM_KINDS), width: Width }),
+] as const;
+export const StaticBlockSchema = z.discriminatedUnion('type', [...STATIC_BLOCKS]);
+export const LiveBlockSchema = z.discriminatedUnion('type', [...LIVE_BLOCKS]);
+/** One discriminated union (the admin form builder understands this shape) */
+export const BlockSchema = z.discriminatedUnion('type', [...STATIC_BLOCKS, ...LIVE_BLOCKS]);
 export type Block = z.infer<typeof BlockSchema>;
+export type StaticBlock = z.infer<typeof StaticBlockSchema>;
+export type LiveBlock = z.infer<typeof LiveBlockSchema>;
+export const BLOCK_TYPES = BlockSchema.options.map((o) => o.shape.type.value) as Block['type'][];
+export const LIVE_BLOCK_TYPES = LIVE_BLOCKS.map((o) => o.shape.type.value) as LiveBlock['type'][];
+export const isLiveBlock = (b: Block): b is LiveBlock => (LIVE_BLOCK_TYPES as string[]).includes(b.type);
+
+export const PAGE_TEMPLATES = ['article', 'landing', 'hub'] as const;
+export const PAGE_STATUSES = ['draft', 'review', 'scheduled', 'published', 'archived'] as const;
+/** Who a page belongs to: the organization, or one masjid (center id from Admin › Zones and centers). */
+export const PageScopeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('org') }),
+  z.object({ kind: z.literal('masjid'), center: z.string().min(1).max(40) }),
+]);
+export const SeoSchema = z.object({
+  title: z.string().max(70).default(''),
+  description: z.string().max(160).default(''),
+  image: ImageRefSchema.optional(),
+  noIndex: z.boolean().default(false),
+});
+const ISO_DATETIME = z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'Use a date like 2026-11-01 or 2026-11-01T09:00')]);
 
 export const PageSchema = z.object({
   slug: z.string(),
   title: z.string(),
   intro: z.string().optional(),
   image: ImageRefSchema.optional(),
-  status: z.enum(['published', 'draft']).default('published'),
+  status: z.enum(PAGE_STATUSES).default('published'),
   updatedAt: z.string(),
   blocks: z.array(BlockSchema),
+  // v2 (all optional – every v1 page stays valid)
+  scope: PageScopeSchema.default({ kind: 'org' }),
+  template: z.enum(PAGE_TEMPLATES).default('article'),
+  seo: SeoSchema.default({ title: '', description: '', noIndex: false }),
+  visibility: z.enum(['public', 'members']).default('public'),
+  /** Houston time. `scheduled` pages go live at publishAt; any page disappears at unpublishAt. */
+  publishAt: ISO_DATETIME.default(''),
+  unpublishAt: ISO_DATETIME.default(''),
+  owner: z.string().max(80).default(''),
+  reviewedAt: z.string().max(10).default(''),
 });
 export type Page = z.infer<typeof PageSchema>;
+export type PageScope = z.infer<typeof PageScopeSchema>;
 
 export const NewsItemSchema = z.object({ slug: z.string(), title: z.string(), date: z.string(), excerpt: z.string() });
 export type NewsItem = z.infer<typeof NewsItemSchema>;
@@ -175,6 +251,53 @@ export const mockPages: Record<string, Page> = parsePages({
     blocks: [
       { type: 'callout', tone: 'warning', title: 'Draft – pending legal review', text: 'This summary will be replaced by the policy approved by ISGH legal counsel.' },
       { type: 'list', items: ['We collect only what membership and the Bylaws require.', 'Card payments are processed by Stripe; we never store card numbers.', 'ID images are encrypted and deleted after review.', 'You can ask for a copy of your data or ask us to delete it.'] },
+    ],
+  },
+  'style-guide': {
+    slug: 'style-guide', title: 'Page blocks – style guide', status: 'draft', updatedAt: U, template: 'hub', owner: 'Website team',
+    intro: 'Every block admins can place on a page, shown once. Draft: not listed in search engines. Copy any block from here into your own page.',
+    blocks: [
+      { type: 'heading', text: 'Text blocks' },
+      { type: 'paragraph', text: 'Paragraphs support **bold** words and [links](/membership). Keep paragraphs short on phones.' },
+      { type: 'columns', columns: [{ title: 'Two columns', text: 'Side by side on wide screens, stacked on phones.' }, { title: 'Second column', text: 'Use for before/after, brothers/sisters, English/Arabic.' }] },
+      { type: 'list', items: ['A list item', 'Another item', 'Items wrap nicely'] },
+      { type: 'callout', tone: 'info', title: 'Callout', text: 'For a note, a deadline or a warning (tones: info, warning, success).' },
+      { type: 'verse', arabic: 'وَأَقِيمُوا الصَّلَاةَ وَآتُوا الزَّكَاةَ', text: 'And establish prayer and give zakah.', source: 'Quran 2:43' },
+      { type: 'facts', items: [{ value: '1969', label: 'Founded' }, { value: '22', label: 'Islamic Centers' }, { value: '5', label: 'Zones' }, { value: '3', label: 'Jumuah prayers' }] },
+      { type: 'steps', items: [{ title: 'Choose a plan', text: 'Individual, Checkomatic or Lifetime.' }, { title: 'Tell us about you', text: 'Name as on your ID, address, phone.' }, { title: 'Pay dues', text: 'Card, Apple Pay or Google Pay.' }] },
+      { type: 'faq', items: [{ q: 'What is an FAQ block?', a: 'Questions that open on tap. Good for rules and deadlines.' }] },
+      { type: 'divider', label: 'Media' },
+      { type: 'image', image: { src: pexels(30159436, 1600), alt: 'Arches inside a masjid prayer hall', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/30159436/' }, caption: 'A single photo with a caption and credit.' },
+      { type: 'gallery', images: [
+        { src: pexels(8022480, 900), alt: 'A masjid with a large dome and minaret', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/the-yanus-emre-mosque-in-karaman-turkey-8022480/' },
+        { src: pexels(9556461, 900), alt: 'Houston skyline at night', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/city-skyline-during-night-time-9556461/' },
+        { src: pexels(6646900, 900), alt: 'Volunteers carrying boxes', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/a-man-and-woman-carrying-medicine-and-food-cardboard-boxes-6646900/' },
+      ], caption: 'Gallery: two columns on phones, more on wide screens.' },
+      { type: 'embed', kind: 'video', url: 'https://www.youtube-nocookie.com/embed/MBAzMxTj-w8', title: 'How to sign up for membership (video)' },
+      { type: 'embed', kind: 'other', url: 'https://example.org/not-allowed', title: 'An embed from a host that is not allowed shows as a link' },
+      { type: 'divider', label: 'Cards, people, buttons, documents, table' },
+      { type: 'cards', columns: '3', items: [
+        { title: 'Prayer times', text: 'Adhan and iqamah at every masjid.', href: '/prayer-times', label: 'Open' },
+        { title: 'Events', text: 'Classes, iftars, family nights.', href: '/events', label: 'See events' },
+        { title: 'Give', text: 'Zakat, sadaqah and campaigns.', href: '/give', label: 'Give' },
+      ] },
+      { type: 'people', items: [{ name: 'Associate Director', role: 'Example card', note: 'Term ends 12/31/2027', email: 'ad.example@isgh.org' }, { name: 'Imam', role: 'Religious director', phone: '(713) 524-6615' }] },
+      { type: 'buttons', items: [{ label: 'Become a member', href: '/membership/join', style: 'primary' }, { label: 'Sign in', href: '/sign-in', style: 'secondary' }, { label: 'Learn more', href: '/membership', style: 'ghost' }] },
+      { type: 'documents', items: [{ title: 'Constitution and Bylaws (as of September 28, 2025)', href: '/documents/isgh-constitution-bylaws-2025-09-28.pdf', kind: 'PDF', size: '1.2 MB', date: '2025-09-28' }, { title: 'Membership sign-up guide', href: '/membership/guide', kind: 'Page' }] },
+      { type: 'table', caption: 'Membership levels (example)', header: ['Level', 'Dues', 'Renews', 'Votes'], rows: [['Individual', '$20 / year', 'Yearly', 'Yes, if paid by June 30'], ['Checkomatic', '$10 / month', 'Monthly', 'Yes, once $40 reached by June 30'], ['Lifetime (individual)', '$1,000 once', 'Never', 'Yes']] },
+      { type: 'cta', title: 'Call to action', text: 'A dark band with one button.', label: 'Become a member', href: '/membership/join' },
+      { type: 'contact', lines: [{ label: 'Phone', value: '(713) 524-6615', href: 'tel:+17135246615' }, { label: 'Email', value: 'info@isgh.org', href: 'mailto:info@isgh.org' }] },
+      { type: 'divider', label: 'Live blocks – data from the admin modules' },
+      { type: 'deadline' },
+      { type: 'prayer-times', view: 'today' },
+      { type: 'next-jumuah' },
+      { type: 'events', limit: 3, emptyText: 'No upcoming events.' },
+      { type: 'campaigns', limit: 2 },
+      { type: 'leadership', scope: 'board' },
+      { type: 'masjid-cards' },
+      { type: 'news', limit: 3 },
+      { type: 'plans' },
+      { type: 'form', kind: 'feedback' },
     ],
   },
   terms: {

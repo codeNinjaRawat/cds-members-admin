@@ -111,7 +111,7 @@ export const ElectionsSchema = z.object({
 export type ElectionsDoc = z.infer<typeof ElectionsSchema>;
 
 /* ---------------- dates ---------------- */
-const addDays = (s: string, n: number) => { const t = Date.parse(`${String(s ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t)) return String(s ?? ''); return new Date(t + n * 86_400_000).toISOString().slice(0, 10); };
+const addDays = (s: string, n: number) => new Date(Date.parse(`${s}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 export const fmt = (s: string) => (s ? `${s.slice(5, 7)}/${s.slice(8, 10)}/${s.slice(0, 4)}` : '');
 export const nominationWindow = (e: Pick<Election, 'electionDay' | 'rules'>) => ({ open: addDays(e.electionDay, -e.rules.nominationsOpenDaysBefore), close: addDays(e.electionDay, -e.rules.nominationsCloseDaysBefore) });
 export const nominationsOpen = (e: Pick<Election, 'electionDay' | 'rules'>, today: string) => { const w = nominationWindow(e); return today >= w.open && today <= w.close; };

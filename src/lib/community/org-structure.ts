@@ -147,7 +147,7 @@ export const unassignedZips = (doc: OrgStructure, zips: string[]) => Array.from(
 
 export const fmt = (d: string) => (d ? `${d.slice(5, 7)}/${d.slice(8, 10)}/${d.slice(0, 4)}` : '');
 export const fmtTime = (t: string) => { const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
-function addDays(d: string, n: number) { const t = Date.parse(`${String(d ?? '').slice(0, 10)}T12:00:00Z`); if (Number.isNaN(t)) return String(d ?? ''); return new Date(t + n * 86_400_000).toISOString().slice(0, 10); }
+function addDays(d: string, n: number) { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
 export function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'center'; }
 
 /* ---------------- ISGH demo data ----------------

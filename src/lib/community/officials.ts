@@ -110,7 +110,7 @@ export type Officials = z.infer<typeof OfficialsSchema>;
 
 /* ---------------- dates ---------------- */
 const D = (iso: string) => new Date(`${iso}T12:00:00Z`);
-const iso = (d: Date) => (Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10));   // empty date on file: '' instead of a crash
+const iso = (d: Date) => d.toISOString().slice(0, 10);
 export const addDays = (s: string, n: number) => iso(new Date(D(s).getTime() + n * 86_400_000));
 export const fmt = (s: string) => (s ? `${s.slice(5, 7)}/${s.slice(8, 10)}/${s.slice(0, 4)}` : '');
 const sundayOnOrAfter = (s: string) => { const d = D(s); return addDays(s, (7 - d.getUTCDay()) % 7); };
