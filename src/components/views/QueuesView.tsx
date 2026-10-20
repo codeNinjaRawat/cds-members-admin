@@ -84,7 +84,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
   const meId = mf.access.me?.id ?? (LIVE ? '' : 'owner');
   const nameOf = (id: string) => admins.find((a) => a.id === id)?.name ?? (id === queueMe() ? queueMe() : id);
   const onFor = (c: Case) => assigneeOf(c, qs, ws.queues, admins, byId.get(c.memberId) ? centerOf(byId.get(c.memberId)!) : '');
-  const visible = useMemo(() => allCases().filter((c) => { const m = byId.get(c.memberId); return !m || mf.keep(m.zone, centerOf(m), m.zip); }), [byId, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const visible = useMemo(() => allCases().filter((c) => { const m = byId.get(c.memberId); return !!m && mf.keep(m.zone, centerOf(m), m.zip); }), [byId, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const inTab = useMemo(() => visible.filter((c) => c.queue === tab), [tab, visible]);
   const list = useMemo(() => inTab.filter((c) => {
     const open = isOpen(c, qs);
@@ -142,7 +142,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
 
   const ready = inTab.filter((c) => qs.decisions[c.id]?.state === 'ready');
   const settings = useMembershipSettings();
-  const blocked = (ask?.kind === 'board' ? inTab.filter((c) => ask.caseIds?.includes(c.id)) : []).map((c) => ({ c, why: approvalBlockers(byId.get(c.memberId)!, settings.rules, settings.year, settings.plans) })).filter((x) => x.why.length);
+  const blocked = (ask?.kind === 'board' ? inTab.filter((c) => ask.caseIds?.includes(c.id)) : []).filter((c) => byId.has(c.memberId)).map((c) => ({ c, why: approvalBlockers(byId.get(c.memberId)!, settings.rules, settings.year, settings.plans) })).filter((x) => x.why.length);
   const q = QUEUES.find((x) => x.id === tab)!;
 
   return (
@@ -217,7 +217,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
         </section>
 
         <section className="wq-case" aria-live="polite" aria-label="Case">
-          {!sel ? <p className="wq-empty">Pick a case on the left.</p> : <CaseDetail key={sel.id} c={sel} m={byId.get(sel.memberId)!} d={qs.decisions[sel.id]} on={onFor(sel)} meId={meId} admins={admins.filter((a) => a.status === 'active')} escalatedTo={escalation(sel, qs, ws.queues)} onAssign={(to) => assign(sel, to)} ask={ask} setAsk={setAsk} decide={decide} />}
+          {!sel || !byId.get(sel.memberId) ? <p className="wq-empty">Pick a case on the left.</p> : <CaseDetail key={sel.id} c={sel} m={byId.get(sel.memberId)!} d={qs.decisions[sel.id]} on={onFor(sel)} meId={meId} admins={admins.filter((a) => a.status === 'active')} escalatedTo={escalation(sel, qs, ws.queues)} onAssign={(to) => assign(sel, to)} ask={ask} setAsk={setAsk} decide={decide} />}
         </section>
       </div>
 
