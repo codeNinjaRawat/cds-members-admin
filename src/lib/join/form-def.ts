@@ -162,7 +162,7 @@ export const coreShown = (form: JoinForm, key: CoreKey) => CORE_FIELDS[key].requ
 const opt = (...xs: string[]) => xs.map((l) => ({ value: l.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), label: l }));
 export const defaultJoinForm: JoinForm = {
   version: '2026-10-14',
-  intro: 'About 4 minutes. You can save and finish later on any device.',
+  intro: 'About 4 minutes. You can save and finish later.',
   core: {},
   helpers: { idScan: true, saveForLater: true, renewPrefill: true, google: true },
   sections: [
