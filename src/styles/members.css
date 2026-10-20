@@ -322,3 +322,8 @@ code { font-size: .8rem; }
 .modal.modal-wide { width: min(880px, calc(100vw - 32px)); }
 .modal .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 720px) { .modal .grid-3 { grid-template-columns: 1fr; } }
+
+/* Profile › Groups */
+.m-groups { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.m-groups li { padding: 8px 10px; border: 1px solid var(--edge); border-radius: 12px; }
+.m-groups li.in { background: color-mix(in srgb, var(--accent) 10%, transparent); }

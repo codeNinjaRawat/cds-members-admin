@@ -15,7 +15,7 @@ import {
 import type { GroupsDoc } from '@/lib/community/groups';
 import { logAudit } from '@/lib/access/audit';
 import { LIVE, be } from '@/lib/live/live';
-import { notice } from '@/lib/members/members';
+import { membersWithEdits, notice } from '@/lib/members/members';
 
 /* ---------- live mode: messages on the server (it checks the audience, preferences and quiet hours again and sends) ---------- */
 const UUID = /^[0-9a-f-]{36}$/;
@@ -43,7 +43,7 @@ const KEY = 'isgh-admin-campaigns';
 export const readCampaigns = (): Campaign[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
 const write = (l: Campaign[]) => { try { localStorage.setItem(KEY, JSON.stringify(l)); } catch { /* full */ } };
 export const fmtWhen = (s: string) => { const [d, t = '00:00'] = s.split('T'); const [y, m, dd] = d.split('-'); const [h, mi] = t.split(':').map(Number); return `${m}/${dd}/${y} ${((h + 11) % 12) + 1}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
-const blank = (p: Partial<Campaign> = {}): Campaign => ({ id: `msg-${Date.now().toString(36)}`, name: '', channel: 'email', topic: 'announcement', subject: '', body: 'Assalamu alaikum {Member.FirstName},\n\n', audience: { everyone: false, groupIds: [], excludeGroupIds: [] }, sendAt: null, status: 'draft', sentTo: 0, createdBy: 'Mohammad (demo)', updatedAt: '', ...p });
+const blank = (p: Partial<Campaign> = {}): Campaign => ({ id: `msg-${Date.now().toString(36)}`, name: '', channel: 'email', topic: 'announcement', subject: '', body: 'Assalamu alaikum {Member.FirstName},\n\n', audience: { everyone: false, groupIds: [], excludeGroupIds: [], memberIds: [] }, images: [], sendAt: null, status: 'draft', sentTo: 0, createdBy: 'Mohammad (demo)', updatedAt: '', ...p });
 type Filter = 'all' | 'draft' | 'scheduled' | 'sent';
 const STATUS_TEXT: Record<Campaign['status'], string> = { draft: 'Draft', scheduled: 'Scheduled', sent: 'Sent', cancelled: 'Cancelled' };
 
@@ -68,9 +68,9 @@ export function CampaignsView({ comm, people, now }: { comm: CommunicationDoc; p
   const shown = filter === 'all' ? list : list.filter((x) => x.status === filter);
   const hasGroup = (id: string) => !!groups?.groups.some((g) => g.id === id && !g.archived);
   const starts: { title: string; note: string; make: () => Campaign }[] = [
-    { title: 'Announcement to everyone', note: 'Email · every member who gets announcements', make: () => blank({ topic: 'announcement', audience: { everyone: true, groupIds: [], excludeGroupIds: [] } }) },
-    { title: 'Monthly newsletter', note: 'Email · starts from your newsletter template', make: () => { const t = comm.templates.find((x) => !x.archived && x.category === 'newsletter'); return blank(t ? { name: t.name, subject: t.subject, body: t.body, topic: topicOf(t.category), audience: { everyone: true, groupIds: [], excludeGroupIds: [] } } : { topic: 'newsletter' }); } },
-    { title: 'Remind people to renew', note: hasGroup('renewal-due') ? 'Email · the “Renewal due or in grace” group' : 'Email · membership notice', make: () => blank({ topic: 'membership', name: 'Renewal reminder', subject: 'Please renew your {Org.ShortName} membership', body: 'Assalamu alaikum {Member.FirstName},\n\nYour membership is due. Renew here: {Link.Renew}\n', audience: { everyone: false, groupIds: hasGroup('renewal-due') ? ['renewal-due'] : [], excludeGroupIds: [] } }) },
+    { title: 'Announcement to everyone', note: 'Email · every member who gets announcements', make: () => blank({ topic: 'announcement', audience: { everyone: true, groupIds: [], excludeGroupIds: [], memberIds: [] } }) },
+    { title: 'Monthly newsletter', note: 'Email · starts from your newsletter template', make: () => { const t = comm.templates.find((x) => !x.archived && x.category === 'newsletter'); return blank(t ? { name: t.name, subject: t.subject, body: t.body, topic: topicOf(t.category), audience: { everyone: true, groupIds: [], excludeGroupIds: [], memberIds: [] } } : { topic: 'newsletter' }); } },
+    { title: 'Remind people to renew', note: hasGroup('renewal-due') ? 'Email · the “Renewal due or in grace” group' : 'Email · membership notice', make: () => blank({ topic: 'membership', name: 'Renewal reminder', subject: 'Please renew your {Org.ShortName} membership', body: 'Assalamu alaikum {Member.FirstName},\n\nYour membership is due. Renew here: {Link.Renew}\n', audience: { everyone: false, groupIds: hasGroup('renewal-due') ? ['renewal-due'] : [], excludeGroupIds: [], memberIds: [] } }) },
   ];
 
   return (
@@ -102,7 +102,7 @@ export function CampaignsView({ comm, people, now }: { comm: CommunicationDoc; p
             <tr key={x.id} data-msg={x.id}>
               <td><b>{x.name}</b><small className="block">{TOPICS[x.topic].label}{x.subject ? ` · ${x.subject}` : ''}</small></td>
               <td>{x.channel === 'email' ? 'Email' : 'Text'}</td>
-              <td>{x.audience.everyone ? 'Every member' : `${x.audience.groupIds.length} group${x.audience.groupIds.length === 1 ? '' : 's'}`}{x.sentTo ? <small className="block">{x.sentTo.toLocaleString('en-US')} people</small> : null}</td>
+              <td>{x.audience.everyone ? 'Every member' : [x.audience.groupIds.length ? `${x.audience.groupIds.length} group${x.audience.groupIds.length === 1 ? '' : 's'}` : '', x.audience.memberIds?.length ? `${x.audience.memberIds.length} member${x.audience.memberIds.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' + ') || '—'}{x.sentTo ? <small className="block">{x.sentTo.toLocaleString('en-US')} people</small> : null}</td>
               <td><span className={`pill ${x.status === 'sent' ? 'good' : x.status === 'cancelled' ? 'bad' : x.status === 'scheduled' ? 'warn' : ''}`}>{x.status === 'scheduled' && x.sendAt ? `Scheduled ${fmtWhen(x.sendAt)}` : STATUS_TEXT[x.status]}</span></td>
               <td className="row-actions">
                 {(x.status === 'draft' || x.status === 'scheduled') && <button type="button" className="btn sm" onClick={() => setC(structuredClone(x))}>Open<span className="sr-only"> {x.name}</span></button>}
@@ -199,6 +199,7 @@ function Composer({ c, setC, comm, people, groups, now, onClose, onSave }: {
                 <p className="sf-hint">Or pick groups (people in any of them):</p>
                 <div className="cmp-groups" role="group" aria-label="Groups">{active.map((g) => <label key={g.id} className="check"><input type="checkbox" checked={c.audience.groupIds.includes(g.id)} onChange={() => toggle('groupIds', g.id)} /> <span>{g.name}</span></label>)}</div>
               </>}
+              {!c.audience.everyone && <MemberPicker ids={c.audience.memberIds} onChange={(memberIds) => set({ audience: { ...c.audience, memberIds } })} />}
               <details className="cmp-leave"><summary>Leave out groups{c.audience.excludeGroupIds.length ? ` (${c.audience.excludeGroupIds.length})` : ''}</summary>
                 <div className="cmp-groups" role="group" aria-label="Leave out">{active.map((g) => <label key={g.id} className="check"><input type="checkbox" checked={c.audience.excludeGroupIds.includes(g.id)} onChange={() => toggle('excludeGroupIds', g.id)} /> <span>Leave out {g.name}</span></label>)}</div>
               </details>
@@ -221,6 +222,7 @@ function Composer({ c, setC, comm, people, groups, now, onClose, onSave }: {
               <div className="cv-macros" aria-label="Insert a merge field">{MACROS.filter((m) => /^(Member|Org|Link)\./.test(m.key)).map((m) => <button key={m.key} type="button" className="chip-btn" onClick={() => insert(`{${m.key}}`)}>{m.label}</button>)}</div>
               {c.channel === 'sms' && <p className={`cmp-seg${seg.segments > 3 ? ' bad' : ''}`} role="status">{seg.segments} text part{seg.segments === 1 ? '' : 's'} · {seg.length}/{seg.perPart * Math.max(1, seg.segments)} characters · {seg.encoding === 'GSM-7' ? 'plain text' : 'Unicode (Arabic or emoji – 70 per part)'} · includes “{STOP_TEXT.trim()}”</p>}
             </div>
+            {c.channel === 'email' && <Pictures images={c.images} onChange={(images) => set({ images })} />}
             <StepErr s="write" />
           </section>
 
@@ -269,6 +271,52 @@ function Composer({ c, setC, comm, people, groups, now, onClose, onSave }: {
           </div>
         </dialog>
       )}
+    </div>
+  );
+}
+
+/* ---------- specific members (names typed, picked from the member list) ---------- */
+function MemberPicker({ ids, onChange }: { ids: string[]; onChange: (ids: string[]) => void }) {
+  const [q, setQ] = useState('');
+  const all = membersWithEdits();
+  const needle = q.trim().toLowerCase();
+  const hits = needle.length < 2 ? [] : all.filter((m) => !m.archived && !ids.includes(m.id) && (`${m.first} ${m.last} ${m.id} ${m.email}`.toLowerCase().includes(needle))).slice(0, 8);
+  const byId = (id: string) => all.find((m) => m.id === id);
+  return (
+    <div className="cmp-people">
+      <p className="sf-hint">Or name people (on top of the groups – they are never left out):</p>
+      {ids.length > 0 && <ul className="cmp-chips">{ids.map((id) => { const m = byId(id); return <li key={id}><span>{m ? `${m.first} ${m.last}` : id} <small className="muted">{id}</small></span><button type="button" aria-label={`Remove ${id}`} onClick={() => onChange(ids.filter((x) => x !== id))}>×</button></li>; })}</ul>}
+      <input className="in" placeholder="Type a name, member number or email" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a member" />
+      {hits.length > 0 && <ul className="cmp-hits glass-float">{hits.map((m) => <li key={m.id}><button type="button" onClick={() => { onChange([...ids, m.id]); setQ(''); }}>{m.first} {m.last} <small className="muted">{m.id} · {m.email}</small></button></li>)}</ul>}
+      {needle.length >= 2 && !hits.length && <p className="muted small">No member matches.</p>}
+    </div>
+  );
+}
+
+/* ---------- pictures in an email ---------- */
+function Pictures({ images, onChange }: { images: Campaign['images']; onChange: (i: Campaign['images']) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const add = async (file: File | undefined) => {
+    if (!file) return; setErr(null);
+    if (!LIVE) return setErr('Pictures need live mode.');
+    if (images.length >= 5) return setErr('Up to 5 pictures per message.');
+    if (file.size > 10 * 1024 * 1024) return setErr('Pictures up to 10 MB.');
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/upload?area=comms&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) setErr(String(j.error ?? 'Upload failed.')); else onChange([...images, { fileId: j.id, name: j.name }]);
+    } catch { setErr('Upload failed – check your connection.'); }
+    setBusy(false);
+  };
+  return (
+    <div className="sf-field cmp-pics">
+      <span className="sf-label">Pictures <small className="muted">(shown at the end of the email – a flyer, a photo)</small></span>
+      {images.length > 0 && <ul className="cmp-chips">{images.map((i) => <li key={i.fileId}><span>{i.name || i.fileId}</span><button type="button" aria-label={`Remove ${i.name}`} onClick={() => onChange(images.filter((x) => x.fileId !== i.fileId))}>×</button></li>)}</ul>}
+      <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy || images.length >= 5} onChange={(e) => { void add(e.target.files?.[0]); e.target.value = ''; }} aria-label="Add a picture" />
+      {busy && <small className="sf-hint">Uploading…</small>}
+      {err && <small className="sf-err" role="alert">{err}</small>}
     </div>
   );
 }

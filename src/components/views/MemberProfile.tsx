@@ -16,12 +16,14 @@ import { useOrgConfig } from '@/lib/members/use-org-config';
 import { useMembershipSettings } from '@/lib/members/use-settings';
 import { useAccess } from '@/lib/access/use-access';
 import { LIVE } from '@/lib/live/live';
+import { MemberGroupsTab } from './MemberGroupsTab';
+import { SendMessageDialog } from './SendMessageDialog';
 import { useOrg } from './TeamViews';
 import { centerRulesInWords, DEFAULT_CENTER_RULES } from '@/lib/community/org-structure';
 import { canEdit, checkValues, findDuplicates, showValue, type FieldValues } from '@/lib/community/member-records';
 import type { ProfileField } from '@/lib/community/org-config';
 
-type Action = null | 'payment' | 'center' | 'note' | 'approve' | 'fields' | 'archive';
+type Action = null | 'payment' | 'center' | 'note' | 'approve' | 'fields' | 'archive' | 'message';
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 
 export function MemberProfile({ id }: { id: string }) {
@@ -84,6 +86,7 @@ export function MemberProfile({ id }: { id: string }) {
                 <div className="m-more-list glass-float" onClick={() => setMore(false)}>
                   {access.can('members.edit') && <button type="button" onClick={() => setAction('center')}>Change center</button>}
                   {access.can('members.edit') && <button type="button" onClick={() => setAction('note')}>Add note</button>}
+                  {LIVE && access.can('comms.send') && <button type="button" onClick={() => setAction('message')}>Send a message</button>}
                   {!access.can('members.archive') ? null : m.archived
                     ? <button type="button" onClick={() => act({ archived: undefined }, 'Restored', 'Archived record restored', `${fullName(m)} is back on the member list.`)}>Restore</button>
                     : <button type="button" className="danger" onClick={() => setAction('archive')}>Archive</button>}
@@ -136,6 +139,7 @@ export function MemberProfile({ id }: { id: string }) {
           <Tabs label="Member details" tabs={[
             { id: 'profile', label: 'Profile', render: () => <ProfileTab m={m} fields={cfg.members.fields} onEdit={access.can('members.edit') ? () => setAction('fields') : undefined} contact={access.can('members.contact')} /> },
             { id: 'household', label: 'Household', render: () => <HouseholdTab m={m} spouse={spouse} /> },
+            { id: 'groups', label: 'Groups', render: () => <MemberGroupsTab memberId={m.id} canManage={access.can('groups.manage')} /> },
             { id: 'family', label: 'Family tree', render: () => <MemberFamily m={m} members={members} /> },
             { id: 'payments', label: 'Payments', badge: m.payments.length, render: () => <PaymentsTab m={m} /> },
             { id: 'history', label: 'Notes', badge: m.notes.length || undefined, render: () => <NotesTab m={m} onAdd={() => setAction('note')} /> },
@@ -151,6 +155,7 @@ export function MemberProfile({ id }: { id: string }) {
         <label className="sf-field"><span className="sf-label">{settings.rules.approval.by || 'Board'} meeting or reference</span><input className="in" name="ref" required placeholder="Board meeting, October 2026" /></label>
       </ActionDialog>}
 
+      {action === 'message' && <SendMessageDialog memberId={m.id} name={fullName(m)} email={m.email} phone={m.phone} onClose={() => setAction(null)} onSent={(what) => done(what)} />}
       {action === 'payment' && <ActionDialog title="Record an offline payment" submit="Record payment" onClose={() => setAction(null)}
         onSubmit={(f) => {
           const p: Payment = { year: Number(f.get('year')), paidOn: String(f.get('paidOn')), amountCents: Math.round(Number(f.get('amount')) * 100), method: f.get('method') as Payment['method'], payer: f.get('payer') as Payment['payer'], ref: String(f.get('ref') || `OFF-${Date.now() % 100000}`) };

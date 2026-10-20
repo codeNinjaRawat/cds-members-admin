@@ -777,3 +777,13 @@
 .dn-acc { display: flex; gap: .3rem; flex-wrap: wrap; align-items: center; }
 .dn-acc .in-last4 { width: 70px; }
 .chip-row.sm button { font-size: .75rem; padding: .2rem .55rem; }
+
+/* Messages: named people and pictures */
+.cmp-people { margin-top: 10px; position: relative; }
+.cmp-chips { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.cmp-chips li { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--edge); border-radius: 999px; font-size: .9rem; }
+.cmp-chips li button { border: 0; background: none; cursor: pointer; font-size: 1rem; line-height: 1; color: inherit; }
+.cmp-hits { list-style: none; margin: 4px 0 0; padding: 4px; border-radius: 12px; max-height: 260px; overflow: auto; }
+.cmp-hits button { width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: inherit; font: inherit; }
+.cmp-hits button:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.cmp-pics { margin-top: 10px; }

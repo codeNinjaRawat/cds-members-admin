@@ -43,7 +43,10 @@ export const CampaignSchema = z.object({
     everyone: z.boolean().default(false),
     groupIds: z.array(z.string()).max(30).default([]),
     excludeGroupIds: z.array(z.string()).max(30).default([]),
+    memberIds: z.array(z.string().max(20)).max(500).default([]),   // specific people (a reply to one member, a small list) – on top of the groups
   }),
+  // pictures shown at the end of an email (uploaded to the API's files, area "comms"); texts cannot carry them
+  images: z.array(z.object({ fileId: z.string().min(1).max(40), name: z.string().max(160).default('') })).max(5).default([]),
   sendAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).nullable().default(null), // Houston time; null = send now / draft
   status: z.enum(['draft', 'scheduled', 'sent', 'cancelled']).default('draft'),
   sentTo: z.number().int().min(0).default(0),
@@ -52,7 +55,8 @@ export const CampaignSchema = z.object({
 }).superRefine((c, ctx) => {
   if (c.channel === 'email' && !c.subject.trim()) ctx.addIssue({ code: 'custom', path: ['subject'], message: 'Write a subject.' });
   if (/[\r\n]/.test(c.subject)) ctx.addIssue({ code: 'custom', path: ['subject'], message: 'A subject must be one line.' });
-  if (!c.audience.everyone && !c.audience.groupIds.length) ctx.addIssue({ code: 'custom', path: ['audience', 'groupIds'], message: 'Choose who gets it: everyone or at least one group.' });
+  if (!c.audience.everyone && !c.audience.groupIds.length && !c.audience.memberIds.length) ctx.addIssue({ code: 'custom', path: ['audience', 'groupIds'], message: 'Choose who gets it: everyone, at least one group, or specific members.' });
+  if (c.channel === 'sms' && c.images.length) ctx.addIssue({ code: 'custom', path: ['images'], message: 'Pictures go by email only – texts cannot carry them.' });
   if (c.audience.groupIds.some((g) => c.audience.excludeGroupIds.includes(g))) ctx.addIssue({ code: 'custom', path: ['audience', 'excludeGroupIds'], message: 'A group cannot be both in and out.' });
   if (c.channel === 'sms' && smsSegments(c.body).segments > 3) ctx.addIssue({ code: 'custom', path: ['body'], message: 'Keep a text message to 3 parts or fewer.' });
 });
@@ -71,10 +75,10 @@ export function resolveAudience(c: Pick<Campaign, 'channel' | 'topic' | 'audienc
   const skipped: Record<SkipReason, number> = { archived: 0, unsubscribed: 0, 'no-consent': 0, 'no-address': 0, 'duplicate-address': 0, excluded: 0 };
   const to: Recipient[] = []; const seen = new Set<string>();
   for (const p of people) {
-    const picked = c.audience.everyone || inc.some((g) => inGroup(g, p.facts));
+    const picked = c.audience.everyone || inc.some((g) => inGroup(g, p.facts)) || c.audience.memberIds.includes(p.id);
     if (!picked) continue;
     if (p.archived || p.facts.status === 'archived') { skipped.archived++; continue; }
-    if (exc.some((g) => inGroup(g, p.facts))) { skipped.excluded++; continue; }
+    if (!c.audience.memberIds.includes(p.id) && exc.some((g) => inGroup(g, p.facts))) { skipped.excluded++; continue; }   // a person named by hand is never left out
     const addr = c.channel === 'email' ? p.email?.trim().toLowerCase() : p.phone?.replace(/\D/g, '').slice(-10);
     if (!addr) { skipped['no-address']++; continue; }
     if (!wants(p.prefs, c.topic, c.channel)) { skipped[c.channel === 'sms' && !p.prefs.sms ? 'no-consent' : 'unsubscribed']++; continue; }
