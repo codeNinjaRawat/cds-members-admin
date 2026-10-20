@@ -460,21 +460,22 @@ function JoinAnswers({ m }: { m: Member }) {
 }
 
 /** Live: email them the link to finish (a fresh 30-day link; also shown here to copy into a text message). */
+const sentLinks = new Map<string, string>();   // survives the case list re-drawing after the member reloads
 function JoinReminder({ c, m, decide }: { c: Case; m: Member; decide: DecideFn }) {
-  const [state, setState] = useState<{ busy: boolean; link: string; error: string }>({ busy: false, link: '', error: '' });
+  const [state, setState] = useState<{ busy: boolean; link: string; error: string }>({ busy: false, link: sentLinks.get(m.id) ?? '', error: '' });
   const send = async () => {
     setState({ busy: true, link: '', error: '' });
     const r = await be<{ sent: boolean; to: string; link: string }>('POST', `admin/members/${encodeURIComponent(m.id)}/join-reminder`, {});
     if (!r.ok) { setState({ busy: false, link: '', error: r.message }); return; }
-    setState({ busy: false, link: r.data.link, error: '' });
+    sentLinks.set(m.id, r.data.link); setState({ busy: false, link: r.data.link, error: '' });
     decide([c], { state: 'needs-info', outcome: 'Reminder sent', note: `Link to finish emailed to ${r.data.to}` });
     void refreshLive(m.id);
   };
   return (
     <div className="wq-remind">
-      <button className="btn primary" disabled={state.busy} onClick={() => void send()}>{state.busy ? 'Sending…' : 'Email them the link to finish'}</button>
+      <button className="btn primary" disabled={state.busy} onClick={() => void send()}>{state.busy ? 'Sending…' : state.link ? 'Email the link again' : 'Email them the link to finish'}</button>
       {state.error && <small className="wq-why" role="alert">{state.error}</small>}
-      {state.link && <p className="wq-why" role="status">Sent. To text it instead: <input className="in" readOnly value={state.link} onFocus={(e) => e.target.select()} aria-label="Link to finish the application" /></p>}
+      {state.link && <p className="wq-why" role="status">Emailed to {m.email}. To text it instead, copy: <input className="in" readOnly value={state.link} onFocus={(e) => e.target.select()} aria-label="Link to finish the application" /></p>}
     </div>
   );
 }
