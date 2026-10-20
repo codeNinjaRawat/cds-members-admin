@@ -91,6 +91,9 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
       const full = `${v.about.firstName} ${v.about.lastName}`.toLowerCase().replace(/\s+/g, ' ');
       if (v.pledge.signature.toLowerCase().replace(/\s+/g, ' ') !== full)
         ctx.addIssue({ code: 'custom', path: ['pledge', 'signature'], message: `Type your name exactly as entered: ${v.about.firstName} ${v.about.lastName}.` });
+      // each person keeps their own contact (their own sign-in and messages)
+      const se = (v.plan.spouse?.email ?? '').trim().toLowerCase();
+      if (se && se === v.account.email.trim().toLowerCase()) ctx.addIssue({ code: 'custom', path: ['plan', 'spouse', 'email'], message: 'Your spouse needs their own email address – not the same as yours.' });
     });
 
   return { account, about, plan, pledge, payment, application };
