@@ -9,6 +9,7 @@ import { ViewingChip } from './MasjidPicker';
 import { IdleLock } from './IdleLock';
 import { useAccess, setActing, setDashboard } from '@/lib/access/use-access';
 import { LIVE, signOut } from '@/lib/live/live';
+import { useOrgBrand } from '@/lib/brand/use-org-brand';
 import { NOTICE_EVENT, loadOrgLabels, ORG_TZ } from '@/lib/members/members';
 import { assignmentsOf, permissionForPath, PERMISSIONS, whereOf } from '@/lib/access/access';
 import { ZONES, type ZoneId } from '@/lib/members/members';
@@ -81,6 +82,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', on); return () => window.removeEventListener('keydown', on);
   }, []);
 
+  const brand = useOrgBrand();   // the organization's own logo (Theme and branding), else the product mark
   if (pathname === '/sign-in') return <>{children}</>;   // the sign-in page has no shell (nobody is signed in yet)
   return (
     <>
@@ -90,8 +92,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <IdleLock />
       <aside className={`side glass-nav${drawer ? ' open' : ''}`} aria-label="Admin sections">
         <div className="side-brand">
-          <img src="/brand/logo-mark.svg" alt="" width={34} height={34} className="mark-light" />
-          <img src="/brand/logo-mark-dark.svg" alt="" width={34} height={34} className="mark-dark" />
+          <img src={brand?.logoLight ?? '/brand/logo-mark.svg'} alt="" width={34} height={34} className="mark-light" />
+          <img src={brand?.logoDark ?? '/brand/logo-mark-dark.svg'} alt="" width={34} height={34} className="mark-dark" />
           <div><b>{me ? `${me.org.shortName} Admin` : 'ISGH Admin'}</b><span>{me?.org.name ?? 'Islamic Society of Greater Houston'}</span></div>
         </div>
         <SideTree pathname={pathname} can={canHref} rail={rail} />

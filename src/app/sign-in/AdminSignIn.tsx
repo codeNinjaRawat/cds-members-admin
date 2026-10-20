@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LIVE, be } from '@/lib/live/live';
+import { useOrgBrand } from '@/lib/brand/use-org-brand';
 
 type Dash = { kind: string; label: string; role: string; where: string; index: number; adminId: string };
 type Step = 'email' | 'code' | 'two-step' | 'choose';
@@ -20,6 +21,7 @@ export function AdminSignIn() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState<Dash[]>([]);
+  const brand = useOrgBrand();   // the organization's logo when it uploaded one
   const [org, setOrg] = useState<{ name: string; shortName: string; productName: string; founded?: number }>({ name: '', shortName: '', productName: '' });
   const head = useRef<HTMLHeadingElement>(null);
   const q = typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search);
@@ -99,7 +101,7 @@ export function AdminSignIn() {
           <circle cx="200" cy="200" r="34" /><path d="M200 166 V234 M166 200 H234 M176 176 L224 224 M224 176 L176 224" />
         </svg>
         <div className="si-brand">
-          <span className="si-mark">{short.slice(0, 1)}</span>
+          {brand ? <span className="si-mark si-img"><img src={brand.logoLight} alt="" /></span> : <span className="si-mark">{short.slice(0, 1)}</span>}
           <div><b>{org.name || 'Administration'}</b><small>{org.productName ? `${org.productName} · admin` : 'Admin'}</small></div>
         </div>
         <div className="si-copy">
@@ -116,7 +118,7 @@ export function AdminSignIn() {
       <section className="si-side">
       <div className="si-card">
         <div className="si-card-top">
-          <span className="si-mark sm">{short.slice(0, 1)}</span>
+          {brand ? <span className="si-mark sm si-img"><img src={brand.logoLight} alt="" /></span> : <span className="si-mark sm">{short.slice(0, 1)}</span>}
           <ol className="si-steps" aria-label="Sign-in steps">
             {['Sign in', 'Dashboard'].map((t, i) => <li key={t} className={i + 1 < stepNo ? 'done' : i + 1 === stepNo ? 'now' : ''} aria-current={i + 1 === stepNo ? 'step' : undefined}>{t}</li>)}
           </ol>
