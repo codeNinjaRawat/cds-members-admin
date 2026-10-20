@@ -52,9 +52,32 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
       lastName: z.string().trim().max(60).optional().or(z.literal('')),
       email: z.string().trim().toLowerCase().max(254).optional().or(z.literal('')),
     }).optional(),
+    // "Pay for family members" (plan.familyMembers): other adults of the household, each their own member
+    members: z.array(z.object({
+      firstName: z.string().trim().max(60), lastName: z.string().trim().max(60),
+      email: z.string().trim().toLowerCase().max(254), phone: z.string().max(30), dob: z.string().max(10),
+    })).max(10).optional(),
   }).superRefine((v, ctx) => {
     const p = visiblePlans.find((x) => x.id === v.planId);
     if (!p) return;
+    const ms = v.members ?? [];
+    if (ms.length && !p.familyMembers) ctx.addIssue({ code: 'custom', path: ['members'], message: 'This plan is for one person – choose a plan that includes family members.' });
+    if (p.familyMembers && ms.length > p.familyMembers.max) ctx.addIssue({ code: 'custom', path: ['members'], message: `Add up to ${p.familyMembers.max} family members.` });
+    const seenE = new Set<string>(); const seenP = new Set<string>();
+    ms.forEach((m, i) => {
+      const at = (k: string) => ['members', i, k];
+      if (!m.firstName) ctx.addIssue({ code: 'custom', path: at('firstName'), message: `Enter family member ${i + 1}'s first name.` });
+      if (!m.lastName) ctx.addIssue({ code: 'custom', path: at('lastName'), message: `Enter family member ${i + 1}'s last name.` });
+      if (!z.string().email().safeParse(m.email).success) ctx.addIssue({ code: 'custom', path: at('email'), message: `Enter family member ${i + 1}'s own email, like name@example.com – it is their sign-in.` });
+      else if (seenE.has(m.email)) ctx.addIssue({ code: 'custom', path: at('email'), message: 'Each family member needs their own email address.' });
+      seenE.add(m.email);
+      const ph = digits(m.phone).replace(/^1(?=\d{10}$)/, '');
+      if (ph.length !== 10) ctx.addIssue({ code: 'custom', path: at('phone'), message: `Enter family member ${i + 1}'s 10-digit mobile number.` });
+      else if (seenP.has(ph)) ctx.addIssue({ code: 'custom', path: at('phone'), message: 'Each family member needs their own mobile number.' });
+      seenP.add(ph);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(m.dob) || m.dob >= today) ctx.addIssue({ code: 'custom', path: at('dob'), message: `Enter family member ${i + 1}'s date of birth.` });
+      else if (ageOn(m.dob, today) < settings.minMemberAge) ctx.addIssue({ code: 'custom', path: at('dob'), message: `Family members must be at least ${settings.minMemberAge} to join.` });
+    });
     if (p.memberClass !== v.memberClass) ctx.addIssue({ code: 'custom', path: ['planId'], message: 'This plan does not match how you are joining. Choose another plan.' });
     if (v.years > p.maxYearsAhead) ctx.addIssue({ code: 'custom', path: ['years'], message: `You can pay up to ${p.maxYearsAhead} year(s) ahead for this plan.` });
     if (p.category === 'household') {
@@ -94,6 +117,10 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
       // each person keeps their own contact (their own sign-in and messages)
       const se = (v.plan.spouse?.email ?? '').trim().toLowerCase();
       if (se && se === v.account.email.trim().toLowerCase()) ctx.addIssue({ code: 'custom', path: ['plan', 'spouse', 'email'], message: 'Your spouse needs their own email address – not the same as yours.' });
+      (v.plan.members ?? []).forEach((m, i) => {
+        if (m.email && m.email === v.account.email.trim().toLowerCase()) ctx.addIssue({ code: 'custom', path: ['plan', 'members', i, 'email'], message: 'Each family member needs their own email – not the same as yours.' });
+        if (digits(m.phone).slice(-10) && digits(m.phone).slice(-10) === digits(v.about.phone).slice(-10)) ctx.addIssue({ code: 'custom', path: ['plan', 'members', i, 'phone'], message: 'Each family member needs their own mobile number – not the same as yours.' });
+      });
     });
 
   return { account, about, plan, pledge, payment, application };

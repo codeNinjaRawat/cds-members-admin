@@ -34,6 +34,9 @@ export const PlanSchema = z.object({
   allowLevelChange: z.boolean().optional(),                                   // undefined = yes
   /** D13 – who the plan is for by age (a youth plan under 18, a senior plan 65+); empty = the organization's minimum member age. */
   ages: z.object({ min: z.number().int().min(0).max(120).optional(), max: z.number().int().min(0).max(120).optional() }).optional(),
+  /** "Pay for family members": the applicant adds other adults of the household on the same payment – each gets their
+   *  own member record, approval and sign-in. perMemberCents is per year (times the years chosen). */
+  familyMembers: z.object({ max: z.number().int().min(1).max(10), perMemberCents: z.number().int().nonnegative() }).optional(),
 });
 
 /** What happens around the renewal date (WildApricot: Renewal policy + Overdue settings). */
@@ -392,6 +395,9 @@ export function ageOn(dobISO: string, onISO: string): number {
 }
 
 /** Price for a plan and number of years (server recomputes; never trust the client). */
+/** Extra household adults on one application (plan.familyMembers) – per member per year. */
+export const familyCents = (plan: Plan | undefined, members: number, years: number) => (plan?.familyMembers ? Math.max(0, Math.min(members, plan.familyMembers.max)) * plan.familyMembers.perMemberCents * Math.max(1, years) : 0);
+
 export function quote(plan: Plan, years: number) {
   const y = plan.term === 'calendar_year' ? Math.min(Math.max(1, years), plan.maxYearsAhead) : 1;
   const gross = plan.priceCents * y;

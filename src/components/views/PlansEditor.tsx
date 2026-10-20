@@ -154,6 +154,20 @@ function PlanForm({ p, i, err, rules, up }: { p: Plan; i: number; err: (k: strin
           )}
         </div>
       )}
+      {p.category === 'individual' && (
+        <div className="pe-sub">
+          <h4>Pay for family members</h4>
+          <label className="check"><input type="checkbox" checked={!!p.familyMembers} aria-label={`Family members on one payment ${p.name}`}
+            onChange={(ev) => up((x) => { if (ev.target.checked) x.familyMembers = { max: 4, perMemberCents: x.priceCents }; else delete x.familyMembers; })} />
+            <span>The applicant can add other adults of the household on the same payment – each gets their own record, approval, sign-in and vote.</span></label>
+          {p.familyMembers && (
+            <div className="field-row three">
+              <Field label="Most family members" err={e('familyMembers.max')}><input className="in in-num" type="number" min={1} max={10} aria-label={`Most family members ${p.name}`} value={p.familyMembers.max} onChange={(ev) => up((x) => { x.familyMembers!.max = Math.max(1, Math.min(10, Number(ev.target.value || 1))); })} /></Field>
+              <Money label={`Price per family member ${p.unit}`} value={p.familyMembers.perMemberCents} onChange={(c) => up((x) => { x.familyMembers!.perMemberCents = c; })} err={e('familyMembers.perMemberCents')} ariaLabel={`Price per family member ${p.name}`} />
+            </div>
+          )}
+        </div>
+      )}
       {lifetime && <p className="muted small pe-note">Paid once – lifetime plans have no renewal, no yearly reminders and no multi-year prices.</p>}
       {!lifetime && p.renewal && (
         <div className="pe-sub">
