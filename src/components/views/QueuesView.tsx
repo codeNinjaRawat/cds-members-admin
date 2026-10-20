@@ -10,7 +10,7 @@ import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
-  approvalBlockers, centerOf, demoMembers, membersWithEdits, fmtDate, fmtMoney, fullName, initials, PLANS, restoreMemberEdit, saveMember, snapshotMemberEdit, YEAR, ZONES, type Member, ORG_TZ } from '@/lib/members/members';
+  approvalBlockers, centerOf, cityLine, demoMembers, membersWithEdits, fmtDate, fmtMoney, fullName, initials, PLANS, restoreMemberEdit, saveMember, snapshotMemberEdit, YEAR, ZONES, type Member, ORG_TZ } from '@/lib/members/members';
 import {
   applyQueueSettings, assigneeOf, buildCases, daysWaiting, escalation, isOpen, MISSING_LABEL, QUEUES, QUEUES_EVENT, queueMe, readQueueState, rulesFor, setQueueMe, sla, TODAY, writeQueueState,
   type Case, type Decision, type QueueId, type QueueState,
@@ -20,7 +20,7 @@ import { LIVE } from '@/lib/live/live';
 import { useWorkSettings } from '@/lib/work/work-store';
 import type { AdminLike } from '@/lib/community/work';
 import { useOrg } from './TeamViews';
-import { applyCenterRules, CENTER_RULES, centerDeadline, buildLiveCases } from '@/lib/queues/queues';
+import { applyCenterRules, CENTER_RULES, centerDeadline, buildLiveCases, setDuplicateCounter } from '@/lib/queues/queues';
 
 type Filter = 'open' | 'mine' | 'overdue' | 'done';
 type Ask = null | { kind: 'decline' | 'info' | 'board'; caseIds?: string[] };
@@ -33,6 +33,8 @@ export const allCases = (): Case[] => {
   const ms = membersWithEdits(); if (liveCases?.from !== ms) liveCases = { from: ms, cases: buildLiveCases(ms) };
   return liveCases.cases;
 };
+// the application's "Not an existing or former member" check = no open possible-duplicate case for that applicant
+setDuplicateCounter((id) => { const st = readQueueState(); return allCases().filter((c) => c.queue === 'duplicates' && c.memberId === id && isOpen(c, st)).length; });
 
 export function useQueueState() {
   const [s, setS] = useState<QueueState>({ decisions: {}, assignee: {} });
@@ -45,7 +47,8 @@ export function openCounts(s: QueueState) {
 }
 
 export function QueuesView({ search = '' }: { search?: string }) {
-  const members = useMembers() ?? (LIVE ? [] : demoMembers());
+  const loaded = useMembers();
+  const members = loaded ?? (LIVE ? [] : demoMembers());
   const byId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const qs = useQueueState();
   const initialTab = (new URLSearchParams(search).get('tab') as QueueId) || 'applications';
@@ -147,7 +150,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
       <header className="page-head">
         <div>
           <h1>Work queues</h1>
-          <p className="page-intro">Everything waiting for a decision, oldest first. Each case shows the rule it is judged by. Demo data – decisions stay in this browser.</p>
+          <p className="page-intro">Everything waiting for a decision, oldest first. Each case shows the rule it is judged by.{LIVE ? '' : ' Demo data – decisions stay in this browser.'}</p>
         </div>
       </header>
 
@@ -177,7 +180,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
               <button className="btn primary sm" onClick={() => setAsk({ kind: 'board', caseIds: ready.map((c) => c.id) })}>Record Board approval</button>
             </div>
           )}
-          {!list.length ? <p className="wq-empty">{filter === 'done' ? 'Nothing decided here yet.' : 'All clear – nothing waiting. Alhamdulillah.'}</p> : (
+          {!list.length ? <p className="wq-empty">{LIVE && !loaded ? 'Loading the cases…' : filter === 'done' ? 'Nothing decided here yet.' : 'All clear – nothing waiting. Alhamdulillah.'}</p> : (
             <ul className="wq-items" ref={listRef}>
               {list.map((c) => {
                 const m = byId.get(c.memberId)!; const t = sla(c); const d = qs.decisions[c.id];
@@ -414,7 +417,7 @@ function CaseBody({ c, m }: { c: Case; m: Member }) {
     <dl className="m-defs">
       <div className="m-def"><dt>Plan</dt><dd>{PLANS[m.plan].name} · {fmtMoney(PLANS[m.plan].cents)}</dd></div>
       <div className="m-def"><dt>Zone and center</dt><dd>{ZONES[m.zone]} · {centerOf(m)}</dd></div>
-      <div className="m-def"><dt>Home</dt><dd>{m.street}, {m.city}, TX {m.zip}</dd></div>
+      <div className="m-def"><dt>Home</dt><dd>{[m.street, cityLine(m)].filter(Boolean).join(', ')}</dd></div>
       <div className="m-def"><dt>Applied</dt><dd>{fmtDate(m.appliedOn)}</dd></div>
     </dl>
   );

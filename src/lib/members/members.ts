@@ -22,7 +22,7 @@ export type Payment = { year: number; paidOn: string; amountCents: number; metho
 export type AuditEntry = { at: string; by: string; action: string; detail: string };
 export type Member = {
   id: string; first: string; last: string; email: string; phone: string; dob: string;
-  street: string; city: string; zip: string; zone: ZoneId; center: string; centerOverride?: { center: string; reason: string; lockedUntil?: string };
+  street: string; city: string; state?: string; zip: string; zone: ZoneId; center: string; centerOverride?: { center: string; reason: string; lockedUntil?: string };
   plan: PlanId; joined: number; appliedOn: string; approvedOn: string | null;
   idCheck: 'verified' | 'pending' | 'not_started'; standing: 'good' | 'resigned' | 'expelled';
   /** Live data: the end of the member's current paid membership term (null = none / lifetime). Absent in demo data. */
@@ -172,6 +172,8 @@ export function demoMembers(): Member[] {
 /* ---------- derived ---------- */
 export const sexOf = (first: string): 'm' | 'f' => (FIRST_F.includes(first) ? 'f' : 'm');
 export const fullName = (m: Member) => `${m.first} ${m.last}`;
+/** "Houston, TX 77081" from the record – the member's own state (never assumed). */
+export const cityLine = (m: Pick<Member, 'city' | 'state' | 'zip'>) => [m.city, [m.state, m.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 export const initials = (m: Member) => (m.first[0] + m.last[0]).toUpperCase();
 /** M1 demo: which of the zone's 4 masjids serves a ZIP (round-robin over the zone's ZIP list – same as mockOrgStructure). */
 export function demoCenterNo(zone: ZoneId, zip: string) { const i = AREA[zone].flatMap((a) => a.zips).indexOf(zip.slice(0, 5)); return i < 0 ? 1 : (i % 4) + 1; }

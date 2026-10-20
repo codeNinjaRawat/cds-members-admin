@@ -33,7 +33,9 @@ export function homeStats(input: { members: Member[]; cases: Case[]; queue: Queu
   const labels = months.map((x) => MON[Number(x.slice(5, 7)) - 1]);
   const dues = members.flatMap((m) => m.payments.filter((p) => p.paidOn.slice(0, 10) <= today).map((p) => ({ ...p, m })));
   const per = <T,>(list: T[], on: (x: T) => string | null | undefined, val: (x: T) => number = () => 1) => months.map((mo) => list.filter((x) => (on(x) ?? '').startsWith(mo)).reduce((s, x) => s + val(x), 0));
-  const renewals = per(dues, (p) => p.paidOn);
+  // a renewal = dues from someone who had already paid before (a new member's first dues are not a renewal)
+  const firstPaid = new Map(members.map((m) => [m.id, m.payments.reduce((a, p) => (!a || p.paidOn < a ? p.paidOn : a), '')]));
+  const renewals = per(dues.filter((p) => p.paidOn !== firstPaid.get(p.m.id)), (p) => p.paidOn);
   const newMembers = per(members, (m) => m.approvedOn);
   const duesCents = per(dues, (p) => p.paidOn, (p) => p.amountCents);
   const giftCents = per(gifts, (g) => g.at, (g) => g.amountCents);

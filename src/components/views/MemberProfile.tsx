@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Tabs } from '@/components/editor/bits';
 import {
   ageOn, approvalBlockers, centerOf, centersOf, COMMITMENT_LABEL, digits, eligibility, fmtDate, fmtMoney, fullName, initials, PLANS, recordDate, saveMember,
-  renewalOf, STATUS_LABEL, statusOf, YEAR, ZONES, type Member, type Payment, type ZoneId, ORG_TZ } from '@/lib/members/members';
+  renewalOf, cityLine, STATUS_LABEL, statusOf, YEAR, ZONES, type Member, type Payment, type ZoneId, ORG_TZ } from '@/lib/members/members';
 import { useMembers } from './MembersView';
 import { MemberFamily } from './FamilyView';
 import { useOrgConfig } from '@/lib/members/use-org-config';
@@ -231,7 +231,7 @@ function ProfileTab({ m, fields, onEdit, contact }: { m: Member; fields: Profile
         <Def k="Email">{contact ? <a href={`mailto:${m.email}`}>{m.email}</a> : HIDDEN}</Def>
         <Def k="Mobile">{contact ? <a href={`tel:+1${digits(m.phone)}`}>{m.phone}</a> : HIDDEN}</Def>
         <Def k="Date of birth">{contact ? <>{fmtDate(m.dob)} · age {ageOn(m.dob, new Date().toISOString().slice(0, 10))}</> : <>age {ageOn(m.dob, new Date().toISOString().slice(0, 10))}</>}</Def>
-        <Def k="Home address">{contact ? <>{m.street}<br />{m.city}, TX {m.zip}</> : <>{m.city}, TX</>}</Def>
+        <Def k="Home address">{contact ? <>{m.street}<br />{cityLine(m)}</> : <>{[m.city, m.state].filter(Boolean).join(', ')}</>}</Def>
         <Def k="Zone and center">{ZONES[m.zone]} · {centerOf(m)}{m.centerOverride && <small className="m-sub">Changed: {m.centerOverride.reason}{m.centerOverride.lockedUntil ? ` · locked until ${fmtDate(m.centerOverride.lockedUntil)}` : ''}</small>}</Def>
         <Def k="Commitment">{COMMITMENT_LABEL[m.commitment]}</Def>
         <Def k="Applied">{fmtDate(m.appliedOn)}</Def>

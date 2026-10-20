@@ -123,9 +123,23 @@ export function buildLiveCases(members: Member[], opts: { followUps?: QueuesSett
   const good = members.filter((m) => m.standing === 'good' && !m.archived);
   const fu = opts.followUps ?? { incomplete: { enabled: true, afterHours: 24, giveUpDays: 30 }, missing: { enabled: true, fields: ['phone', 'address', 'dob', 'email'] as MissingFieldKey[] } };
   const day = (s?: string | null) => String(s ?? '').slice(0, 10) || TODAY;
+  // possible duplicates: an applicant whose email, mobile number, or name + birth date is already on another record
+  const digits = (p: string) => p.replace(/\D/g, '').slice(-10);
+  const nameDob = (x: Member) => (x.dob && !x.dob.startsWith('1900') ? `${x.first.trim().toLowerCase()} ${x.last.trim().toLowerCase()}|${x.dob.slice(0, 10)}` : '');
+  const index = new Map<string, Member[]>();
+  const add = (k: string, x: Member) => { if (!k) return; const l = index.get(k); if (l) l.push(x); else index.set(k, [x]); };
+  for (const x of members) if (!x.archived) { add(x.email ? `e:${x.email.trim().toLowerCase()}` : '', x); add(digits(x.phone ?? '').length === 10 ? `p:${digits(x.phone)}` : '', x); add(nameDob(x) ? `n:${nameDob(x)}` : '', x); }
   for (const m of good.filter((x) => !x.approvedOn)) {
     if (m.joinStage === 'incomplete') { if (fu.incomplete.enabled) out.push({ id: `inc-${m.id}`, queue: 'incomplete', memberId: m.id, submitted: day(m.appliedOn), stepReached: 'About you', lastSeen: day(m.appliedOn), reminders: 0, hasPhone: !!m.phone }); continue; }
     out.push({ id: `app-${m.id}`, queue: 'applications', memberId: m.id, submitted: day(m.appliedOn) });
+    const hits = new Map<string, { o: Member; why: string[] }>();
+    const look = (k: string, why: string) => { for (const o of index.get(k) ?? []) if (o.id !== m.id) { const h = hits.get(o.id) ?? { o, why: [] }; h.why.push(why); hits.set(o.id, h); } };
+    if (m.email) look(`e:${m.email.trim().toLowerCase()}`, 'Same email address');
+    if (digits(m.phone ?? '').length === 10) look(`p:${digits(m.phone)}`, 'Same mobile number');
+    if (nameDob(m)) look(`n:${nameDob(m)}`, 'Same name and date of birth');
+    for (const { o, why } of hits.values()) out.push({ id: `dup-${m.id}-${o.id}`, queue: 'duplicates', memberId: m.id, submitted: day(m.appliedOn),
+      other: { name: `${o.first} ${o.last} (${o.id})`, email: o.email, phone: o.phone, dob: o.dob, source: o.source === 'import' ? 'imported record' : o.approvedOn ? 'member' : 'another application', created: day(o.approvedOn ?? o.appliedOn) },
+      reasons: why, score: Math.min(100, why.length * 40 + (why.includes('Same name and date of birth') ? 20 : 0)) });
     if (m.idCheck !== 'verified') out.push({ id: `id-${m.id}`, queue: 'id', memberId: m.id, submitted: day(m.appliedOn), doc: 'Texas driver license', nameOnId: '', dobOnId: '', expires: '' });
   }
   if (fu.missing.enabled && fu.missing.fields.length) for (const m of good.filter((x) => x.approvedOn)) {
@@ -137,14 +151,17 @@ export function buildLiveCases(members: Member[], opts: { followUps?: QueuesSett
 
 /* ---------- rule checks shown with each case ---------- */
 export type Rule = { label: string; ok: boolean | null; note: string }; // null = needs a human look
+/** open duplicate cases per applicant (set by the view from the current cases) */
+let dupCount: (memberId: string) => number = () => 0;
+export function setDuplicateCounter(f: (memberId: string) => number) { dupCount = f; }
 export function rulesFor(c: Case, m: Member): Rule[] {
   if (c.queue === 'applications') return [
     { label: 'Email verified', ok: true, note: 'Code confirmed at sign-up' },
     { label: 'Photo ID verified', ok: m.idCheck === 'verified', note: m.idCheck === 'verified' ? 'Checked' : 'Waiting in Photo ID checks' },
     { label: `18 or older on ${fmtDate(`${YEAR + 1}-06-30`)}`, ok: ageOn(m.dob, `${YEAR + 1}-06-30`) >= 18, note: `Born ${fmtDate(m.dob)}` },
-    { label: 'Lives in Greater Houston', ok: true, note: `${ZONES[m.zone]} zone · ${centerOf(m)}` },
-    { label: 'Pledge and commitment signed', ok: true, note: 'Signed on the join form' },
-    { label: 'Not an existing or former member', ok: true, note: 'No match in duplicates' },
+    { label: 'Lives in the service area', ok: !!ZONES[m.zone], note: ZONES[m.zone] ? `${ZONES[m.zone]} zone · ${centerOf(m)}` : `${[m.city, m.state].filter(Boolean).join(', ') || 'No address'} – outside every zone (can join, cannot vote)` },
+    { label: 'Pledge and commitment signed', ok: m.commitment ? true : null, note: m.commitment ? 'Signed on the join form' : 'Not on the record – ask before approval' },
+    { label: 'Not an existing or former member', ok: dupCount(m.id) ? false : true, note: dupCount(m.id) ? `${dupCount(m.id)} possible match${dupCount(m.id) > 1 ? 'es' : ''} – see Possible duplicates` : 'No other record with this email, mobile number, or name and birth date' },
   ];
   if (c.queue === 'id') {
     if (!c.nameOnId) return [{ label: 'Photo ID on file', ok: false, note: 'No ID document uploaded yet – ask the applicant to upload one or bring it to the center.' }, { label: 'Photo is clear and matches the person', ok: null, note: 'Check once the ID is here' }];
