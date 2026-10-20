@@ -22,7 +22,8 @@ export const apiConfig = {
 export const ADMIN_SID = process.env.ADMIN_SESSION_COOKIE || 'ms_sid';
 /** A Set-Cookie from the API, made the admin's own: no Domain, and the admin's cookie name. */
 export function ownSessionCookie(c: string): string {
-  const parts = c.split(';').map((x) => x.trim()).filter((x) => !/^domain=/i.test(x));
+  // development (http://…localhost) against the server: drop Secure, or the browser may discard the sign-in cookie
+  const parts = c.split(';').map((x) => x.trim()).filter((x) => !/^domain=/i.test(x) && !(process.env.NODE_ENV !== 'production' && /^secure$/i.test(x)));
   if (parts[0]?.startsWith('ms_sid=')) parts[0] = `${ADMIN_SID}=${parts[0].slice(7)}`;
   return parts.join('; ');
 }

@@ -4,7 +4,8 @@
  *   ISGH_ADMIN_PREVIEW_USER (default "isgh") and ISGH_ADMIN_PREVIEW_PASSWORD – set them on the server, never in git.
  * Open without a password only in development (`npm run dev`) or when ISGH_ADMIN_OPEN=true (set by start-fast.cmd on
  * your own PC). Host headers are NOT trusted for this (a proxy or a visitor can fake them).
- * If no password is set on a server, the admin stays closed.
+ * If no password is set on a server, the admin stays closed – except in live mode (ISGH_USE_MOCK_API=false), where the
+ * real sign-in protects it and the preview password is optional.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 
@@ -21,6 +22,9 @@ export function middleware(req: NextRequest) {
   const signIn = needsSignIn(req);
   if (process.env.NODE_ENV !== 'production' || process.env.ISGH_ADMIN_OPEN === 'true') return signIn ?? NextResponse.next();
   const pass = process.env.ISGH_ADMIN_PREVIEW_PASSWORD;
+  // live mode: the admin's own sign-in (email code, second step, the API's session) protects it – the preview password
+  // is then optional (set it to keep an extra lock while testing). Demo mode on a server still needs it.
+  if (!pass && (process.env.ISGH_USE_MOCK_API ?? 'true') === 'false') return signIn ?? NextResponse.next();
   if (!pass) {
     return new NextResponse('ISGH admin preview is closed: set ISGH_ADMIN_PREVIEW_PASSWORD on the server, then restart.', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8', 'x-robots-tag': 'noindex' } });
   }
