@@ -29,12 +29,12 @@ const VIEWS = [
   { id: 'archived', label: 'Archived', test: (r: Row) => r.status === 'archived' },
 ] as const;
 type ViewId = (typeof VIEWS)[number]['id'];
-type SortKey = 'name' | 'plan' | 'zone' | 'status' | 'paid';
+type SortKey = 'added' | 'name' | 'plan' | 'zone' | 'status' | 'paid';
 const SIZES = [25, 50, 100];
 const ST_CLASS: Record<Status, string> = { active: 'st-active', life: 'st-approved', pending: 'st-board-review', expired: 'st-needs-info', resigned: 'st-muted', expelled: 'st-bad', archived: 'st-muted' };
 
 type Q = { view: ViewId; q: string; zone: '' | ZoneId; plan: '' | PlanId; status: '' | Status; center: string; sort: SortKey; dir: 'asc' | 'desc'; page: number; size: number; peek: string };
-const DEFAULT_Q: Q = { view: 'all', q: '', zone: '', plan: '', status: '', center: '', sort: 'name', dir: 'asc', page: 1, size: 25, peek: '' };
+const DEFAULT_Q: Q = { view: 'all', q: '', zone: '', plan: '', status: '', center: '', sort: 'added', dir: 'desc', page: 1, size: 25, peek: '' };   // newest first – a record made a minute ago is at the top
 function readQ(search = typeof window === 'undefined' ? '' : window.location.search): Q {
   const p = new URLSearchParams(search); const q = { ...DEFAULT_Q };
   for (const k of Object.keys(DEFAULT_Q) as (keyof Q)[]) { const v = p.get(k); if (v != null) (q as Record<string, unknown>)[k] = typeof DEFAULT_Q[k] === 'number' ? Number(v) || DEFAULT_Q[k] : v; }
@@ -83,7 +83,7 @@ export function MembersView({ search = '' }: { search?: string }) {
     const out = rows.filter((r) => view.test(r)
       && (!q.zone || r.m.zone === q.zone) && (!q.plan || r.m.plan === q.plan) && (!q.status || r.status === q.status) && (!q.center || centerOf(r.m) === q.center)
       && (!s || `${fullName(r.m)} ${r.m.email} ${r.m.id} ${r.m.zip}`.toLowerCase().includes(s) || (sd.length >= 4 && digits(r.m.phone).includes(sd))));
-    const key = (r: Row): string => q.sort === 'name' ? `${r.m.last} ${r.m.first}` : q.sort === 'plan' ? PLANS[r.m.plan].name : q.sort === 'zone' ? `${ZONES[r.m.zone]} ${centerOf(r.m)}` : q.sort === 'status' ? STATUS_LABEL[r.status] : r.paid;
+    const key = (r: Row): string => q.sort === 'added' ? `${r.m.appliedOn} ${r.m.id}` : q.sort === 'name' ? `${r.m.last} ${r.m.first}` : q.sort === 'plan' ? PLANS[r.m.plan].name : q.sort === 'zone' ? `${ZONES[r.m.zone]} ${centerOf(r.m)}` : q.sort === 'status' ? STATUS_LABEL[r.status] : r.paid;
     out.sort((a, b) => key(a).localeCompare(key(b)) * (q.dir === 'asc' ? 1 : -1));
     return out;
   }, [rows, q.view, q.zone, q.plan, q.status, q.center, q.sort, q.dir, needle]);
@@ -209,7 +209,7 @@ export function MembersView({ search = '' }: { search?: string }) {
               <tr>
                 <th scope="col" className="m-check"><input type="checkbox" aria-label="Select all on this page" checked={allShown} onChange={() => setSel((s) => allShown ? s.filter((id) => !shown.some((r) => r.m.id === id)) : Array.from(new Set([...s, ...shown.map((r) => r.m.id)])))} /></th>
                 {sortBtn('name', 'Member')}{sortBtn('status', 'Status')}
-                <th scope="col">Vote {YEAR}</th>{sortBtn('plan', 'Plan')}{sortBtn('zone', 'Zone')}{sortBtn('paid', 'Last paid')}
+                <th scope="col">Vote {YEAR}</th>{sortBtn('plan', 'Plan')}{sortBtn('zone', 'Zone')}{sortBtn('added', 'Added')}{sortBtn('paid', 'Last paid')}
               </tr>
             </thead>
             <tbody>
@@ -223,6 +223,7 @@ export function MembersView({ search = '' }: { search?: string }) {
                   <td data-label={`Vote ${YEAR}`}><span className={`m-vote ${vote.eligible ? 'yes' : 'no'}`} title={vote.summary}><i aria-hidden="true">{vote.eligible ? '✓' : '–'}</i>{vote.eligible ? 'Yes' : 'No'}</span></td>
                   <td data-label="Plan">{PLANS[m.plan].name}</td>
                   <td data-label="Zone"><span className="m-zone" title={centerOf(m)}>{ZONES[m.zone]}</span></td>
+                  <td data-label="Added" className="num">{m.appliedOn ? fmtDate(m.appliedOn) : '—'}</td>
                   <td data-label="Last paid" className="num">{paid ? fmtDate(paid) : '—'}</td>
                 </tr>
               ))}
