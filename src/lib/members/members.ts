@@ -8,7 +8,7 @@
  *   or marriage) – Life members are exempt · residency (zone + Islamic Center) set · not resigned or expelled.
  */
 
-import { DEFAULT_LIFECYCLE, memberClass, mockMembershipSettings, noVoteMessage, qualifiesByGifts, type Lifecycle, type MembershipRules, type Plan } from '@/lib/content/membership';
+import { DEFAULT_LIFECYCLE, memberClass, MembershipSettingsSchema, mockMembershipSettings, noVoteMessage, qualifiesByGifts, type Lifecycle, type MembershipRules, type MembershipSettings, type Plan } from '@/lib/content/membership';
 import { coverageOfYear, duesCoverVote, standingOn, type Standing } from '@/lib/content/renewal';
 import { csvCell, fieldsFor, showValue, type FieldValues } from '@/lib/community/member-records';
 import type { ProfileField } from '@/lib/community/org-config';
@@ -208,7 +208,14 @@ export function statusOf(m: Member, year = YEAR): Status {
 
 /* ---------- renewal engine (shared contract lib/content/renewal.ts) ---------- */
 /** The published plan behind a member's plan ID (admin › Membership rules). Unknown IDs fall back to a non-voting yearly plan. */
-export function planDef(m: Pick<Member, 'plan'>, plans: Plan[] = mockMembershipSettings.plans): Plan {
+/** The organization's published plans and rules (live admin: loaded with the members). Screens that do not pass plans
+ *  or rules use these – never the demo set once the organization's are known. The API always passes its own. */
+let orgSettings: MembershipSettings | null = null;
+export const setOrgMembershipSettings = (s: MembershipSettings | null) => { orgSettings = s; };
+const curPlans = () => orgSettings?.plans ?? mockMembershipSettings.plans;
+const curRules = () => orgSettings?.rules ?? mockMembershipSettings.rules;
+const curLifecycle = () => orgSettings?.lifecycle ?? mockMembershipSettings.lifecycle ?? DEFAULT_LIFECYCLE;
+export function planDef(m: Pick<Member, 'plan'>, plans: Plan[] = curPlans()): Plan {
   return plans.find((p) => p.id === m.plan) ?? { ...mockMembershipSettings.plans[0], id: m.plan, name: PLANS[m.plan]?.name ?? m.plan, votingEligible: false };
 }
 /** Paid-through date from the latest dues year on record (null for Life or never paid). */
@@ -218,13 +225,13 @@ export function paidThroughOf(m: Member, plans?: Plan[]): string | null {
   return coverageOfYear(plan, Math.max(...m.payments.map((p) => p.year))).through;
 }
 /** Renewal status on a day (Active · Renewal due · Grace · Overdue · Lapsed …) from the plan's renewal date and the lifecycle rules. */
-export function renewalOf(m: Member, today: string, plans?: Plan[], lc: Lifecycle = mockMembershipSettings.lifecycle ?? DEFAULT_LIFECYCLE): Standing {
+export function renewalOf(m: Member, today: string, plans?: Plan[], lc: Lifecycle = curLifecycle()): Standing {
   return standingOn(planDef(m, plans), lc, paidThroughOf(m, plans), today);
 }
 
 export type Check = { id: string; label: string; ok: boolean; reason: string; fix?: 'approve' | 'payment' | 'center' };
 /** A1 – what the approval rule still needs before this application may be approved (empty = may approve). */
-export function approvalBlockers(m: Member, rules: MembershipRules = mockMembershipSettings.rules, year = YEAR, plans?: Plan[]): string[] {
+export function approvalBlockers(m: Member, rules: MembershipRules = curRules(), year = YEAR, plans?: Plan[]): string[] {
   const out: string[] = [];
   const plan = planDef(m, plans);
   if (rules.approval.requireFullPayment) {
@@ -237,7 +244,7 @@ export function approvalBlockers(m: Member, rules: MembershipRules = mockMembers
 }
 const quoteCents = (p: Plan) => (p.term === 'recurring' ? 0 : p.priceCents);
 const fmtUsd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: c % 100 ? 2 : 0 });
-export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: MembershipRules = mockMembershipSettings.rules): { eligible: boolean; checks: Check[]; summary: string } {
+export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: MembershipRules = curRules()): { eligible: boolean; checks: Check[]; summary: string } {
   const rd = recordDate(year);
   const age = ageOn(m.dob, rd);
   const plan = planDef(m, plans);
@@ -300,7 +307,8 @@ let live: Member[] | null = null; let liveLoading: Promise<void> | null = null;
 export function loadLiveMembers(force = false): Promise<void> {
   if (!force && live) return Promise.resolve();
   if (!force && liveLoading) return liveLoading;
-  liveLoading = be<{ members: Member[] }>('GET', 'admin/members?view=any&limit=all').then((r) => {
+  const settings = fetch('/api/store/membership-settings', { cache: 'no-store' }).then((x) => (x.ok ? x.json() : null)).then((j) => { const p = MembershipSettingsSchema.safeParse(j?.data); if (p.success) setOrgMembershipSettings(p.data); }).catch(() => {});
+  liveLoading = Promise.all([be<{ members: Member[] }>('GET', 'admin/members?view=any&limit=all'), settings]).then(([r]) => {
     liveLoading = null;
     if (r.ok) live = r.data.members; else if (r.status !== 401) notice(`Members could not be loaded: ${r.message}`);
     window.dispatchEvent(new Event(MEMBERS_EVENT));
