@@ -63,14 +63,16 @@ export function MemberProfile({ id }: { id: string }) {
           <h1>{fullName(m)}</h1>
           <p>{m.id} · {PLANS[m.plan].name} plan · member since {m.joined}</p>
           <div className="m-status-line">
-            <span className={`st ${status === 'active' || status === 'life' ? 'st-active' : status === 'pending' ? 'st-board-review' : status === 'expired' ? 'st-needs-info' : 'st-bad'}`}>{STATUS_LABEL[status]}</span>
+            <span className={`st ${status === 'active' || status === 'life' ? 'st-active' : status === 'pending' ? 'st-board-review' : status === 'expired' ? 'st-needs-info' : 'st-bad'}`}>{m.joinStage === 'incomplete' ? `Started joining – not finished${m.join?.furthest ? ` (${m.join.furthest})` : ''}` : STATUS_LABEL[status]}</span>
             {status !== 'pending' && m.standing === 'good' && ren.status !== 'lifetime' && <span className={`ren-chip ren-${ren.status}`} title={ren.next ? `Next: ${ren.next.label} on ${fmtDate(ren.next.on)}` : undefined}>{ren.label === STATUS_LABEL[status] ? (ren.paidThrough ? `Paid through ${fmtDate(ren.paidThrough)}` : ren.label) : `${ren.label}${ren.paidThrough ? ` · paid through ${fmtDate(ren.paidThrough)}` : ''}`}</span>}
             <span className={`m-vote ${vote.eligible ? 'yes' : 'no'}`}><i aria-hidden="true">{vote.eligible ? '✓' : '–'}</i>{vote.eligible ? `Can vote in ${YEAR}` : `Cannot vote in ${YEAR}`}</span>
             {m.idCheck !== 'verified' && <span className="st st-id-check">Photo ID to check</span>}
           </div>
         </div>
         <div className="m-actions">
-          {!m.approvedOn && m.standing === 'good' && access.can('members.approve')
+          {m.joinStage === 'incomplete'
+            ? <Link className="btn primary" href={`/queues?tab=incomplete`}>Not finished – follow up in Work queues</Link>
+            : !m.approvedOn && m.standing === 'good' && access.can('members.approve')
             ? <button className="btn primary" onClick={() => setAction('approve')}>Approve</button>
             : m.plan !== 'life' && m.approvedOn && access.can('payments.record') && <button className="btn primary" onClick={() => setAction('payment')}>Record payment</button>}
           {m.idCheck !== 'verified' && access.can('members.edit') && <button className="btn" onClick={() => act({ idCheck: 'verified' }, 'Photo ID verified', 'Checked against the uploaded ID', 'Photo ID marked as verified.')}>Mark ID verified</button>}

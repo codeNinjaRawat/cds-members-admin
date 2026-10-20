@@ -19,6 +19,7 @@ import { LIVE, be } from '@/lib/live/live';
 export type PlanId = 'single' | 'family' | 'life' | 'associate';
 export type ZoneId = 'n' | 'nw' | 'sw' | 's' | 'se';
 export type Payment = { year: number; paidOn: string; amountCents: number; method: 'card' | 'check' | 'cash'; payer: 'self' | 'spouse' | 'parent' | 'other'; ref: string };
+export type JoinProgress = { step?: string; stepLabel?: string; furthest?: string; furthestIndex?: number; total?: number; startedAt?: string; lastSeen?: string; reminders?: number; lastReminded?: string; finishedAt?: string; draft?: Record<string, unknown> };
 export type AuditEntry = { at: string; by: string; action: string; detail: string };
 export type Member = {
   id: string; first: string; last: string; email: string; phone: string; dob: string;
@@ -31,6 +32,8 @@ export type Member = {
   termStatus?: string;
   /** Never became a member: 'applied' = applied, waiting for a decision · 'incomplete' = never finished (no membership, never verified). */
   joinStage?: 'applied' | 'incomplete';
+  /** the website join form for someone who has not finished: where they are and everything they typed (saved as they go) */
+  join?: JoinProgress;
   spouseId?: string; payments: Payment[]; notes: { at: string; by: string; text: string }[]; audit: AuditEntry[];
   commitment: 'programs' | 'contribution' | 'volunteer';
   /** Extra profile fields (Admin › Configuration › Profile fields), by field ID. */
@@ -316,7 +319,7 @@ export function loadLiveMembers(force = false): Promise<void> {
   });
   return liveLoading;
 }
-async function refreshLive(id: string) {
+export async function refreshLive(id: string) {
   const r = await be<{ member: Member }>('GET', `admin/members/${encodeURIComponent(id)}`);
   if (r.ok && live) { const i = live.findIndex((x) => x.id === id); live = i >= 0 ? live.map((x, j) => (j === i ? r.data.member : x)) : [...live, r.data.member]; }
   window.dispatchEvent(new Event(MEMBERS_EVENT));
@@ -350,14 +353,34 @@ async function saveLive(m: Member, action: string, detail: string) {
   }
   await refreshLive(m.id);
 }
+/** Live: add members one by one – gently. Nothing given is dropped: a value the API cannot take as it is (a phone
+ *  that is not 10 digits, a placeholder birth date) is kept as a note instead; notes and past payments follow the
+ *  record. Someone who looks like a person already on file is held back with the reason, never added twice silently. */
 async function importLive(list: Member[]) {
-  let added = 0; const problems: string[] = [];
+  let added = 0; const problems: string[] = []; const held: string[] = [];
+  const digits10 = (p: string) => (p ?? '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
   for (const m of list) {
-    const r = await be('POST', 'admin/members', { first: m.first, last: m.last, email: m.email, phone: m.phone, dob: m.dob, street: m.street, city: m.city, zip: m.zip, plan: m.plan, commitment: m.commitment, approved: !!m.approvedOn, extra: m.extra ?? {} });
-    if (r.ok) added++; else problems.push(`${m.first} ${m.last}: ${r.message}`);
+    const phone = digits10(m.phone); const dob = m.dob && !m.dob.startsWith('1900') ? m.dob.slice(0, 10) : '';
+    const kept: string[] = [];
+    if (m.phone && phone.length !== 10) kept.push(`Phone as given: ${m.phone}`);
+    const r = await be<{ id: string }>('POST', 'admin/members', { first: m.first, last: m.last, email: m.email, phone: phone.length === 10 ? phone : '', dob, street: m.street, city: m.city, state: m.state || undefined, zip: m.zip, plan: m.plan, commitment: m.commitment, approved: !!m.approvedOn, extra: m.extra ?? {} });
+    if (!r.ok) {
+      const dup = r.status === 409 && Array.isArray(r.data.detail) ? (r.data.detail as { id: string; reasons?: string[] }[]) : [];
+      if (dup.length) held.push(`${m.first} ${m.last} looks like ${dup.map((x) => `${x.id} (${(x.reasons ?? []).join(', ').toLowerCase()})`).join(' or ')}`);
+      else problems.push(`${m.first} ${m.last}: ${r.message}`);
+      continue;
+    }
+    added++;
+    const id = r.data.id;
+    for (const n of [...kept, ...(m.notes ?? []).map((x) => x.text)].filter((t) => t && t.trim())) { const nr = await be('POST', `admin/members/${encodeURIComponent(id)}/notes`, { text: n.slice(0, 4000) }); if (!nr.ok) problems.push(`${m.first} ${m.last}: a note was not saved (${nr.message})`); }
+    for (const p of m.payments ?? []) {
+      const pr = await be('POST', `admin/members/${encodeURIComponent(id)}/payments`, { year: p.year, amountCents: p.amountCents, method: p.method, paidOn: p.paidOn.slice(0, 10), ref: p.ref || `IMPORT-${id}-${p.year}`, payer: p.payer });
+      if (!pr.ok) problems.push(`${m.first} ${m.last}: ${p.year} payment not saved (${pr.message})`);
+    }
   }
   await loadLiveMembers(true);
-  notice(problems.length ? `${added} added. Not added – ${problems.slice(0, 3).join(' · ')}${problems.length > 3 ? ` (and ${problems.length - 3} more)` : ''}` : `${added} member${added === 1 ? '' : 's'} added.`, problems.length ? 'error' : 'ok');
+  const parts = [`${added} member${added === 1 ? '' : 's'} added.`, held.length ? `Held back as possible duplicates (check them in Members, then add by hand if they are different people): ${held.slice(0, 3).join(' · ')}${held.length > 3 ? ` (and ${held.length - 3} more)` : ''}.` : '', problems.length ? `Needs a look – ${problems.slice(0, 3).join(' · ')}${problems.length > 3 ? ` (and ${problems.length - 3} more)` : ''}` : ''];
+  notice(parts.filter(Boolean).join(' '), problems.length || held.length ? 'error' : 'ok');
 }
 /** Next free member ID for imports (HOU-9xxxxx so they never clash with existing numbers). */
 export function nextImportId(existing: { id: string }[], n = 0) {

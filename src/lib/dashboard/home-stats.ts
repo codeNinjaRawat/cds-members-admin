@@ -62,7 +62,9 @@ export function homeStats(input: { members: Member[]; cases: Case[]; queue: Queu
     return open(c) ? [{ id: c.id, memberId: m.id, name: `${m.first} ${m.last.slice(0, 1)}.`, plan: PLANS[m.plan]?.name ?? m.plan, zone: ZONES[m.zone] ?? m.zone, status: st, age: ago(c.submitted, today), on: c.submitted }] : []; })
     .concat(members.filter((m) => m.approvedOn && daysBetween(m.approvedOn, today) <= 7).map((m) => ({ id: `ok-${m.id}`, memberId: m.id, name: `${m.first} ${m.last.slice(0, 1)}.`, plan: PLANS[m.plan]?.name ?? m.plan, zone: ZONES[m.zone] ?? m.zone, status: 'Approved' as const, age: ago(m.approvedOn!, today), on: m.approvedOn! })))
     .sort((a, b) => b.on.localeCompare(a.on));
-  const pending = members.filter((m) => status(m) === 'pending').length;
+  // started joining but did not finish = not an application yet (Work queues › Incomplete applications)
+  const unfinished = members.filter((m) => m.joinStage === 'incomplete' && !m.archived);
+  const pending = members.filter((m) => status(m) === 'pending' && m.joinStage !== 'incomplete').length;
 
   /* KPIs */
   const approvedRecently = members.filter((m) => m.approvedOn && m.appliedOn && daysBetween(m.approvedOn, today) <= 365 && daysBetween(m.appliedOn, m.approvedOn) >= 0);
@@ -81,7 +83,7 @@ export function homeStats(input: { members: Member[]; cases: Case[]; queue: Queu
   const giving6 = months.slice(6).map((mo, i) => ({ label: labels[i + 6], cents: gifts.filter((g) => g.at.startsWith(mo)).reduce((s, g) => s + g.amountCents, 0) }));
 
   /* the application pipeline: everyone who applied in the last 90 days, how far they got */
-  const recentApps = members.filter((m) => daysBetween(m.appliedOn, today) <= 90);
+  const recentApps = members.filter((m) => daysBetween(m.appliedOn, today) <= 90 && m.joinStage !== 'incomplete');
   const pipeline = [
     { s: 'Applied', n: recentApps.length },
     { s: 'Dues paid', n: recentApps.filter((m) => m.payments.length > 0).length },
@@ -90,7 +92,7 @@ export function homeStats(input: { members: Member[]; cases: Case[]; queue: Queu
   ];
 
   /* newest members and what happened lately */
-  const newest = [...members].filter((m) => m.approvedOn || status(m) === 'pending').sort((a, b) => (b.approvedOn ?? b.appliedOn).localeCompare(a.approvedOn ?? a.appliedOn)).slice(0, 5).map((m) => {
+  const newest = [...members].filter((m) => m.approvedOn || (status(m) === 'pending' && m.joinStage !== 'incomplete')).sort((a, b) => (b.approvedOn ?? b.appliedOn).localeCompare(a.approvedOn ?? a.appliedOn)).slice(0, 5).map((m) => {
     const last = [...m.payments].sort((a, b) => b.paidOn.localeCompare(a.paidOn))[0];
     const st = status(m); return { id: m.id, name: fullName(m), initials: `${m.first[0] ?? ''}${m.last[0] ?? ''}`, plan: PLANS[m.plan]?.name ?? m.plan, zone: ZONES[m.zone] ?? m.zone,
       status: st === 'pending' ? (m.idCheck === 'pending' ? 'ID check' : 'Board review') : st === 'life' ? 'Life' : 'Active', amountCents: last?.amountCents ?? 0, when: ago(m.approvedOn ?? m.appliedOn, today) };
@@ -110,6 +112,7 @@ export function homeStats(input: { members: Member[]; cases: Case[]; queue: Queu
   const paidThisNotNext = current.filter((m) => m.payments.some((p) => p.year === year) && !m.payments.some((p) => p.year === votingYear) && votingYear > year).length;
   const suggestions = [
     paidThisNotNext ? `${paidThisNotNext.toLocaleString('en-US')} members paid for ${year} but not yet for ${votingYear} – a renewal reminder before ${recordDate.slice(5, 7)}/${recordDate.slice(8, 10)} keeps their vote.` : '',
+    unfinished.length ? `${unfinished.length.toLocaleString('en-US')} ${unfinished.length === 1 ? 'person' : 'people'} started joining but did not finish – Work queues › Incomplete applications shows where each one stopped.` : '',
     idWaiting ? `${idWaiting.toLocaleString('en-US')} photo ID${idWaiting === 1 ? '' : 's'} waiting to be checked.` : '',
     centerWaiting ? `${centerWaiting} masjid-change request${centerWaiting === 1 ? '' : 's'} waiting.` : '',
     grow?.pct && grow.pct > 0 ? `${grow.z} zone: ${grow.now} new members in ${year} (${grow.pct > 0 ? '+' : ''}${grow.pct}% on ${year - 1}).` : '',

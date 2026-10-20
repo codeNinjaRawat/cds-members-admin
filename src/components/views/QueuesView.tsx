@@ -10,13 +10,13 @@ import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
-  approvalBlockers, centerOf, cityLine, demoMembers, membersWithEdits, fmtDate, fmtMoney, fullName, initials, PLANS, restoreMemberEdit, saveMember, snapshotMemberEdit, YEAR, ZONES, type Member, ORG_TZ } from '@/lib/members/members';
+  approvalBlockers, centerOf, cityLine, demoMembers, membersWithEdits, planDef, refreshLive, fmtDate, fmtMoney, fullName, initials, PLANS, restoreMemberEdit, saveMember, snapshotMemberEdit, YEAR, ZONES, type Member, ORG_TZ } from '@/lib/members/members';
 import {
   applyQueueSettings, assigneeOf, buildCases, daysWaiting, escalation, isOpen, MISSING_LABEL, QUEUES, QUEUES_EVENT, queueMe, readQueueState, rulesFor, setQueueMe, sla, TODAY, writeQueueState,
   type Case, type Decision, type QueueId, type QueueState,
 } from '@/lib/queues/queues';
 import { useMembers } from './MembersView';
-import { LIVE } from '@/lib/live/live';
+import { LIVE, be } from '@/lib/live/live';
 import { useWorkSettings } from '@/lib/work/work-store';
 import type { AdminLike } from '@/lib/community/work';
 import { useOrg } from './TeamViews';
@@ -333,7 +333,7 @@ function CaseDetail({ c, m, d, on, meId, admins, escalatedTo, onAssign, ask, set
           {c.queue === 'missing' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Information received' }, () => [{ idCheck: c.fields.includes('id') ? 'pending' : m.idCheck }, 'Missing information received', c.fields.map((f) => MISSING_LABEL[f]).join(', ')])}>Information received</button>}
           {c.queue === 'duplicates' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Merged' }, () => [{}, 'Duplicate merged', `${c.other.name} (${c.other.email}, ${c.other.source}) merged into this record`])}>Merge into {m.first}’s record</button>}
           {c.queue === 'payments' && c.kind === 'check_pending' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Check received' }, () => [{ payments: [...m.payments, { year: YEAR, paidOn: TODAY, amountCents: c.amountCents, method: 'check', payer: 'self', ref: `CHK-${c.id.slice(-4)}` }] }, 'Payment recorded', `${YEAR} dues ${fmtMoney(c.amountCents)} by check`])}>Check received</button>}
-          <button className="btn" onClick={() => setAsk({ kind: 'info' })}>{infoLabel}</button>
+          {c.queue === 'incomplete' && LIVE ? <JoinReminder c={c} m={m} decide={decide} /> : <button className="btn" onClick={() => setAsk({ kind: 'info' })}>{infoLabel}</button>}
           <button className="btn danger-ghost" onClick={() => setAsk({ kind: 'decline' })}>{declineLabel}</button>
         </div>
       )}
@@ -388,14 +388,18 @@ function CaseBody({ c, m }: { c: Case; m: Member }) {
   );
   if (c.queue === 'incomplete') return (
     <div className="wq-steps-wrap">
-      <ol className="wq-steps" aria-label="Join form steps">
-        {(['Email', 'About you', 'Plan', 'Pledge', 'Review and pay'] as const).map((st, i) => { const reached = ['Email', 'About you', 'Plan', 'Pledge', 'Review and pay'].indexOf(c.stepReached); return <li key={st} className={i < reached ? 'done' : i === reached ? 'here' : ''}><span aria-hidden="true">{i < reached ? '✓' : i + 1}</span>{st}</li>; })}
-      </ol>
+      {c.stepTotal ? (
+        <ol className="wq-steps" aria-label={`Reached step ${(c.stepIndex ?? 0) + 1} of ${c.stepTotal}`}>
+          {Array.from({ length: c.stepTotal }, (_, i) => <li key={i} className={i < (c.stepIndex ?? 0) ? 'done' : i === (c.stepIndex ?? 0) ? 'here' : ''}><span aria-hidden="true">{i < (c.stepIndex ?? 0) ? '✓' : i + 1}</span>{i === (c.stepIndex ?? 0) && <b>{c.stepReached}</b>}</li>)}
+        </ol>
+      ) : <p className="wq-score">{c.fromImport ? 'Imported from the old system – they never finished joining.' : `Stopped at: ${c.stepReached}`}</p>}
       <dl className="m-defs">
         <div className="m-def"><dt>Reach them</dt><dd>{m.email}{c.hasPhone ? ` · ${m.phone}` : ' · no phone given'}</dd></div>
-        <div className="m-def"><dt>Last seen</dt><dd>{fmtDate(c.lastSeen)}</dd></div>
-        <div className="m-def"><dt>Automatic reminders</dt><dd>{c.reminders || 'none yet'} (Settings › Work queues decides when they go out)</dd></div>
+        {m.join?.startedAt && <div className="m-def"><dt>Started</dt><dd>{fmtWhen(m.join.startedAt)}</dd></div>}
+        <div className="m-def"><dt>Last seen</dt><dd>{m.join?.lastSeen ? fmtWhen(m.join.lastSeen) : fmtDate(c.lastSeen)}</dd></div>
+        <div className="m-def"><dt>Reminders</dt><dd>{c.reminders ? `${c.reminders}${m.join?.lastReminded ? ` · last ${fmtWhen(m.join.lastReminded)}` : ''}` : 'none yet'}</dd></div>
       </dl>
+      <JoinAnswers m={m} />
     </div>
   );
   if (c.queue === 'missing') return (
@@ -420,5 +424,57 @@ function CaseBody({ c, m }: { c: Case; m: Member }) {
       <div className="m-def"><dt>Home</dt><dd>{[m.street, cityLine(m)].filter(Boolean).join(', ')}</dd></div>
       <div className="m-def"><dt>Applied</dt><dd>{fmtDate(m.appliedOn)}</dd></div>
     </dl>
+  );
+}
+
+/** "10/20/2026, 3:42 PM" in the organization's time zone */
+function fmtWhen(iso: string) { const t = new Date(iso); return Number.isNaN(t.getTime()) ? iso : t.toLocaleString('en-US', { timeZone: ORG_TZ, month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+
+/** Everything an unfinished applicant typed – the office can call them with it in front of them. */
+function JoinAnswers({ m }: { m: Member }) {
+  type Draft = { about?: Record<string, string>; plan?: { planId?: string; years?: number; spouse?: { firstName?: string; lastName?: string; email?: string } };
+    pledge?: { commitments?: string[]; pledgeAccepted?: boolean; signature?: string; emailConsent?: boolean; smsConsent?: boolean };
+    lookup?: { center?: { name?: string } | null; zone?: { name?: string } | null } | null; custom?: Record<string, unknown> };
+  const d = (m.join?.draft ?? {}) as Draft;
+  const about = d.about ?? {}; const plan = d.plan ?? {}; const pledge = d.pledge ?? {}; const custom = d.custom ?? {};
+  const rows: [string, string][] = [
+    ['Name', [about.firstName, about.middleName, about.lastName].filter(Boolean).join(' ') || [m.first, m.last].filter(Boolean).join(' ')],
+    ['Preferred name', about.preferredName ?? ''],
+    ['Date of birth', about.dob ? fmtDate(about.dob) : m.dob && !m.dob.startsWith('1900') ? fmtDate(m.dob) : ''],
+    ['Mobile', about.phone || m.phone],
+    ['Address', [[about.street, about.unit].filter(Boolean).join(' '), [about.city, [about.state, about.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ') || [m.street, cityLine(m)].filter(Boolean).join(', ')],
+    ['Islamic Center', d.lookup?.center?.name ? `${d.lookup.center.name}${d.lookup.zone?.name ? ` · ${d.lookup.zone.name} zone` : ''}` : m.center],
+    ['Plan', plan.planId ? `${planDef({ plan: plan.planId as Member['plan'] }).name}${(plan.years ?? 1) > 1 ? ` · ${plan.years} years` : ''}` : ''],
+    ['Spouse', plan.spouse?.firstName ? `${plan.spouse.firstName} ${plan.spouse.lastName ?? ''}${plan.spouse.email ? ` · ${plan.spouse.email}` : ''}` : ''],
+    ['Commitment', Array.isArray(pledge.commitments) ? pledge.commitments.join(', ') : ''],
+    ['Pledge', pledge.pledgeAccepted ? `Accepted${pledge.signature ? ` – signed “${pledge.signature}”` : ''}` : ''],
+    ['Messages', [pledge.emailConsent ? 'email: yes' : '', pledge.smsConsent ? 'text: yes' : ''].filter(Boolean).join(' · ')],
+    ...Object.entries(custom).filter(([, v]) => v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && !v.length)).map(([k, v]) => [k.replace(/-/g, ' ').replace(/^./, (x) => x.toUpperCase()), Array.isArray(v) ? v.join(', ') : String(v)] as [string, string]),
+  ].filter(([, v]) => v && String(v).trim()) as [string, string][];
+  return (
+    <section aria-labelledby={`ans-${m.id}`} className="wq-answers">
+      <h3 id={`ans-${m.id}`} className="wq-h3">What they filled in</h3>
+      {rows.length ? <dl className="m-defs">{rows.map(([k, v]) => <div key={k} className="m-def"><dt>{k}</dt><dd>{v}</dd></div>)}</dl> : <p className="wq-why">Only the email so far.</p>}
+    </section>
+  );
+}
+
+/** Live: email them the link to finish (a fresh 30-day link; also shown here to copy into a text message). */
+function JoinReminder({ c, m, decide }: { c: Case; m: Member; decide: DecideFn }) {
+  const [state, setState] = useState<{ busy: boolean; link: string; error: string }>({ busy: false, link: '', error: '' });
+  const send = async () => {
+    setState({ busy: true, link: '', error: '' });
+    const r = await be<{ sent: boolean; to: string; link: string }>('POST', `admin/members/${encodeURIComponent(m.id)}/join-reminder`, {});
+    if (!r.ok) { setState({ busy: false, link: '', error: r.message }); return; }
+    setState({ busy: false, link: r.data.link, error: '' });
+    decide([c], { state: 'needs-info', outcome: 'Reminder sent', note: `Link to finish emailed to ${r.data.to}` });
+    void refreshLive(m.id);
+  };
+  return (
+    <div className="wq-remind">
+      <button className="btn primary" disabled={state.busy} onClick={() => void send()}>{state.busy ? 'Sending…' : 'Email them the link to finish'}</button>
+      {state.error && <small className="wq-why" role="alert">{state.error}</small>}
+      {state.link && <p className="wq-why" role="status">Sent. To text it instead: <input className="in" readOnly value={state.link} onFocus={(e) => e.target.select()} aria-label="Link to finish the application" /></p>}
+    </div>
   );
 }

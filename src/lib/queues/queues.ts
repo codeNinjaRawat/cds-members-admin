@@ -42,7 +42,7 @@ export type IdCase = Base & { queue: 'id'; doc: 'Texas driver license' | 'Texas 
 export type CenterCase = Base & { queue: 'center'; toZone: ZoneId; toCenter: string; miles: number; reason: string };
 export type DupCase = Base & { queue: 'duplicates'; other: { name: string; email: string; phone: string; dob: string; source: string; created: string }; reasons: string[]; score: number };
 export type PayCase = Base & { queue: 'payments'; kind: 'card_declined' | 'bank_returned' | 'check_pending'; amountCents: number; detail: string; attempts: number };
-export type IncompleteCase = Base & { queue: 'incomplete'; stepReached: 'About you' | 'Plan' | 'Pledge' | 'Review and pay'; lastSeen: string; reminders: number; hasPhone: boolean };
+export type IncompleteCase = Base & { queue: 'incomplete'; stepReached: string; stepIndex?: number; stepTotal?: number; lastSeen: string; reminders: number; hasPhone: boolean; fromImport?: boolean };
 export type MissingFieldKey = 'phone' | 'address' | 'dob' | 'id' | 'email';
 export type MissingCase = Base & { queue: 'missing'; fields: MissingFieldKey[]; lastAsked: string };
 export type Case = AppCase | IdCase | CenterCase | DupCase | PayCase | IncompleteCase | MissingCase;
@@ -130,7 +130,7 @@ export function buildLiveCases(members: Member[], opts: { followUps?: QueuesSett
   const add = (k: string, x: Member) => { if (!k) return; const l = index.get(k); if (l) l.push(x); else index.set(k, [x]); };
   for (const x of members) if (!x.archived) { add(x.email ? `e:${x.email.trim().toLowerCase()}` : '', x); add(digits(x.phone ?? '').length === 10 ? `p:${digits(x.phone)}` : '', x); add(nameDob(x) ? `n:${nameDob(x)}` : '', x); }
   for (const m of good.filter((x) => !x.approvedOn)) {
-    if (m.joinStage === 'incomplete') { if (fu.incomplete.enabled) out.push({ id: `inc-${m.id}`, queue: 'incomplete', memberId: m.id, submitted: day(m.appliedOn), stepReached: 'About you', lastSeen: day(m.appliedOn), reminders: 0, hasPhone: !!m.phone }); continue; }
+    if (m.joinStage === 'incomplete') { if (fu.incomplete.enabled) { const j = m.join ?? {}; out.push({ id: `inc-${m.id}`, queue: 'incomplete', memberId: m.id, submitted: day(j.startedAt ?? m.appliedOn), stepReached: j.furthest ?? j.stepLabel ?? (m.source === 'import' ? 'Imported – never finished' : 'Email'), stepIndex: j.furthestIndex, stepTotal: j.total, lastSeen: day(j.lastSeen ?? m.appliedOn), reminders: j.reminders ?? 0, hasPhone: !!m.phone, fromImport: m.source === 'import' && !m.join }); } continue; }
     out.push({ id: `app-${m.id}`, queue: 'applications', memberId: m.id, submitted: day(m.appliedOn) });
     const hits = new Map<string, { o: Member; why: string[] }>();
     const look = (k: string, why: string) => { for (const o of index.get(k) ?? []) if (o.id !== m.id) { const h = hits.get(o.id) ?? { o, why: [] }; h.why.push(why); hits.set(o.id, h); } };
@@ -182,10 +182,10 @@ export function rulesFor(c: Case, m: Member): Rule[] {
   ]; }
   if (c.queue === 'duplicates') return c.reasons.map((r) => ({ label: r, ok: null, note: '' }));
   if (c.queue === 'incomplete') return [
-    { label: 'Email verified', ok: true, note: 'Code confirmed at sign-up' },
+    { label: c.fromImport ? 'Came from the old system' : 'Email verified', ok: c.fromImport ? null : true, note: c.fromImport ? 'Imported contact who never finished joining – no answers from the website yet' : 'Code confirmed on the join form' },
     { label: 'Reached', ok: null, note: `Stopped at “${c.stepReached}” · last seen ${fmtDate(c.lastSeen)}` },
     { label: 'A way to reach them', ok: c.hasPhone, note: c.hasPhone ? `${m.phone} · ${m.email}` : `Email only (${m.email}) – no phone yet` },
-    { label: 'Reminders sent', ok: c.reminders < 3 ? null : false, note: c.reminders ? `${c.reminders} automatic reminder${c.reminders > 1 ? 's' : ''}` : 'None yet' },
+    { label: 'Reminders sent', ok: c.reminders < 3 ? null : false, note: c.reminders ? `${c.reminders} reminder${c.reminders > 1 ? 's' : ''} with the link to finish` : 'None yet' },
   ];
   if (c.queue === 'missing') return [
     ...c.fields.map((f) => ({ label: MISSING_LABEL[f], ok: false as const, note: f === 'id' ? 'No checked ID on file' : 'Not on the record' })),
