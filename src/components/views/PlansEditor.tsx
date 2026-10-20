@@ -154,6 +154,18 @@ function PlanForm({ p, i, err, rules, up }: { p: Plan; i: number; err: (k: strin
           )}
         </div>
       )}
+      <div className="pe-sub">
+        <h4>On the join form</h4>
+        {p.term === 'recurring' && (
+          <Field label="Funds the monthly gift can go to" hint="One per line. Leave empty for no choice. People give at least the monthly minimum above.">
+            <textarea className="in in-area" rows={3} aria-label={`Funds ${p.name}`} value={(p.fundChoices ?? []).join('\n')}
+              onChange={(ev) => up((x) => { const l = ev.target.value.split('\n').map((t) => t.trim()).filter(Boolean).slice(0, 20); if (l.length) x.fundChoices = l; else delete x.fundChoices; })} />
+          </Field>
+        )}
+        <Field label="Reminder shown with this plan" hint="Optional, e.g. “Dues of $20 per member must be paid by June 30.”" err={e('note')}>
+          <input className="in" maxLength={300} aria-label={`Reminder ${p.name}`} value={p.note ?? ''} onChange={(ev) => up((x) => { const v = ev.target.value; if (v.trim()) x.note = v; else delete x.note; })} />
+        </Field>
+      </div>
       {p.category === 'individual' && (
         <div className="pe-sub">
           <h4>Pay for family members</h4>

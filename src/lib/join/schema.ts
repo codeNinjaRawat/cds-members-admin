@@ -52,6 +52,9 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
       lastName: z.string().trim().max(60).optional().or(z.literal('')),
       email: z.string().trim().toLowerCase().max(254).optional().or(z.literal('')),
     }).optional(),
+    // monthly plans: the amount they give each month (at least the plan's minimum) and, when offered, the fund
+    monthlyCents: z.number().int().nonnegative().max(1_000_000).optional(),
+    fund: z.string().trim().max(60).optional().or(z.literal('')),
     // "Pay for family members" (plan.familyMembers): other adults of the household, each their own member
     members: z.array(z.object({
       firstName: z.string().trim().max(60), lastName: z.string().trim().max(60),
@@ -60,6 +63,8 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
   }).superRefine((v, ctx) => {
     const p = visiblePlans.find((x) => x.id === v.planId);
     if (!p) return;
+    if (p.term === 'recurring' && (v.monthlyCents ?? 0) < p.priceCents) ctx.addIssue({ code: 'custom', path: ['monthlyCents'], message: `The monthly amount is at least $${(p.priceCents / 100).toFixed(p.priceCents % 100 ? 2 : 0)}.` });
+    if (p.term === 'recurring' && p.fundChoices?.length && !p.fundChoices.includes(v.fund ?? '')) ctx.addIssue({ code: 'custom', path: ['fund'], message: 'Choose where your monthly gift goes.' });
     const ms = v.members ?? [];
     if (ms.length && !p.familyMembers) ctx.addIssue({ code: 'custom', path: ['members'], message: 'This plan is for one person – choose a plan that includes family members.' });
     if (p.familyMembers && ms.length > p.familyMembers.max) ctx.addIssue({ code: 'custom', path: ['members'], message: `Add up to ${p.familyMembers.max} family members.` });

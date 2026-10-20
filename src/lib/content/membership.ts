@@ -37,6 +37,10 @@ export const PlanSchema = z.object({
   /** "Pay for family members": the applicant adds other adults of the household on the same payment – each gets their
    *  own member record, approval and sign-in. perMemberCents is per year (times the years chosen). */
   familyMembers: z.object({ max: z.number().int().min(1).max(10), perMemberCents: z.number().int().nonnegative() }).optional(),
+  /** Monthly plans: the gift can go to one of these funds (the applicant picks one); empty = no choice. */
+  fundChoices: z.array(z.string().trim().min(2).max(60)).max(20).optional(),
+  /** A short reminder shown with the plan on the join form (e.g. "Dues of $20 per member must be paid by June 30."). */
+  note: z.string().trim().max(300).optional(),
 });
 
 /** What happens around the renewal date (WildApricot: Renewal policy + Overdue settings). */
