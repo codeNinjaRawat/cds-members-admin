@@ -69,7 +69,7 @@ export function exportPage(name: string, extra: { title: string; head: string[];
     table.querySelectorAll('tr').forEach((tr) => rows.push(Array.from(tr.children).map((td) => txt(td))));
   });
   extra.forEach((x) => rows.push([], [x.title], x.head, ...x.rows));
-  downloadCsv(name, [txt(root.querySelector('h1')) || name, `Downloaded ${todayCT()}`, 'demo data'], rows);
+  downloadCsv(name, [txt(root.querySelector('h1')) || name, `Downloaded ${todayCT()}`, LIVE ? '' : 'demo data'], rows);
 }
 
 export function DashBar({ s, show, report, onExport, extra }: {

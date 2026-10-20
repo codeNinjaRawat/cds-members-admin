@@ -113,7 +113,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <span>Find a setting or page</span><kbd>Ctrl K</kbd>
           </button>
           <ViewingChip />
-          <span className="env" title="Changes go to the local demo store (../.demo-store). The real site is not touched.">Demo</span>
+          {LIVE
+            ? <span className="env live" title="Connected to the API – changes are saved to the database">Live</span>
+            : <span className="env" title="Changes go to the local demo store (../.demo-store). The real site is not touched.">Demo</span>}
           <a className="top-link" href={site} target="_blank" rel="noopener noreferrer">Open website<span className="sr-only"> (opens in a new tab)</span></a>
           <button className={`icon-btn work-btn${work ? ' on' : ''}`} aria-label={work ? 'Leave work mode (Esc)' : 'Work mode – full page (Ctrl+Shift+F)'} aria-pressed={work} title={work ? 'Leave work mode (Esc)' : 'Work mode: the whole screen for the page (Ctrl+Shift+F)'} onClick={() => update({ work: work ? 'off' : 'on' })}>
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">{work ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" strokeWidth="1.8" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" strokeWidth="1.8" />}</svg>

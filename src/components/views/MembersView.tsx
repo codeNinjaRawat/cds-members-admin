@@ -125,7 +125,7 @@ export function MembersView({ search = '' }: { search?: string }) {
       <header className="page-head m-head-row">
         <div>
           <h1>Members <span className="m-total">{members ? rows.filter((r) => r.status !== 'archived').length.toLocaleString('en-US') : ''}</span></h1>
-          <p className="page-intro">Voting record date {fmtDate(recordDate(YEAR))} · demo data</p>
+          <p className="page-intro">Voting record date {fmtDate(recordDate(YEAR))}{LIVE ? '' : ' · demo data'}</p>
         </div>
         <div className="page-actions">
           {purgeDue.n > 0 && (

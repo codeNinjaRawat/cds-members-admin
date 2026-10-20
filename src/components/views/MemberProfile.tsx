@@ -15,6 +15,7 @@ import { MemberFamily } from './FamilyView';
 import { useOrgConfig } from '@/lib/members/use-org-config';
 import { useMembershipSettings } from '@/lib/members/use-settings';
 import { useAccess } from '@/lib/access/use-access';
+import { LIVE } from '@/lib/live/live';
 import { useOrg } from './TeamViews';
 import { centerRulesInWords, DEFAULT_CENTER_RULES } from '@/lib/community/org-structure';
 import { canEdit, checkValues, findDuplicates, showValue, type FieldValues } from '@/lib/community/member-records';
@@ -101,7 +102,7 @@ export function MemberProfile({ id }: { id: string }) {
           <small className="muted">To merge, use Work queues › Possible duplicates.</small>
         </section>
       )}
-      {flash && <p className="notice glass-pane" role="status">{flash} <span className="muted">Demo – saved in this browser and in the audit log.</span></p>}
+      {flash && <p className="notice glass-pane" role="status">{flash} <span className="muted">{LIVE ? 'Saved and added to the audit log.' : 'Demo – saved in this browser and in the audit log.'}</span></p>}
 
       <div className="m360-grid">
         <aside className="m-elig glass-pane" aria-labelledby="el-h">
@@ -175,13 +176,13 @@ export function MemberProfile({ id }: { id: string }) {
         onSave={(values, changed) => act({ extra: values }, 'Profile fields changed', changed.map((id) => { const f = cfg.members.fields.find((x) => x.id === id)!; return f.access === 'admins' ? `${f.label} (admin-only, value not logged)` : `${f.label}: ${showValue(f, values[id])}`; }).join('; '), 'Profile fields saved.')} />}
 
       {action === 'archive' && <ActionDialog title={`Archive ${fullName(m)}`} submit="Archive" onClose={() => setAction(null)}
-        onSubmit={(f) => act({ archived: { on: today(), reason: String(f.get('reason')), by: 'Mohammad (demo)' } }, 'Archived', String(f.get('reason')), `${fullName(m)} is archived. You can restore the record at any time.`)}>
+        onSubmit={(f) => act({ archived: { on: today(), reason: String(f.get('reason')), by: access.me?.name || 'Admin' } }, 'Archived', String(f.get('reason')), `${fullName(m)} is archived. You can restore the record at any time.`)}>
         <p>Use this for a record that should not be active any more – a duplicate that was merged, someone who passed away, a test record. Payments, notes and history are kept. Archived people do not appear in lists, cannot sign in and cannot vote.</p>
         <label className="sf-field"><span className="sf-label">Reason (required, goes in the audit log)</span><textarea className="in in-area" name="reason" required minLength={5} rows={3} placeholder="Merged into HOU-… / passed away (Inna lillahi wa inna ilayhi raji'un) / test record" /></label>
       </ActionDialog>}
 
       {action === 'note' && <ActionDialog title="Add a note" submit="Save note" onClose={() => setAction(null)}
-        onSubmit={(f) => act({ notes: [...m.notes, { at: new Date().toISOString(), by: 'Mohammad (demo)', text: String(f.get('text')) }] }, 'Note added', String(f.get('text')).slice(0, 80), 'Note saved.')}>
+        onSubmit={(f) => act({ notes: [...m.notes, { at: new Date().toISOString(), by: access.me?.name || 'Admin', text: String(f.get('text')) }] }, 'Note added', String(f.get('text')).slice(0, 80), 'Note saved.')}>
         <label className="sf-field"><span className="sf-label">Note (staff only – the member never sees it)</span><textarea className="in in-area" name="text" required maxLength={1000} rows={4} /></label>
       </ActionDialog>}
     </div>

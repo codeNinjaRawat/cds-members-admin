@@ -25,6 +25,7 @@
 .search span { flex: 1; font-size: .92rem; }
 kbd { font: 600 .72rem var(--font-body); padding: .1rem .4rem; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--pane); color: var(--ink-2); }
 .env { font-size: .75rem; font-weight: 800; padding: .25rem .7rem; border-radius: 999px; background: color-mix(in srgb, var(--second) 30%, var(--field)); color: var(--ink); border: 1px solid color-mix(in srgb, var(--second) 60%, transparent); margin-left: auto; }
+.env.live { background: color-mix(in srgb, var(--ok) 22%, var(--field)); border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
 .top-link { font-weight: 600; font-size: .9rem; padding: 0 .4rem; }
 .me { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: var(--ink); padding: .2rem .7rem .2rem .2rem; border-radius: 999px; }
 .me:hover { background: var(--pane); }

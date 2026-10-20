@@ -11,11 +11,13 @@ import { useMemo, useState } from 'react';
 import { addImportedMembers, fullName, nextImportId, PLANS, zoneForZip, ZONES, YEAR, type Member, type PlanId, ORG_TZ } from '@/lib/members/members';
 import { fieldsFor, matchColumns, parseCsv, planImport, toCsv, IMPORT_COLUMNS, IMPORT_PRESETS, type ImportRow } from '@/lib/community/member-records';
 import type { OrgConfig } from '@/lib/community/org-config';
+import { useAccess } from '@/lib/access/use-access';
 
 const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const SAMPLE = ['Amina', 'Yusuf', 'amina.yusuf@example.com', '(713) 555-0101', '04/12/1988', '1234 Bellaire Blvd', 'Houston', '77036', 'Single', 'WA-10234', 'Active', '03/01/2019', '12/31/2026', 'No', 'Yes', 'Yes', 'No', ''];
 
 export function MemberImport({ members, cfg, onClose, onDone }: { members: Member[]; cfg: OrgConfig; onClose: () => void; onDone: (n: number) => void }) {
+  const me = useAccess().me?.name || 'Admin';   // the audit names the person who imported
   const [text, setText] = useState('');
   const [fileName, setFileName] = useState('');
   const [stage, setStage] = useState<'file' | 'map' | 'check'>('file');
@@ -58,7 +60,7 @@ export function MemberImport({ members, cfg, onClose, onDone }: { members: Membe
         notes: notes.map((t, k) => ({ at: new Date(Date.now() + k).toISOString(), by: 'Import', text: t })), commitment: 'programs', extra: x.values, source: 'import',
         prefs: x.smsConsent || x.emailOptIn ? { email: x.emailOptIn !== 'no', sms: x.smsConsent === 'yes', optOut: [] } : undefined,
         archived: status === 'archived' ? { on: today, reason: 'Archived in the old system', by: 'Import' } : undefined,
-        audit: [{ at: new Date().toISOString(), by: 'Mohammad (demo)', action: 'Imported', detail: `From ${fileName || 'pasted text'}, row ${r.line}${x.status ? ` – ${x.status} in the old system` : ''}${r.duplicates.length ? ` – imported although it looks like ${r.duplicates.map((d) => d.id).join(', ')}` : ''}` }],
+        audit: [{ at: new Date().toISOString(), by: me, action: 'Imported', detail: `From ${fileName || 'pasted text'}, row ${r.line}${x.status ? ` – ${x.status} in the old system` : ''}${r.duplicates.length ? ` – imported although it looks like ${r.duplicates.map((d) => d.id).join(', ')}` : ''}` }],
       };
     });
     addImportedMembers(list);
