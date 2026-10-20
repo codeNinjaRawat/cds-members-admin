@@ -317,3 +317,8 @@ code { font-size: .8rem; }
 .cm-meter i { display: block; height: 100%; background: var(--accent-ink); }
 .cm-table tr.is-unknown td:first-child b { color: var(--ink); }
 .cm-table .row-actions { display: flex; gap: .3rem; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Add a member (dialog) */
+.modal.modal-wide { width: min(880px, calc(100vw - 32px)); }
+.modal .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .modal .grid-3 { grid-template-columns: 1fr; } }

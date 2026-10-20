@@ -15,6 +15,7 @@ import { LIVE } from '@/lib/live/live';
 import { useAccess } from '@/lib/access/use-access';
 import { logAudit } from '@/lib/access/audit';
 import { MemberImport } from './MemberImport';
+import { AddMemberDialog } from './AddMemberDialog';
 import { idPurgeDue } from '@/lib/community/org-config';
 
 type Row = { m: Member; status: Status; vote: ReturnType<typeof eligibility>; paid: string };
@@ -56,7 +57,7 @@ export function MembersView({ search = '' }: { search?: string }) {
   const [toast, setToast] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const cfg = useOrgConfig();
-  const [dialog, setDialog] = useState<null | { kind: 'export'; only?: string[] } | { kind: 'import' }>(null);
+  const [dialog, setDialog] = useState<null | { kind: 'export'; only?: string[] } | { kind: 'import' } | { kind: 'add' }>(null);
   useEffect(() => { const on = () => setQState(readQ()); window.addEventListener('popstate', on); window.addEventListener('isgh:tab', on);
     return () => { window.removeEventListener('popstate', on); window.removeEventListener('isgh:tab', on); }; }, []);
   // the shared "Viewing" masjid fills the zone / center filters when the address has none; choices here are shared back
@@ -136,6 +137,7 @@ export function MembersView({ search = '' }: { search?: string }) {
               </div>
             </details>
           )}
+          {LIVE && access.can('members.edit') && <button className="btn primary" onClick={() => setDialog({ kind: 'add' })}>Add member</button>}
           {access.can('members.archive') && <button className="btn" onClick={() => setDialog({ kind: 'import' })}>Import</button>}
           {access.can('members.contact') && <button className="btn" onClick={() => setDialog({ kind: 'export' })} disabled={!filtered.length}>Export this view</button>}
         </div>
@@ -241,6 +243,7 @@ export function MembersView({ search = '' }: { search?: string }) {
         onNext={peekIdx >= 0 && peekIdx < filtered.length - 1 ? () => setQ({ peek: filtered[peekIdx + 1].m.id, page: Math.floor((peekIdx + 1) / q.size) + 1 }) : undefined}
         onClose={() => setQ({ peek: '', page })} />}
       {toast && <p className="m-toast glass-float" role="status">{toast}</p>}
+      {dialog?.kind === 'add' && <AddMemberDialog onClose={() => setDialog(null)} onAdded={(id) => { logAudit({ area: 'members', action: 'Member added', detail: id }); setDialog(null); }} />}
       {dialog?.kind === 'export' && <ExportDialog count={dialog.only ? dialog.only.length : filtered.length} hasAdminOnly={cfg.members.fields.some((f) => f.access === 'admins' && f.type !== 'file')}
         onClose={() => setDialog(null)} onExport={(adminOnly) => { exportCsv(dialog.only, adminOnly); setDialog(null); }} />}
       {dialog?.kind === 'import' && members && <MemberImport members={members} cfg={cfg} onClose={() => setDialog(null)} onDone={(n) => { logAudit({ area: 'members', action: 'Members imported', detail: `${n} new records (Pending approval)` }); setDialog(null); flash(`Imported ${n.toLocaleString('en-US')} member${n === 1 ? '' : 's'}. They wait for Board approval.`); }} />}

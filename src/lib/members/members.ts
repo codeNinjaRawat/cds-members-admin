@@ -216,6 +216,8 @@ export function statusOf(m: Member, year = YEAR): Status {
 let orgSettings: MembershipSettings | null = null;
 export const setOrgMembershipSettings = (s: MembershipSettings | null) => { orgSettings = s; };
 const curPlans = () => orgSettings?.plans ?? mockMembershipSettings.plans;
+/** The organization's plans (for the Add member form). */
+export const orgPlans = (): Plan[] => curPlans();
 const curRules = () => orgSettings?.rules ?? mockMembershipSettings.rules;
 const curLifecycle = () => orgSettings?.lifecycle ?? mockMembershipSettings.lifecycle ?? DEFAULT_LIFECYCLE;
 export function planDef(m: Pick<Member, 'plan'>, plans: Plan[] = curPlans()): Plan {
