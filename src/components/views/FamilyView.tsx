@@ -75,7 +75,7 @@ export function FamiliesView({ search = '' }: { search?: string }) {
       <header className="page-head">
         <div>
           <h1>Family trees</h1>
-          <p className="page-intro">See a member’s family: who is a member, who can vote, and who could join – like children turning 18 before {fmtDate(NEXT_RECORD_DATE)}. Demo data.</p>
+          <p className="page-intro">See a member’s family: who is a member, who can vote, and who could join – like children turning 18 before {fmtDate(NEXT_RECORD_DATE)}.{LIVE ? '' : ' Demo data.'}</p>
         </div>
       </header>
       <div className="fam-page">

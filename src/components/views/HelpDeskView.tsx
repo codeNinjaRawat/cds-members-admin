@@ -13,6 +13,7 @@
  */
 import { currentOrg } from '@/lib/access/masjid-filter';
 import Link from 'next/link';
+import { LIVE } from '@/lib/live/live';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
@@ -53,7 +54,7 @@ export function HelpDeskView() {
       <header className="page-head">
         <div>
           <h1>Help desk <span className="pill">{s.open} open</span>{s.late > 0 && <span className="pill bad" data-late-count>{s.late} late</span>}</h1>
-          <p className="page-intro">Questions, requests, complaints and feedback from members, visitors and donors – each with an owner, a first-reply and a solve target, and a private thread for the team. Demo data in this browser.</p>
+          <p className="page-intro">Questions, requests, complaints and feedback from members, visitors and donors – each with an owner, a first-reply and a solve target, and a private thread for the team.{LIVE ? '' : ' Demo data in this browser.'}</p>
         </div>
         <div className="page-actions">
           {w.access.can('settings.manage') && <Link className="btn ghost" href="/settings/work">Categories and targets</Link>}

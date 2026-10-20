@@ -151,7 +151,7 @@ export function MasjidHome() {
       <header className="page-head">
         <div>
           <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
-          <p className="page-intro">{role.areaScoped ? 'Your ZIP codes' : 'Your masjid'} at a glance – members, dues, who serves and what needs you. Demo data.</p>
+          <p className="page-intro">{role.areaScoped ? 'Your ZIP codes' : 'Your masjid'} at a glance – members, dues, who serves and what needs you.{LIVE ? '' : ' Demo data.'}</p>
         </div>
         <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: ORG_TZ })}</p>
       </header>

@@ -51,7 +51,7 @@ export function ReportsView({ search = '' }: { search?: string }) {
   return (
     <div className="page reports">
       <header className="page-head">
-        <div><h1>Reports</h1><p className="page-intro">Membership, dues, the voter list and election numbers. Every table downloads as a spreadsheet. Demo data – {mf.narrowed ? `${members?.length.toLocaleString('en-US')} members in ${mf.label}` : '320 sample members'}.</p></div>
+        <div><h1>Reports</h1><p className="page-intro">Membership, dues, the voter list and election numbers. Every table downloads as a spreadsheet.{LIVE ? (mf.narrowed ? ` ${members.length.toLocaleString('en-US')} members in ${mf.label}.` : ` ${members.length.toLocaleString('en-US')} members.`) : ` Demo data – ${mf.narrowed ? `${members.length.toLocaleString('en-US')} members in ${mf.label}` : '320 sample members'}.`}</p></div>
         <div className="page-actions">
           <MasjidPicker />
           <label className="rp-year">Year <select className="in pill-select" value={year} onChange={(e) => setYear(Number(e.target.value))}>{[YEAR - 2, YEAR - 1, YEAR, YEAR + 1].map((y) => <option key={y}>{y}</option>)}</select></label>

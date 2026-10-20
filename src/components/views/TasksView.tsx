@@ -11,6 +11,7 @@
  * DEMO: this browser (lib/work/work-store.ts). Live: /admin/tasks, /admin/projects (BE/memory/api-contract-tickets.md).
  */
 import Link from 'next/link';
+import { LIVE } from '@/lib/live/live';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Tabs } from '@/components/editor/bits';
 import { ChartCard, Columns, StatTile } from '@/components/charts/Charts';
@@ -47,7 +48,7 @@ export function TasksView() {
       <header className="page-head">
         <div>
           <h1>Team tasks <span className="pill">{mine.length} mine</span>{overdue > 0 && <span className="pill bad">{overdue} overdue</span>}</h1>
-          <p className="page-intro">The team’s own work – projects, owners, due dates, checklists and recurring jobs. Questions from members live in the <Link href="/queues/tickets">Help desk</Link>. Demo data in this browser.</p>
+          <p className="page-intro">The team’s own work – projects, owners, due dates, checklists and recurring jobs. Questions from members live in the <Link href="/queues/tickets">Help desk</Link>.{LIVE ? '' : ' Demo data in this browser.'}</p>
         </div>
         <div className="page-actions">
           {w.access.can('settings.manage') && <Link className="btn ghost" href="/settings/work?tab=tasks">Templates and labels</Link>}
