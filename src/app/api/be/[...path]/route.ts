@@ -4,6 +4,7 @@
  * public routes pass; platform (staff) routes never do. Writes must come from this admin (Origin check).
  */
 import { apiCall, apiConfig, ownSessionCookie } from '@/lib/api/client';
+import { jsonResponse } from '@/lib/api/json-response';
 
 const ALLOWED = /^(auth|admin|public)\/[A-Za-z0-9._~\-/]{1,300}$/;
 type Ctx = { params: Promise<{ path: string[] }> };
@@ -27,9 +28,9 @@ async function pass(req: Request, { params }: Ctx) {
   }
   try {
     const r = await apiCall(req.method, `/${path}${new URL(req.url).search}`, body);
-    const out = new Headers({ 'content-type': 'application/json', 'cache-control': 'no-store' });
+    const out = new Headers();
     for (const c of r.setCookie) out.append('set-cookie', ownSessionCookie(c));
-    return new Response(JSON.stringify(r.body ?? {}), { status: r.status, headers: out });
+    return jsonResponse(req, r.body ?? {}, { status: r.status, headers: out });
   } catch {
     return Response.json({ error: 'We could not reach the server. Please try again in a minute.' }, { status: 503 });
   }

@@ -7,6 +7,7 @@ import { isDocKey } from '@/lib/store/registry';
 import { tenantForHost } from '@/lib/platform/platform-store';
 import { actorName, canManageAdmins, denyPublish, fourEyesProblem, teamProblem } from '@/lib/access/server-access';
 import { apiCall, apiConfig } from '@/lib/api/client';
+import { jsonResponse } from '@/lib/api/json-response';
 
 /* ---------- live mode (ISGH_USE_MOCK_API=false): the same answers, from the API's /admin/documents/:key ---------- */
 type ApiDoc = { data: unknown; version: number; publishedAt: string | null; by: string | null; source: string; versions?: { version: number; publishedAt: string; by: string; note?: string; data?: unknown }[] };
@@ -19,7 +20,7 @@ async function live(method: string, key: string, req: Request): Promise<Response
       if (r.status >= 400) return fail(r);
       const d = r.body as ApiDoc;
       if (history) return Response.json(d.versions ?? []);
-      return Response.json({ data: d.data, version: d.version, publishedAt: d.publishedAt, by: d.by, source: d.source === 'published' ? 'published' : 'default' }, { headers: { 'Cache-Control': 'no-store' } });
+      return jsonResponse(req, { data: d.data, version: d.version, publishedAt: d.publishedAt, by: d.by, source: d.source === 'published' ? 'published' : 'default' });
     }
     if (method === 'PUT') {
       const text = await req.text();
