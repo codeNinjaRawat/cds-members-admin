@@ -68,8 +68,11 @@ export const CORE_FIELDS = {
   address: { step: 'about', label: 'Home address', required: true, why: 'Bylaws Art. II: members belong to the zone and Islamic Center where they live.' },
   unit: { step: 'about', label: 'Apt or unit', required: false, why: '' },
   plan: { step: 'plan', label: 'Plan', required: true, why: 'Dues schedule set by the Board.' },
-  commitments: { step: 'pledge', label: 'Commitment', required: true, why: 'Bylaws Art. I Sec. 2: at least one commitment to vote.' },
-  pledge: { step: 'pledge', label: 'Pledge and signature', required: true, why: 'Bylaws: application on the prescribed form.' },
+  idNumber: { step: 'about', label: 'Driver license or ID card number', required: false, off: true, why: 'Identity check – switch on to ask for the number on the card (kept on the application only).' },
+  commitments: { step: 'pledge', label: 'Commitment', required: false, why: 'Bylaws Art. I Sec. 2: at least one commitment to vote (the first one is recorded when this is off).' },
+  pledge: { step: 'pledge', label: 'Pledge', required: true, why: 'Bylaws: application on the prescribed form. The label is the step heading; the help text is the checkbox.' },
+  signature: { step: 'pledge', label: 'Signature', required: false, why: 'Typed full name under the pledge.' },
+  consents: { step: 'pledge', label: 'Message consents', required: false, why: 'Email and text consent boxes (receipts and membership notices are always sent).' },
   payer: { step: 'review', label: 'Who is paying', required: true, why: 'Bylaws: own dues, or a relative by blood or marriage.' },
 } as const;
 export type CoreKey = keyof typeof CORE_FIELDS;
@@ -156,7 +159,7 @@ export function cleanAnswers(form: JoinForm, answers: Answers, ctx: FormCtx) {
 }
 export const coreLabel = (form: JoinForm, key: CoreKey) => form.core[key]?.label || CORE_FIELDS[key].label;
 export const coreHelp = (form: JoinForm, key: CoreKey, fallback?: string) => form.core[key]?.help || fallback;
-export const coreShown = (form: JoinForm, key: CoreKey) => CORE_FIELDS[key].required || form.core[key]?.show !== false;
+export const coreShown = (form: JoinForm, key: CoreKey) => { const def = CORE_FIELDS[key] as { required: boolean; off?: boolean }; return def.required || (form.core[key]?.show ?? !def.off); };
 
 /* ---------- default form (research: WildApricot + church/masjid membership forms + ISGH needs) ---------- */
 const opt = (...xs: string[]) => xs.map((l) => ({ value: l.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), label: l }));

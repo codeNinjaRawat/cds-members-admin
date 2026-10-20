@@ -27,6 +27,7 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
     middleName: z.string().trim().max(60).optional().or(z.literal('')),
     lastName: name('last name'),
     preferredName: z.string().trim().max(60).optional().or(z.literal('')),
+    idNumber: z.string().trim().max(40, 'The ID number is too long.').optional().or(z.literal('')),   // asked when the form switches it on
     dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter your date of birth.')
       .refine((d) => d < today, 'Date of birth must be in the past.')
       .refine((d) => ageOn(d, today) <= 120, 'Check the year of your date of birth.')
@@ -96,7 +97,7 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
   const pledge = z.object({
     commitments: z.array(z.string()),
     pledgeAccepted: z.literal(true, { errorMap: () => ({ message: 'Check the box to accept the pledge.' }) }),
-    signature: z.string().trim().min(3, 'Type your full name to sign.'),
+    signature: z.string().trim().max(120).optional().or(z.literal('')),   // asked when the form shows it
     emailConsent: z.boolean(),
     smsConsent: z.boolean(),
     identityConsent: z.boolean().optional(),
@@ -117,7 +118,7 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
   const application = z.object({ account, about, plan, pledge, payment, pledgeVersion: z.string(), emailConsentVersion: z.string(), smsConsentVersion: z.string(), identityConsentVersion: z.string().optional() })
     .superRefine((v, ctx) => {
       const full = `${v.about.firstName} ${v.about.lastName}`.toLowerCase().replace(/\s+/g, ' ');
-      if (v.pledge.signature.toLowerCase().replace(/\s+/g, ' ') !== full)
+      if ((v.pledge.signature ?? '').toLowerCase().replace(/\s+/g, ' ') !== full)   // the form fills the name in when it does not ask for a signature
         ctx.addIssue({ code: 'custom', path: ['pledge', 'signature'], message: `Type your name exactly as entered: ${v.about.firstName} ${v.about.lastName}.` });
       // each person keeps their own contact (their own sign-in and messages)
       const se = (v.plan.spouse?.email ?? '').trim().toLowerCase();

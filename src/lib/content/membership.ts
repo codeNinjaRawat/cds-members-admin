@@ -17,6 +17,7 @@ export const PlanSchema = z.object({
   perks: z.array(z.string()).max(6),
   votingEligible: z.boolean(),
   featured: z.boolean().default(false),
+  yearChoices: z.array(z.number().int().min(1).max(10)).max(10).optional(),   // e.g. [1, 3, 5] – else every year up to maxYearsAhead
   maxYearsAhead: z.number().int().min(1).max(10).default(1),
   multiYearDiscountPct: z.number().min(0).max(100).default(0),
   requiresApproval: z.boolean().default(true),
