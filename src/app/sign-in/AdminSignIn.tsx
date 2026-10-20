@@ -1,6 +1,7 @@
 'use client';
 /**
- * Admin sign-in (live mode): email → 6-digit code → second step for sensitive roles → which dashboard → the admin.
+ * Admin sign-in (live mode): email + password → second step for sensitive roles (when the organization asks for it) →
+ * which dashboard → the admin. Passwords are set with `npm run admin:password -- email` on the API server.
  * The session cookie belongs to this admin address. In demo mode there is nothing to sign in to (Acting as picker).
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -13,6 +14,7 @@ const safeNext = (raw: string | null) => (raw && /^\/(?!\/)[\w\-/?=&.%]*$/.test(
 export function AdminSignIn() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState('');
   const [error, setError] = useState('');
@@ -48,11 +50,13 @@ export function AdminSignIn() {
   const send = async (e: FormEvent) => {
     e.preventDefault();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return setError('Enter your work email address.');
+    if (!password) return setError('Enter your password.');
     setBusy(true); setError('');
-    const r = await be<{ devCode?: string }>('POST', 'auth/code/start', { address: email.trim().toLowerCase() });
+    const r = await be<{ dashboards: Dash[]; current: number; twoStep: { required: boolean; ok: boolean } }>('POST', 'auth/password', { email: email.trim().toLowerCase(), password });
     setBusy(false);
-    if (!r.ok) return setError(r.message);
-    setDevCode(r.data.devCode ?? ''); setCode(''); setStep('code');
+    if (!r.ok) { setPassword(''); return setError(r.status === 401 ? 'That email and password do not match.' : r.message); }
+    setPassword('');
+    await afterSignIn(r.data.dashboards, r.data.current, r.data.twoStep);
   };
   const verify = async (e: FormEvent) => {
     e.preventDefault();
@@ -74,7 +78,7 @@ export function AdminSignIn() {
     if (me.ok) await afterSignIn(me.data.dashboards, me.data.current, { required: false, ok: true });
   };
 
-  const stepNo = step === 'email' ? 1 : step === 'choose' ? 3 : 2;
+  const stepNo = step === 'choose' ? 2 : 1;
   const short = org.shortName || 'Admin';
   return (
     <main className="si" aria-busy={busy || undefined}>
@@ -114,16 +118,17 @@ export function AdminSignIn() {
         <div className="si-card-top">
           <span className="si-mark sm">{short.slice(0, 1)}</span>
           <ol className="si-steps" aria-label="Sign-in steps">
-            {['Email', 'Code', 'Dashboard'].map((t, i) => <li key={t} className={i + 1 < stepNo ? 'done' : i + 1 === stepNo ? 'now' : ''} aria-current={i + 1 === stepNo ? 'step' : undefined}>{t}</li>)}
+            {['Sign in', 'Dashboard'].map((t, i) => <li key={t} className={i + 1 < stepNo ? 'done' : i + 1 === stepNo ? 'now' : ''} aria-current={i + 1 === stepNo ? 'step' : undefined}>{t}</li>)}
           </ol>
         </div>
         {step === 'email' && (
           <form onSubmit={send} noValidate>
             <h1 className="si-h" ref={head} tabIndex={-1}>Welcome back</h1>
-            <p className="si-lead">Sign in to the {short} admin. We email you a 6-digit code – no password needed.</p>
+            <p className="si-lead">Sign in to the {short} admin with your work email and password.</p>
             <label className="field"><span>Work email</span><input className="in si-in" type="email" placeholder="you@example.org" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error || undefined} aria-describedby={error ? 'si-err' : undefined} autoFocus /></label>
+            <label className="field"><span>Password</span><input className="in si-in" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!error || undefined} aria-describedby={error ? 'si-err' : undefined} /></label>
             {error && <p className="field-error" id="si-err" role="alert">{error}</p>}
-            <button className="btn primary si-go" type="submit" disabled={busy}>{busy ? 'Sending…' : 'Email me a code'}</button>
+            <button className="btn primary si-go" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
           </form>
         )}
         {(step === 'code' || step === 'two-step') && (
