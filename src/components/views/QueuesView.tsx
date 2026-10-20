@@ -142,7 +142,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
 
   const ready = inTab.filter((c) => qs.decisions[c.id]?.state === 'ready');
   const settings = useMembershipSettings();
-  const blocked = (ask?.kind === 'board' ? inTab.filter((c) => ask.caseIds?.includes(c.id)) : []).map((c) => ({ c, why: approvalBlockers(byId.get(c.memberId)!, settings.rules) })).filter((x) => x.why.length);
+  const blocked = (ask?.kind === 'board' ? inTab.filter((c) => ask.caseIds?.includes(c.id)) : []).map((c) => ({ c, why: approvalBlockers(byId.get(c.memberId)!, settings.rules, settings.year, settings.plans) })).filter((x) => x.why.length);
   const q = QUEUES.find((x) => x.id === tab)!;
 
   return (

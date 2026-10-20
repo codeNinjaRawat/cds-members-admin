@@ -52,7 +52,7 @@ export function MemberProfile({ id }: { id: string }) {
   const dups = cfg.members.duplicateCheck && !m.archived ? findDuplicates(m, members.filter((x) => !x.archived && !(m.notDuplicateOf ?? []).includes(x.id) && !(x.notDuplicateOf ?? []).includes(m.id))) : [];
   const done = (text: string) => { setAction(null); setFlash(text); window.setTimeout(() => setFlash(''), 4000); };
   const act = (patch: Partial<Member>, what: string, detail: string, msg: string) => { saveMember({ ...m, ...patch }, what, detail); done(msg); };
-  const blockers = approvalBlockers(m, settings.rules);
+  const blockers = approvalBlockers(m, settings.rules, settings.year, settings.plans);
 
   return (
     <div className="page m360">

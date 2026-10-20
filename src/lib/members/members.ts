@@ -231,7 +231,8 @@ export function renewalOf(m: Member, today: string, plans?: Plan[], lc: Lifecycl
 
 export type Check = { id: string; label: string; ok: boolean; reason: string; fix?: 'approve' | 'payment' | 'center' };
 /** A1 – what the approval rule still needs before this application may be approved (empty = may approve). */
-export function approvalBlockers(m: Member, rules: MembershipRules = curRules(), year = YEAR, plans?: Plan[]): string[] {
+/** year = the membership year being sold (the organization's settings – e.g. 2027 once renewals for it are open) */
+export function approvalBlockers(m: Member, rules: MembershipRules = curRules(), year = orgSettings?.year ?? YEAR, plans?: Plan[]): string[] {
   const out: string[] = [];
   const plan = planDef(m, plans);
   if (rules.approval.requireFullPayment) {
