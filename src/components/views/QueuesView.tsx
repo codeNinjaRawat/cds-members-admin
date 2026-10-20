@@ -333,7 +333,7 @@ function CaseDetail({ c, m, d, on, meId, admins, escalatedTo, onAssign, ask, set
           {c.queue === 'missing' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Information received' }, () => [{ idCheck: c.fields.includes('id') ? 'pending' : m.idCheck }, 'Missing information received', c.fields.map((f) => MISSING_LABEL[f]).join(', ')])}>Information received</button>}
           {c.queue === 'duplicates' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Merged' }, () => [{}, 'Duplicate merged', `${c.other.name} (${c.other.email}, ${c.other.source}) merged into this record`])}>Merge into {m.first}’s record</button>}
           {c.queue === 'payments' && c.kind === 'check_pending' && <button className="btn primary" onClick={() => decide([c], { state: 'done', outcome: 'Check received' }, () => [{ payments: [...m.payments, { year: YEAR, paidOn: TODAY, amountCents: c.amountCents, method: 'check', payer: 'self', ref: `CHK-${c.id.slice(-4)}` }] }, 'Payment recorded', `${YEAR} dues ${fmtMoney(c.amountCents)} by check`])}>Check received</button>}
-          {c.queue === 'incomplete' && LIVE ? <JoinReminder c={c} m={m} decide={decide} /> : <button className="btn" onClick={() => setAsk({ kind: 'info' })}>{infoLabel}</button>}
+          {c.queue === 'incomplete' && LIVE ? <JoinReminder m={m} /> : <button className="btn" onClick={() => setAsk({ kind: 'info' })}>{infoLabel}</button>}
           <button className="btn danger-ghost" onClick={() => setAsk({ kind: 'decline' })}>{declineLabel}</button>
         </div>
       )}
@@ -461,14 +461,14 @@ function JoinAnswers({ m }: { m: Member }) {
 
 /** Live: email them the link to finish (a fresh 30-day link; also shown here to copy into a text message). */
 const sentLinks = new Map<string, string>();   // survives the case list re-drawing after the member reloads
-function JoinReminder({ c, m, decide }: { c: Case; m: Member; decide: DecideFn }) {
+function JoinReminder({ m }: { m: Member }) {
   const [state, setState] = useState<{ busy: boolean; link: string; error: string }>({ busy: false, link: sentLinks.get(m.id) ?? '', error: '' });
   const send = async () => {
     setState({ busy: true, link: '', error: '' });
     const r = await be<{ sent: boolean; to: string; link: string }>('POST', `admin/members/${encodeURIComponent(m.id)}/join-reminder`, {});
     if (!r.ok) { setState({ busy: false, link: '', error: r.message }); return; }
     sentLinks.set(m.id, r.data.link); setState({ busy: false, link: r.data.link, error: '' });
-    decide([c], { state: 'needs-info', outcome: 'Reminder sent', note: `Link to finish emailed to ${r.data.to}` });
+    // stays on this case (no decision = no jump to the next one); the API counted the reminder and wrote the audit log
     void refreshLive(m.id);
   };
   return (
