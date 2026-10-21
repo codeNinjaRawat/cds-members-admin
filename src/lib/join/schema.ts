@@ -96,7 +96,7 @@ export function makeJoinSchemas(settings: MembershipSettings, today = todayISO(s
 
   const pledge = z.object({
     commitments: z.array(z.string()),
-    pledgeAccepted: z.literal(true, { errorMap: () => ({ message: 'Check the box to accept the pledge.' }) }),
+    pledgeAccepted: z.literal(true, { errorMap: () => ({ message: 'Tick the box to continue.' }) }),
     signature: z.string().trim().max(120).optional().or(z.literal('')),   // asked when the form shows it
     emailConsent: z.boolean(),
     smsConsent: z.boolean(),

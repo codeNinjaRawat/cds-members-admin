@@ -17,6 +17,16 @@ const SECTION_LABEL: Record<HomeSection, { name: string; what: string }> = {
   journey: { name: 'Join in five minutes', what: 'Four-step timeline' },
   houston: { name: 'Houston band', what: 'Big photo with the ISGH story' },
   closing: { name: 'Closing call to action', what: 'Last push to become a member' },
+  // R6.5 editorial layout – live sections
+  today: { name: 'Today', what: 'Prayer strip for the home masjid + next Jumuah (editorial layout)' },
+  deadline: { name: 'Voting deadline', what: 'Days left until the record date (from Membership settings)' },
+  week: { name: 'This week', what: 'Automatic activity across the network' },
+  masajid: { name: 'Our masajid', what: 'Every active masjid as a card, by zone' },
+  services: { name: 'Services', what: 'Service tiles (edit the list under Editorial)' },
+  programs: { name: 'Programs and events', what: 'Upcoming events from the events module' },
+  give: { name: 'Give', what: 'Live campaigns + Zakat / Sadaqah / masjid buttons' },
+  latest: { name: 'News', what: 'Latest three news items' },
+  election: { name: 'Election', what: 'Current election status, dates, ballot, results' },
 };
 
 export function HomeView() {
@@ -33,7 +43,7 @@ export function HomeView() {
             { id: 'layout', label: 'Layout and sections', render: () => (<>
               <Panel title="Layout">
                 <div className="layout-cards" role="radiogroup" aria-label="Home layout">
-                  {([['zones', 'Five zones', 'Interactive map of the five zones with a member card. Bold and local.'], ['classic', 'Classic', 'Big headline with the member card and plan cards. Simple and direct.']] as const).map(([id, name, what]) => (
+                  {([['editorial', 'Editorial (website v2)', 'Photo hero with quick actions, then live sections: today’s prayers, this week, masajid, services, programs, giving, news, election.'], ['zones', 'Five zones', 'Interactive map of the five zones with a member card. Bold and local.'], ['classic', 'Classic', 'Big headline with the member card and plan cards. Simple and direct.']] as const).map(([id, name, what]) => (
                     <button key={id} type="button" role="radio" aria-checked={layout === id} className={`layout-card${layout === id ? ' active' : ''}`}
                       onClick={() => doc.setDraft({ ...doc.draft, layout: id, sections: doc.draft.sections })}>
                       <span className={`layout-thumb ${id}`} aria-hidden="true"><i /><i /><i /></span>
@@ -63,6 +73,7 @@ export function HomeView() {
                 <button type="button" className="btn sm ghost" onClick={() => doc.setDraft({ ...doc.draft, sections: undefined })}>Use the recommended order for this layout</button>
               </Panel>
             </>) },
+            { id: 'editorial', label: 'Editorial hero', badge: countIssues(doc.issues, ['editorial']), render: () => <Panel intro="Kicker, headline, photo, the quick-action buttons (what isgh.org’s five buttons did), the home masjid for the prayer strip, service tiles and the giving text."><ScopedForm doc={doc} storeKey="home" only={['editorial']} /></Panel> },
             { id: 'hero', label: 'Hero and zones', badge: countIssues(doc.issues, ['hero', 'zones', 'classicHero', 'stats', 'heartLine']), render: () => <Panel><ScopedForm doc={doc} storeKey="home" only={['hero', 'classicHero', 'stats', 'heartLine', 'zones']} /></Panel> },
             { id: 'blocks', label: 'Sections content', badge: countIssues(doc.issues, ['bento', 'life', 'journey', 'houston', 'closing']), render: () => <Panel><ScopedForm doc={doc} storeKey="home" only={['bento', 'life', 'journey', 'houston', 'closing']} /></Panel> },
             { id: 'join', label: 'Join page photos', badge: countIssues(doc.issues, ['joinImages']), render: () => <Panel intro="Three photos on Become a member."><ScopedForm doc={doc} storeKey="home" only={['joinImages']} /></Panel> },

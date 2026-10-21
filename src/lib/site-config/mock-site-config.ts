@@ -123,5 +123,5 @@ export const mockSiteConfig: SiteConfig = {
     { from: '/isgh-blog', to: '/news', permanent: true, note: '' }, { from: '/membership-updates', to: '/news', permanent: false, note: '' }, { from: '/assistance', to: '/services/financial-assistance', permanent: true, note: '' },
     { from: '/funerals', to: '/services/funerals', permanent: true, note: '' }, { from: '/marriage', to: '/services/nikah', permanent: true, note: '' }, { from: '/dawah', to: '/services/dawah', permanent: true, note: '' }, { from: '/networking', to: '/services/job-networking', permanent: true, note: '' }, { from: '/education', to: '/services/islamic-education', permanent: true, note: '' },
   ],
-  theme: { active: 'bayou', allowUserModeToggle: true, defaultMode: 'system' }, // previous design restored (2026-10-13); admin can set 'dark'
+  theme: { active: 'editorial', allowUserModeToggle: true, defaultMode: 'light' }, // R6.5 website v2 look (admin can switch back to bayou / iznik / dusk) // previous design restored (2026-10-13); admin can set 'dark'
 };

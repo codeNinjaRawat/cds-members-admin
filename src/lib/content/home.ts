@@ -14,16 +14,29 @@ export const ImageRefSchema = z.object({
 });
 export type ImageRef = z.infer<typeof ImageRefSchema>;
 
-export const HOME_LAYOUTS = ['zones', 'classic'] as const;
-export const HOME_SECTIONS = ['stats', 'heart', 'bento', 'steps', 'plans', 'life', 'verse', 'impact', 'needs', 'journey', 'houston', 'closing'] as const;
+export const HOME_LAYOUTS = ['zones', 'classic', 'editorial'] as const;
+export const HOME_SECTIONS = ['stats', 'heart', 'bento', 'steps', 'plans', 'life', 'verse', 'impact', 'needs', 'journey', 'houston', 'closing',
+  // R6.5 editorial layout – live sections (data from the admin modules)
+  'today', 'week', 'masajid', 'services', 'programs', 'give', 'election', 'latest', 'deadline'] as const;
 export type HomeSection = (typeof HOME_SECTIONS)[number];
 
 export const HomeSchema = z.object({
   /** Admin › CMS › Home page › Layout: "zones" (interactive five-zone map) or "classic" (member card hero) */
-  layout: z.enum(HOME_LAYOUTS).default('zones'),
+  layout: z.enum(HOME_LAYOUTS).default('editorial'),
   /** Admin: which sections show below the hero, in this order (drag to reorder, toggle to hide) */
   sections: z.array(z.enum(HOME_SECTIONS)).max(12).optional(),
   classicHero: z.object({ title: z.string(), lead: z.string() }).optional(),
+  /** R6.5 "editorial" layout: photo hero + quick actions (what isgh.org's five buttons do) + live sections */
+  editorial: z.object({
+    kicker: z.string().max(80).default(''),                                  // small line above the headline, e.g. "Serving Houston since 1969"
+    headline: z.string().max(120).default('One community. Twenty-two masajid.'),
+    lead: z.string().max(300).default(''),
+    photo: ImageRefSchema.optional(),
+    quickActions: z.array(z.object({ label: z.string().max(40), href: z.string().max(300), tone: z.enum(['primary', 'accent', 'dark', 'light']).default('light'), hint: z.string().max(60).default('') })).max(6).default([]),
+    prayerCenter: z.string().max(40).default(''),                           // center id for the home prayer strip ('' = first active center)
+    services: z.array(z.object({ title: z.string().max(60), text: z.string().max(140).default(''), href: z.string().max(300) })).max(8).default([]),
+    giveTitle: z.string().max(80).default('Give where it matters'), giveText: z.string().max(200).default(''),
+  }).optional(),
   /** Photos shown on the Become a member page (CMS › Join page) */
   joinImages: z.array(ImageRefSchema).max(3).optional(),
   /** Admin: one short, heart-touching line (hadith) under the stats. Source required; reviewed by an imam. */
@@ -68,15 +81,37 @@ const px = (file: string, alt: string, credit: string, creditUrl: string, focal?
 export const DEFAULT_SECTIONS: Record<(typeof HOME_LAYOUTS)[number], HomeSection[]> = {
   zones: ['stats', 'heart', 'bento', 'life', 'verse', 'impact', 'needs', 'journey', 'houston', 'closing'],
   classic: ['heart', 'steps', 'plans', 'life', 'verse', 'impact', 'needs', 'houston', 'closing'],
+  editorial: ['today', 'deadline', 'week', 'masajid', 'services', 'programs', 'give', 'latest', 'election', 'verse', 'closing'],
 };
 
 export const mockHome: Home = {
+  editorial: {
+    kicker: 'Serving Greater Houston since 1969', headline: 'One community. Twenty-two masajid. Every door open.', lead: 'Prayer times, Friday khutbahs, programs, giving and membership for every masjid in the network – in one place.',
+    photo: { src: pexels(30159436, 2000), alt: 'Arches inside a masjid prayer hall', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/30159436/', focal: '50% 40%' },
+    quickActions: [
+      { label: 'Friday prayer schedule', href: '/khutbah', tone: 'light', hint: 'This week’s khateebs and times' },
+      { label: 'Become a member', href: '/membership/join', tone: 'primary', hint: 'Join or renew for the year' },
+      { label: 'Support a cause', href: '/campaigns', tone: 'accent', hint: 'Relief, Zakat, cemetery' },
+      { label: 'Support the organization', href: '/give', tone: 'dark', hint: 'Operations and the masajid' },
+      { label: 'Elections', href: '/elections', tone: 'light', hint: 'Dates, candidates, results' },
+    ],
+    prayerCenter: '',
+    services: [
+      { title: 'Financial assistance', text: 'Zakat and emergency help for families.', href: '/services/financial-assistance' },
+      { title: 'Islamic education', text: 'Weekend schools, full-time schools, hifz.', href: '/services/islamic-education' },
+      { title: 'Nikah', text: 'Counseling, the ceremony, the certificate.', href: '/services/nikah' },
+      { title: 'Funerals and cemetery', text: 'Ghusl, janazah, burial – every day.', href: '/services/funerals' },
+      { title: 'Job networking', text: 'Resumes, referrals, employers.', href: '/services/job-networking' },
+      { title: 'Dawah', text: 'Masjid tours, new-Muslim classes.', href: '/services/dawah' },
+    ],
+    giveTitle: 'Give where it matters', giveText: 'Every gift is tax-deductible and goes to the fund you choose – Zakat, a masjid, a relief campaign or the organization’s daily work.',
+  },
   heartLine: {
     text: 'None of you truly believes until he loves for his brother what he loves for himself.',
     arabic: 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ',
     source: 'Sahih al-Bukhari 13 · Sahih Muslim 45',
   },
-  layout: 'zones', // owner: "go back to the previous one" (2026-10-13). 'classic' (member card, Bayou dark) stays available for admin
+  layout: 'editorial', // R6.5 website v2 (owner 2026-10-21: isgh.org reimagined with a modern look). 'zones' (map hero) and 'classic' stay available in CMS › Home page
   joinImages: [
     { src: pexels(35105921, 900), alt: 'Three generations of a family reading together', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/family-reading-together-generational-connection-35105921/' },
     { src: pexels(6557125, 900), alt: 'A smiling young woman in a hijab', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/a-woman-wearing-hijab-taking-a-selfie-6557125/', focal: '50% 25%' },

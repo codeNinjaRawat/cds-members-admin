@@ -73,7 +73,7 @@ export const CORE_FIELDS = {
   pledge: { step: 'pledge', label: 'Pledge', required: true, why: 'Bylaws: application on the prescribed form. The label is the step heading; the help text is the checkbox.' },
   signature: { step: 'pledge', label: 'Signature', required: false, why: 'Typed full name under the pledge.' },
   consents: { step: 'pledge', label: 'Message consents', required: false, why: 'Email and text consent boxes (receipts and membership notices are always sent).' },
-  payer: { step: 'review', label: 'Who is paying', required: true, why: 'Bylaws: own dues, or a relative by blood or marriage.' },
+  payer: { step: 'review', label: 'Who is paying', required: false, why: 'Bylaws: own dues, or a relative by blood or marriage. Off = the member pays their own dues.' },
 } as const;
 export type CoreKey = keyof typeof CORE_FIELDS;
 export const CoreOverrideSchema = z.object({ label: z.string().max(80).optional(), help: z.string().max(300).optional(), show: z.boolean().optional() });
