@@ -15,7 +15,7 @@ export const NAV_TREE: NavNode[] = [
     { label: 'Overview', href: '/members/overview', icon: 'dashboard', keywords: 'overview dashboard charts graphs statistics members trends plans zones ages payments renewals' },
     { label: 'All members', href: '/members', icon: 'users', keywords: 'people list search directory find member profile voting eligible not renewed expired lapsed pending approval board' },
     { label: 'Check-o-matic', href: '/members/checkomatic', icon: 'card', keywords: 'checkomatic monthly givers recurring contributions reconcile eligible not a member qualify' },
-    { label: 'Contacts', href: '/members/contacts', icon: 'users', keywords: 'contacts visitors app my masjid leads outreach not members email mobile' },
+    { label: 'People', href: '/members/contacts', icon: 'users', keywords: 'people contacts visitors donors applicants app my masjid leads outreach not members email mobile' },
     { label: 'Groups', href: '/groups', icon: 'groups', keywords: 'groups committee center zone nominees volunteers rules automatic' },
     { label: 'Family trees', href: '/families', icon: 'family', keywords: 'family tree household relatives children parents spouse outreach' },
   ] },

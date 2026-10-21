@@ -327,3 +327,10 @@ code { font-size: .8rem; }
 .m-groups { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .m-groups li { padding: 8px 10px; border: 1px solid var(--edge); border-radius: 12px; }
 .m-groups li.in { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* People */
+.pp-table .pill.st-contact { background: color-mix(in srgb, var(--muted) 80%, transparent); }
+.pp-table .pill.st-applicant { background: color-mix(in srgb, var(--warn, #c9a24a) 25%, transparent); }
+.pp-table .pill.st-member { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.pp-table .pill.st-donor { background: color-mix(in srgb, var(--success, #2e7d32) 22%, transparent); }
+.pp-table .pill.pp-tag { margin: 0 4px 4px 0; font-size: .78rem; }

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { ContactsView } from '@/components/views/ContactsView';
+import { PeopleView } from '@/components/views/PeopleView';
 
-export const metadata: Metadata = { title: 'Contacts – visitors' };
+export const metadata: Metadata = { title: 'People' };
 
 export default function Page() {
-  return <ContactsView />;
+  return <PeopleView />;
 }

@@ -12,10 +12,10 @@ import { US_STATES } from '@/lib/join/schema';
 type Form = { first: string; middle: string; last: string; email: string; phone: string; dob: string; street: string; city: string; state: string; zip: string; plan: string; idNumber: string; approved: boolean };
 const EMPTY: Form = { first: '', middle: '', last: '', email: '', phone: '', dob: '', street: '', city: '', state: 'TX', zip: '', plan: '', idNumber: '', approved: true };
 
-export function AddMemberDialog({ onClose, onAdded }: { onClose: () => void; onAdded: (id: string) => void }) {
+export function AddMemberDialog({ onClose, onAdded, initial }: { onClose: () => void; onAdded: (id: string) => void; initial?: Partial<Form> }) {
   const router = useRouter();
   const plans = orgPlans().filter((p) => p.visible !== false);
-  const [f, setF] = useState<Form>({ ...EMPTY, plan: plans[0]?.id ?? '' });
+  const [f, setF] = useState<Form>({ ...EMPTY, plan: plans[0]?.id ?? '', ...initial });   // initial: from People – a contact becoming a member
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<Record<string, string>>({});
