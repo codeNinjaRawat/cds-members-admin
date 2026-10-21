@@ -1,0 +1,40 @@
+/* ---------- O1.4 Page Composer (admin › Website › Pages) ---------- */
+.pc { display: grid; gap: .9rem; }
+.pc-settings { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--pane); }
+.pc-settings-toggle { width: 100%; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; padding: .7rem .9rem; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; font: inherit; }
+.pc-settings-toggle > span:first-child { color: var(--ink-muted, var(--ink)); }
+.pc-settings-toggle b { color: inherit; }
+.pc-status { font-size: .85rem; padding: .2rem .6rem; border-radius: 99px; background: rgba(120, 200, 140, .18); display: inline-flex; gap: .4rem; align-items: center; }
+.pc-status[data-live="no"] { background: rgba(240, 180, 60, .2); }
+.pc-settings-body { padding: .4rem .9rem 1rem; border-top: 1px solid var(--line); }
+.pc-blocks { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; counter-reset: blk; }
+.pc-block { border: 1px solid var(--line); border-radius: 14px; background: var(--pane); position: relative; }
+.pc-block.dragging { opacity: .5; }
+.pc-block[data-group="live"] { border-left: 4px solid rgba(90, 170, 255, .7); }
+.pc-block[data-group="forms"] { border-left: 4px solid rgba(200, 120, 255, .7); }
+.pc-block-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .4rem; padding: .3rem .5rem .3rem .4rem; }
+.pc-grip { cursor: grab; color: var(--ink-muted, var(--ink)); padding: .4rem .2rem; letter-spacing: -2px; user-select: none; }
+.pc-block-title { display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; align-items: center; min-height: 44px; text-align: left; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; padding: .3rem .4rem; border-radius: 10px; min-width: 0; }
+.pc-block-title:hover { background: rgba(255,255,255,.05); }
+.pc-block-title b { white-space: nowrap; }
+.pc-block-title > span { color: var(--ink-muted, var(--ink)); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-block-actions { display: flex; gap: .15rem; }
+.pc-block-body { padding: .2rem .9rem .9rem; border-top: 1px solid var(--line); }
+.pc-insert { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 1; font-size: .78rem; padding: .15rem .6rem; border-radius: 99px; border: 1px solid var(--line-strong); background: var(--pane-solid); color: var(--ink-muted, var(--ink)); cursor: pointer; opacity: 0; transition: opacity .15s; }
+.pc-block:hover .pc-insert, .pc-insert:focus-visible { opacity: 1; }
+.pc-empty { padding: 1rem; color: var(--ink-muted, var(--ink)); text-align: center; }
+.pc-add { justify-self: start; }
+.pc-palette { display: grid; gap: 1rem; max-height: 70vh; overflow: auto; padding-right: .3rem; }
+.pc-palette h4 { margin: 0 0 .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted, var(--ink)); }
+.pc-palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: .5rem; }
+.pc-palette-item { display: grid; gap: .2rem; text-align: left; padding: .7rem .8rem; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: inherit; cursor: pointer; font: inherit; min-height: 64px; }
+.pc-palette-item:hover, .pc-palette-item:focus-visible { background: rgba(255,255,255,.09); }
+.pc-palette-item span { font-size: .82rem; color: var(--ink-muted, var(--ink)); }
+@media (max-width: 720px) {
+  .pc-block-head { grid-template-columns: auto 1fr; }
+  .pc-block-actions { grid-column: 1 / -1; justify-content: flex-end; padding: 0 .3rem .3rem; }
+  .pc-insert { opacity: 1; position: static; transform: none; margin: .2rem auto .4rem; display: block; }
+}
+.pc-palette-item[data-on] { outline: 2px solid var(--ok); }
+.kh-admin-table { overflow-x: auto; } .kh-admin-table .in-sm { min-width: 110px; } .kh-paste-result { display: grid; gap: .5rem; justify-items: start; margin-top: .6rem; }
+.health { display: grid; gap: .4rem; margin-top: .6rem; } .health-row summary { cursor: pointer; } .health-row ul { margin: .3rem 0 .6rem; padding-left: 1rem; display: grid; gap: .2rem; font-size: .9rem; }

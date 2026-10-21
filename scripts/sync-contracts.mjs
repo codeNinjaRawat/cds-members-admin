@@ -15,8 +15,8 @@ const dst = path.resolve(here, '../src/lib');
 /** Rewrite in place (no delete + recreate) so it also works in folders where deleting is not allowed. */
 const copy = (from, to) => writeFileSync(to, readFileSync(from));
 const FILES = [
-  'site-config/schema.ts', 'site-config/mock-site-config.ts',
-  'content/home.ts', 'content/pages.ts', 'content/membership.ts', 'content/renewal.ts', 'content/giving.ts',
+  'site-config/schema.ts', 'site-config/mock-site-config.ts', 'site-config/redirects.ts',
+  'content/home.ts', 'content/pages.ts', 'content/page-rules.ts', 'content/membership.ts', 'content/renewal.ts', 'content/giving.ts',
   'theme/theme-css.ts', 'theme/default-themes.json',
   'family/family.ts', 'family/demo-family.ts', 'join/form-def.ts', 'join/schema.ts', 'platform/seed.ts', 'community/events.ts', 'community/groups.ts', 'community/communication.ts', 'community/org-config.ts', 'community/member-records.ts', 'community/campaigns.ts', 'community/payments.ts', 'community/org-structure.ts', 'community/zakat.ts', 'community/donations.ts', 'community/benefits.ts', 'community/officials.ts', 'community/prayer.ts', 'community/minutes.ts', 'community/finance.ts', 'community/fundraising.ts', 'community/event-ops.ts', 'community/access.ts', 'community/sign-in.ts', 'community/officials-access.ts', 'community/records.ts', 'community/elections.ts', 'community/work.ts',
 ];

@@ -130,6 +130,7 @@ export const NAV_TREE: NavNode[] = [
     { label: 'Theme and branding', href: '/website/theme', icon: 'palette', keywords: 'colors logo favicon dark mode fonts' },
     { label: 'Home page', href: '/website/home', icon: 'layout', keywords: 'hero layout sections stats heart line hadith' },
     { label: 'Menus and footer', href: '/website/menus', icon: 'menu', keywords: 'navigation header footer links social newsletter hours' },
+    { label: 'Redirects and short links', href: '/website/redirects', icon: 'menu', keywords: 'redirect short link old address qr flyer 404' },
     { label: 'Announcement bar', href: '/website/announcement', icon: 'megaphone', keywords: 'banner top bar notice' },
     { label: 'Pages', href: '/website/pages', icon: 'pages', keywords: 'about faq elections contact privacy terms blocks' },
     { label: 'News', href: '/website/news', icon: 'news', keywords: 'posts blog updates' },

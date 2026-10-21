@@ -13,7 +13,8 @@ import {
   type Center, type OrgStructure, type Zone,
 } from '@/lib/community/org-structure';
 import { useMembers } from './MembersView';
-import { centerRulesInWords, DEFAULT_CENTER_RULES, type CenterRules } from '@/lib/community/org-structure';
+import { centerRulesInWords, DEFAULT_CENTER_RULES, DEFAULT_PROFILE, MasjidProfileSchema, type CenterRules } from '@/lib/community/org-structure';
+import { SchemaForm } from '@/components/forms/SchemaForm';
 import { centerOf, ORG_TZ } from '@/lib/members/members';
 
 type Doc = { draft: OrgStructure; setDraft: (f: OrgStructure | ((d: OrgStructure) => OrgStructure)) => void; issues: Record<string, string> };
@@ -136,7 +137,7 @@ function CentersTab({ doc, byCenter }: { doc: Doc; byCenter: Map<string, number>
   const zones = doc.draft.zones;
   const s = q.trim().toLowerCase();
   const list = doc.draft.centers.map((c, i) => ({ c, i })).filter(({ c }) => (!zone || c.zone === zone) && (!s || `${c.name} ${c.aka} ${c.address.city} ${c.address.zip}`.toLowerCase().includes(s)));
-  const blank = (): Center => ({ id: '', name: '', aka: '', zone: zone || zones[0]?.id || '', address: { street: '', city: '', zip: '' }, phone: '', website: '', jumuah: [{ khutbah: '13:15', label: '' }], services: ['daily-prayers', 'jumuah'], zips: [], active: true });
+  const blank = (): Center => ({ id: '', name: '', aka: '', zone: zone || zones[0]?.id || '', address: { street: '', city: '', zip: '' }, phone: '', website: '', jumuah: [{ khutbah: '13:15', label: '' }], services: ['daily-prayers', 'jumuah'], zips: [], profile: DEFAULT_PROFILE, active: true });
   return (
     <div className="zn-centers">
       <div className="zn-bar">
@@ -228,6 +229,11 @@ function CenterDialog({ doc, edit, members, onClose }: { doc: Doc; edit: { index
             <label key={k} className="check"><input type="checkbox" checked={c.services.includes(k)} onChange={() => set({ services: c.services.includes(k) ? c.services.filter((x) => x !== k) : [...c.services, k] })} /> <span>{SERVICE_LABEL[k]}</span></label>
           ))}</div>
         </fieldset>
+        <details className="sf-group d0 zn-profile">
+          <summary className="sf-label">Masjid page (website /masjid/{c.id || slugify(c.name) || '…'}) <span className="sf-opt">optional</span></summary>
+          <p className="sf-hint">Photo, story, accent color, facilities, hours, social links and staff for this masjid’s own pages. Prayer times, events, leaders and campaigns come from their modules automatically.</p>
+          <SchemaForm schema={MasjidProfileSchema} value={c.profile} path={['profile']} issues={errs} onChange={(v) => set({ profile: v as Center['profile'] })} />
+        </details>
         <label className="check"><input type="checkbox" checked={c.active} onChange={(e) => set({ active: e.target.checked })} /> <span>Active center</span></label>
         {!c.active && members > 0 && <p className="notice warn-note">{n(members)} members are linked to this center. They keep it on their record until a center change is approved.</p>}
         <div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary">{edit.index == null ? 'Add center' : 'Save center'}</button></div>

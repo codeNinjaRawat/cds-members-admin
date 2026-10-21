@@ -5,7 +5,8 @@
  */
 import 'server-only';
 import { getDoc } from '@/lib/store/server-store';
-import { actingIn, can, permissionForDoc, roleOf, teamChangeProblem, AccessSchema, type AccessDoc, type AdminUser } from './access';
+import { actingIn, can, pagesChangeProblem, permissionForDoc, roleOf, teamChangeProblem, AccessSchema, type AccessDoc, type AdminUser } from './access';
+import { OrgStructureSchema, mockOrgStructure } from '@/lib/community/org-structure';
 import { fourEyes, IntegrationsSchema } from '@/lib/integrations/integrations';
 
 export function actorFor(req: Request, slug: string): { doc: AccessDoc; admin: AdminUser | null } {
@@ -25,6 +26,7 @@ export function denyPublish(req: Request, slug: string, key: string): Response |
   const p = permissionForDoc(key);
   if (can(doc, admin, p, today())) return null;
   if (key === 'admin-access' && can(doc, admin, 'team.manage', today())) return null; // checked against the change itself (teamProblem)
+  if (key === 'pages' && can(doc, admin, 'center.content', today())) return null;     // O1.5 masjid editor – checked against the change itself (pagesProblem)
   const who = admin ? `${admin.name} (${roleOf(doc, admin)?.name ?? admin.roleId})` : 'This admin';
   return Response.json({ error: `${who} cannot change this – it needs “${p}”.`, permission: p }, { status: 403 });
 }
@@ -48,3 +50,13 @@ export function teamProblem(req: Request, slug: string, data: unknown): string |
   return teamChangeProblem(doc, after.data, admin, today()) || null;
 }
 export const canManageAdmins = (req: Request, slug: string) => { const { doc, admin } = actorFor(req, slug); return can(doc, admin, 'admins.manage', today()); };
+/** O1.5: a masjid editor (center.content, no content.publish) may only change their own masjid's pages and may not publish them. null = fine. */
+export function pagesProblem(req: Request, slug: string, data: unknown): string | null {
+  const { doc, admin } = actorFor(req, slug);
+  if (!admin || can(doc, admin, 'content.publish', today())) return null;
+  const mp = OrgStructureSchema.safeParse(getDoc('org-structure', slug).data); const map = mp.success ? mp.data : mockOrgStructure;
+  type L = Record<string, { slug: string; status: string; scope: { kind: 'org' } | { kind: 'masjid'; center: string } }>;
+  const before = (getDoc('pages', slug).data ?? {}) as L; const after = (data ?? {}) as L;
+  if (typeof after !== 'object') return null;
+  return pagesChangeProblem(before, after, admin, doc, (id) => map.centers.find((c) => c.id === id)?.name ?? '', (name) => map.centers.find((c) => c.name === name)?.zone ?? '');
+}

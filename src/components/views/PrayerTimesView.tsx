@@ -9,6 +9,7 @@ import { ORG_TZ } from '@/lib/members/members';
 import { useEffect, useMemo, useState } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, SwitchRow, Tabs, countIssues } from '@/components/editor/bits';
+import { KhutbahTab } from './KhutbahTab';
 import {
   IQAMAH_PRAYERS, METHODS, PRAYERS, PRAYER_NAME, clock, clock24, dayTimes, monthDays, nextPrayer, prayerWarnings,
   type CenterTimes, type IqPrayer, type Method, type PrayerSettings, type Rule,
@@ -52,6 +53,7 @@ function Body({ doc }: { doc: Doc }) {
         { id: 'today', label: 'Today', render: () => <Today s={doc.draft} centers={mine} jumuah={jumuah} map={map} /> },
         { id: 'month', label: 'Monthly timetable', render: () => <Month s={doc.draft} centers={mine} jumuah={jumuah} /> },
         { id: 'iqamah', label: 'Iqamah rules', badge: countIssues(doc.issues, ['centers']), render: () => <Iqamah doc={doc} centers={mine} /> },
+        { id: 'khutbah', label: 'Friday khutbah', badge: countIssues(doc.issues, ['khutbah']), render: () => <KhutbahTab doc={doc} centers={mine} /> },
         { id: 'settings', label: 'Calculation and Eid', badge: countIssues(doc.issues, ['special', 'location', 'adjust']), render: () => <Settings doc={doc} centers={mine} canCalc={access.can('settings.manage')} /> },
       ]} />
     </div>

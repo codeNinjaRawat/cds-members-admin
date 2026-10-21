@@ -6,6 +6,7 @@
  * Synced to the admin by admin/scripts/sync-contracts.mjs – edit here (web), never in the admin copy.
  */
 import { z } from 'zod';
+import { ImageRefSchema } from '@/lib/content/home';
 
 const ID = z.string().regex(/^[a-z0-9-]{1,40}$/, 'Use lowercase letters, numbers and dashes.');
 const ZIP = z.string().regex(/^\d{5}$/, 'A ZIP code has 5 digits.');
@@ -22,6 +23,28 @@ export const ZoneSchema = z.object({
   zips: z.array(ZIP).max(400).default([]),
   active: z.boolean().default(true),
 });
+/** O3 – the masjid's public profile for its own pages (/masjid/<id>/…). Everything optional; the office or the masjid team fills it. */
+export const MASJID_ACCENTS = ['green', 'teal', 'blue', 'indigo', 'amber', 'rose'] as const;
+export const FACILITIES = ['wudu', 'sisters-hall', 'parking', 'wheelchair', 'library', 'kitchen', 'gym', 'classrooms', 'clinic', 'playground'] as const;
+export const FACILITY_LABEL: Record<(typeof FACILITIES)[number], string> = { wudu: 'Wudu area', 'sisters-hall': 'Sisters’ prayer hall', parking: 'Parking', wheelchair: 'Wheelchair access', library: 'Library', kitchen: 'Kitchen', gym: 'Gym', classrooms: 'Classrooms', clinic: 'Clinic', playground: 'Playground' };
+export const MasjidProfileSchema = z.object({
+  photo: ImageRefSchema.optional(),
+  gallery: z.array(ImageRefSchema).max(24).default([]),
+  story: z.string().max(1200).default(''),
+  accent: z.enum(MASJID_ACCENTS).default('green'),
+  established: z.union([z.literal(''), z.string().regex(/^\d{4}$/, 'A year like 1998')]).default(''),
+  capacity: z.number().int().min(0).max(20000).default(0),
+  facilities: z.array(z.enum(FACILITIES)).default([]),
+  languages: z.array(z.string().max(30)).max(6).default([]),            // khutbah / class languages
+  hours: z.string().max(200).default(''),                                 // e.g. "Open for all five prayers; office Mon–Fri 10–4"
+  email: z.union([z.literal(''), z.string().email('Enter a valid email.')]).default(''),
+  social: z.object({ facebook: z.string().max(200).default(''), instagram: z.string().max(200).default(''), youtube: z.string().max(200).default(''), whatsapp: z.string().max(200).default('') }).default({ facebook: '', instagram: '', youtube: '', whatsapp: '' }),
+  parking: z.string().max(300).default(''),
+  staff: z.array(z.object({ name: z.string().max(80), role: z.string().max(80), email: z.string().max(120).default(''), phone: z.string().max(40).default('') })).max(12).default([]),
+});
+export type MasjidProfile = z.infer<typeof MasjidProfileSchema>;
+export const DEFAULT_PROFILE: MasjidProfile = MasjidProfileSchema.parse({});
+
 export const CenterSchema = z.object({
   id: ID,
   name: z.string().trim().min(2).max(80),
@@ -35,6 +58,7 @@ export const CenterSchema = z.object({
   /** M1: the masjid's service area – every person living in one of these ZIP codes belongs to this masjid (and its zone). */
   zips: z.array(ZIP).max(200).default([]),
   active: z.boolean().default(true),
+  profile: MasjidProfileSchema.default(DEFAULT_PROFILE),
 });
 /**
  * D14 – how people are placed and may move (from the 10/17 call, a shura directive at ISGH): inside your zone you may
@@ -176,6 +200,7 @@ export const mockOrgStructure: OrgStructure = {
     jumuah: n === 4 && id === 'se' ? [] : [{ khutbah: '13:15', label: '' }, ...(n === 1 ? [{ khutbah: '14:15', label: 'Second' }] : [])],
     services: ['daily-prayers', 'jumuah', ...(n === 1 ? ['weekend-school', 'zakat-office'] : []), ...(n === 2 ? ['food-pantry'] : [])] as Center['services'],
     zips: a.zips.filter((_, i) => i % 4 === n - 1),         // demo: the zone's ZIPs shared round-robin (same rule as the demo members)
+    profile: { ...DEFAULT_PROFILE, accent: MASJID_ACCENTS[(zi + n) % MASJID_ACCENTS.length] },
   }))),
 };
 
@@ -229,6 +254,7 @@ export const ISGH_REAL_STRUCTURE: OrgStructure = {
     address: { street: c.street, city: c.city, zip: c.zip }, phone: '', website: '',
     jumuah: [{ khutbah: '13:15', label: '' }], services: ['daily-prayers', 'jumuah'] as Center['services'],
     zips: [c.zip],
+    profile: DEFAULT_PROFILE,
   }))),
 };
 /** Starting points for the map. The demo set matches the demo member records; the real set is ISGH's own list. */

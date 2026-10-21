@@ -92,6 +92,8 @@ export const SiteConfigSchema = z.object({
     hoursLabel: z.string().optional(),
     mapUrl: z.string().optional(),
   }),
+  /** O11 – redirects and short links: old addresses (from a previous website, flyers, QR codes) → where they live now. Longest `from` wins; `*` at the end matches a prefix. */
+  redirects: z.array(z.object({ from: z.string().regex(/^\/[a-zA-Z0-9\-._~\/]*\*?$/, 'Start with / – letters, numbers, dashes; a trailing * matches everything under it'), to: z.string().max(500), permanent: z.boolean().default(true), note: z.string().max(120).default('') })).max(500).default([]),
   theme: z.object({
     active: z.string().min(1),          // theme key, e.g. "bayou"
     allowUserModeToggle: z.boolean().default(true),

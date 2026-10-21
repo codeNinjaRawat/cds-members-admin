@@ -57,6 +57,12 @@ const LIVE_BLOCKS = [
   z.object({ type: z.literal('news'), limit: z.number().int().min(1).max(12).default(3), width: Width }),
   z.object({ type: z.literal('plans'), width: Width }),
   z.object({ type: z.literal('form'), kind: z.enum(FORM_KINDS), width: Width }),
+  /** O10 – the featured election (year 0) or a given year: status, dates, ballot, results – public parts only */
+  z.object({ type: z.literal('election'), year: z.number().int().min(0).max(2200).default(0), width: Width }),
+  /** O6 – Friday khutbah schedule: one masjid (coming `weeks`) or, with no masjid on an organization page, every masjid next Friday */
+  z.object({ type: z.literal('khutbah'), masjid: Masjid, weeks: z.number().int().min(1).max(12).default(6), width: Width }),
+  /** O4 – what is happening (derived from events, news, campaigns, leaders, prayer changes, documents). view: feed = list with filters; week = "this week" digest */
+  z.object({ type: z.literal('activity'), masjid: Masjid, view: z.enum(['feed', 'week']).default('week'), kinds: z.array(z.string().max(20)).max(9).default([]), limit: z.number().int().min(1).max(100).default(12), width: Width }),
 ] as const;
 export const StaticBlockSchema = z.discriminatedUnion('type', [...STATIC_BLOCKS]);
 export const LiveBlockSchema = z.discriminatedUnion('type', [...LIVE_BLOCKS]);
@@ -106,7 +112,10 @@ export const PageSchema = z.object({
 export type Page = z.infer<typeof PageSchema>;
 export type PageScope = z.infer<typeof PageScopeSchema>;
 
-export const NewsItemSchema = z.object({ slug: z.string(), title: z.string(), date: z.string(), excerpt: z.string() });
+/** `masjid`: center id when the item is one masjid's announcement; `showOnMasjids`: an organization item that every masjid page shows too. */
+export const NewsItemSchema = z.object({ slug: z.string(), title: z.string(), date: z.string(), excerpt: z.string(), masjid: z.string().max(40).default(''), showOnMasjids: z.boolean().default(false),
+  /** O9 – text first: the flyer is an attachment, never the only content */
+  image: ImageRefSchema.optional(), attachments: z.array(z.object({ title: z.string().max(120), href: z.string().max(500) })).max(6).default([]), pinned: z.boolean().default(false), expiresAt: z.string().max(10).default('') });
 export type NewsItem = z.infer<typeof NewsItemSchema>;
 
 const U = '2026-10-13';
@@ -137,6 +146,7 @@ export const mockPages: Record<string, Page> = parsePages({
     image: { src: pexels(8022480, 1800), alt: 'A masjid with a large dome and minaret', credit: 'Pexels', creditUrl: 'https://www.pexels.com/photo/the-yanus-emre-mosque-in-karaman-turkey-8022480/' },
     intro: 'ISGH members elect their Board of Directors, Zonal Directors, Associate Directors and Area Representatives.',
     blocks: [
+      { type: 'election' },
       { type: 'callout', tone: 'warning', title: 'Voting deadline: June 30', text: 'To vote in a year’s elections, your own dues for that year must be paid by June 30. Paying later renews your membership but does not restore your vote for that year.' },
       { type: 'heading', text: 'Who can vote' },
       { type: 'list', items: [
@@ -253,6 +263,79 @@ export const mockPages: Record<string, Page> = parsePages({
       { type: 'list', items: ['We collect only what membership and the Bylaws require.', 'Card payments are processed by Stripe; we never store card numbers.', 'ID images are encrypted and deleted after review.', 'You can ask for a copy of your data or ask us to delete it.'] },
     ],
   },
+  services: {
+    slug: 'services', title: 'Services', updatedAt: U, template: 'hub',
+    intro: 'What the organization and its masajid do for the community: help in hard times, education, marriage, dawah and funerals.',
+    blocks: [
+      { type: 'cards', columns: '3', items: [
+        { title: 'Financial assistance', text: 'Zakat and emergency help for families, by application and interview.', href: '/services/financial-assistance', label: 'How to apply' },
+        { title: 'Islamic education', text: 'Weekend schools, full-time schools, hifz and adult classes.', href: '/services/islamic-education', label: 'Find a class' },
+        { title: 'Job networking', text: 'Resumes, referrals and employer contacts within the community.', href: '/services/job-networking', label: 'Learn more' },
+        { title: 'Nikah', text: 'Marriage services, pre-marital counseling and the nikah ceremony.', href: '/services/nikah', label: 'Reserve a nikah' },
+        { title: 'Dawah', text: 'Masjid tours, new-Muslim classes and interfaith programs.', href: '/services/dawah', label: 'Learn more' },
+        { title: 'Funerals and cemetery', text: 'Ghusl, janazah, burial and the cemetery – available every day.', href: '/services/funerals', label: 'Urgent help' },
+      ] },
+      { type: 'heading', text: 'Programs at every masjid' },
+      { type: 'buttons', items: [{ label: 'Browse programs', href: '/programs', style: 'primary' }, { label: 'All masajid', href: '/masajid', style: 'secondary' }] },
+      { type: 'form', kind: 'feedback' },
+    ],
+  },
+  'services/financial-assistance': {
+    slug: 'services/financial-assistance', title: 'Financial assistance', updatedAt: U, owner: 'Zakat office',
+    intro: 'Help for individuals and families in Greater Houston facing hardship, funded by zakat and sadaqah.',
+    blocks: [
+      { type: 'steps', items: [{ title: 'Apply', text: 'Complete the application and gather your ID, proof of address and income documents.' }, { title: 'Interview', text: 'A case worker meets you at the zakat office or by phone.' }, { title: 'Decision', text: 'Approved help is paid to the landlord, utility or provider directly whenever possible.' }] },
+      { type: 'callout', tone: 'info', title: 'Who can apply', text: 'Residents of the Greater Houston area in need, regardless of membership. Zakat is distributed according to the eligible categories.' },
+      { type: 'contact', lines: [{ label: 'Zakat office', value: '(713) 684-8939 ext. 200', href: 'tel:+17136848939,200' }, { label: 'Email', value: 'zakat@isgh.org', href: 'mailto:zakat@isgh.org' }] },
+      { type: 'faq', items: [{ q: 'How long does a decision take?', a: 'Usually within two weeks of the interview; emergencies are reviewed faster.' }, { q: 'Can I apply for someone else?', a: 'You may refer a family; the application must be completed by the person in need.' }] },
+      { type: 'cta', title: 'Give zakat', text: 'Every dollar of zakat goes to eligible recipients in our community.', label: 'Give zakat', href: '/give?fund=zakat' },
+    ],
+  },
+  'services/islamic-education': {
+    slug: 'services/islamic-education', title: 'Islamic education', updatedAt: U,
+    intro: 'Weekend schools at the masajid, full-time Islamic schools, hifz and adult learning.',
+    blocks: [
+      { type: 'events', masjid: '', category: 'education', limit: 8, emptyText: 'Classes for the coming weeks will appear here.' },
+      { type: 'cards', columns: '3', items: [{ title: 'Weekend schools', text: 'Quran, Islamic studies and Arabic for children, at most masajid.', href: '/programs', label: 'Find one' }, { title: 'Full-time schools', text: 'Accredited Islamic schools from pre-K to 12.', href: '/programs', label: 'Schools' }, { title: 'Adults', text: 'Tajweed, Arabic, seerah and new-Muslim classes.', href: '/programs', label: 'Classes' }] },
+      { type: 'cta', title: 'Support a student', text: 'Education funds keep tuition within reach.', label: 'Give to education', href: '/give' },
+    ],
+  },
+  'services/job-networking': {
+    slug: 'services/job-networking', title: 'Job networking', updatedAt: U,
+    intro: 'Community members helping each other find work: resume reviews, referrals and employer contacts.',
+    blocks: [
+      { type: 'list', items: ['Share your resume with volunteer reviewers.', 'Monthly networking meet-ups at a masjid.', 'Employers in the community post openings.'] },
+      { type: 'buttons', items: [{ label: 'Post or find a job', href: '/contact', style: 'primary' }, { label: 'Volunteer as a reviewer', href: '/volunteer', style: 'secondary' }] },
+    ],
+  },
+  'services/nikah': {
+    slug: 'services/nikah', title: 'Nikah', updatedAt: U,
+    intro: 'Marriage services: counseling before marriage, the nikah ceremony at a masjid, and the certificate.',
+    blocks: [
+      { type: 'steps', items: [{ title: 'Request a date', text: 'Tell us the masjid, date and the two witnesses.' }, { title: 'Documents', text: 'Government IDs and, where required, the marriage license.' }, { title: 'Ceremony', text: 'An imam conducts the nikah; the certificate follows within a week.' }] },
+      { type: 'callout', tone: 'info', title: 'Pre-marital workshop', text: 'Couples are encouraged to attend the workshop before the nikah.' },
+      { type: 'buttons', items: [{ label: 'Reserve a nikah', href: '/contact', style: 'primary' }] },
+    ],
+  },
+  'services/dawah': {
+    slug: 'services/dawah', title: 'Dawah', updatedAt: U,
+    intro: 'Sharing Islam with neighbors: masjid tours, new-Muslim classes, literature and interfaith programs.',
+    blocks: [
+      { type: 'cards', columns: '3', items: [{ title: 'Visit a masjid', text: 'Every masjid welcomes visitors – ask for a tour.', href: '/masajid', label: 'Find a masjid' }, { title: 'New-Muslim classes', text: 'Weekly classes for those new to Islam.', href: '/programs', label: 'Classes' }, { title: 'Interfaith', text: 'Dialogues and service projects with other faith communities.', href: '/events', label: 'Events' }] },
+      { type: 'cta', title: 'Questions about Islam?', text: 'Write to us and an imam will answer.', label: 'Contact us', href: '/contact' },
+    ],
+  },
+  'services/funerals': {
+    slug: 'services/funerals', title: 'Funerals and cemetery', updatedAt: U, owner: 'Funeral services',
+    intro: 'When a loved one passes, call us first – ghusl, janazah prayer, burial and the cemetery are arranged the same day whenever possible.',
+    blocks: [
+      { type: 'callout', tone: 'warning', title: 'Urgent: a death has occurred', text: 'Call the funeral manager now, any hour. Then gather the ID of the deceased and the name of the next of kin.' },
+      { type: 'contact', lines: [{ label: 'Funeral manager', value: '(832) 421-0671', href: 'tel:+18324210671' }, { label: 'Email', value: 'funeral.manager@isgh.org', href: 'mailto:funeral.manager@isgh.org' }] },
+      { type: 'steps', items: [{ title: 'Call', text: 'The manager coordinates with the hospital or home.' }, { title: 'Ghusl and shroud', text: 'At the ghusl center; family may take part.' }, { title: 'Janazah', text: 'After a daily prayer at the nearest masjid.' }, { title: 'Burial', text: 'At the community cemetery; plots can be reserved in advance.' }] },
+      { type: 'faq', items: [{ q: 'What does it cost?', a: 'A standard package covers ghusl, shroud, transport and the plot; families in need are never turned away.' }, { q: 'Can I reserve a plot?', a: 'Yes – plot reservations are available for members and non-members.' }] },
+      { type: 'buttons', items: [{ label: 'Reserve a plot', href: '/give', style: 'secondary' }, { label: 'Support the funeral fund', href: '/give', style: 'ghost' }] },
+    ],
+  },
   'style-guide': {
     slug: 'style-guide', title: 'Page blocks – style guide', status: 'draft', updatedAt: U, template: 'hub', owner: 'Website team',
     intro: 'Every block admins can place on a page, shown once. Draft: not listed in search engines. Copy any block from here into your own page.',
@@ -306,8 +389,8 @@ export const mockPages: Record<string, Page> = parsePages({
   },
 });
 
-export const mockNews: NewsItem[] = [
+export const mockNews: NewsItem[] = z.array(NewsItemSchema).parse([
   { slug: 'nominations-open-2026', title: 'Nominations open for the 2026 Board elections', date: '2026-10-08', excerpt: 'Who can run, key dates, and how to apply.' },
   { slug: 'north-zone-weekend-school', title: 'New weekend school opens in the North zone', date: '2026-09-29', excerpt: 'Classes start in November for ages 5 to 14.' },
   { slug: 'renewal-2027-open', title: '2027 membership renewal opens November 1', date: '2026-09-15', excerpt: 'Renew early and keep your vote for 2027.' },
-];
+]);

@@ -47,7 +47,8 @@ export const mockSiteConfig: SiteConfig = {
       label: 'Islamic Centers',
       children: [
         { label: 'Find my center', href: '/centers/find', description: 'Your address decides your zone and center.' },
-        { label: 'All 22 centers', href: '/centers', description: 'Addresses, contacts and programs.' },
+        { label: 'All masajid', href: '/masajid', description: 'Every masjid’s own pages: prayer times, Jumuah, events, giving.' },
+        { label: 'What’s happening', href: '/activity', description: 'Events, announcements and campaigns across the network.' },
         { label: 'The five zones', href: '/centers/zones', description: 'How Greater Houston is organized.' },
         { label: 'Leadership', href: '/leadership', description: 'Who serves you – find your representatives by ZIP.' },
         { label: 'Prayer times', href: '/prayer-times', description: 'Adhan, iqamah and Jumu’ah at every center.' },
@@ -77,7 +78,7 @@ export const mockSiteConfig: SiteConfig = {
         { label: 'Plans and dues', href: '/membership/plans' }, { label: 'Verify a membership', href: '/verify' },
         { label: 'Check my status', href: '/portal' } ] },
       { title: 'Community', links: [
-        { label: 'Islamic Centers', href: '/centers' }, { label: 'Elections', href: '/elections' },
+        { label: 'All masajid', href: '/masajid' }, { label: 'Elections', href: '/elections' },
         { label: 'News', href: '/news' }, { label: 'Events', href: '/events' }, { label: 'Volunteer', href: '/volunteer' },
         { label: 'Give', href: '/give' }, { label: 'Who still needs help', href: '/needs' }, { label: 'How we helped', href: '/impact' } ] },
       { title: 'About ISGH', links: [
@@ -111,5 +112,16 @@ export const mockSiteConfig: SiteConfig = {
       consent: 'I agree to receive emails from ISGH. I can unsubscribe at any time.',
     },
   },
+  // Old isgh.org addresses still printed on flyers and shared in WhatsApp (see isgh-org/README.md §4) → the new site
+  redirects: [
+    { from: '/donate', to: '/give', permanent: true, note: 'isgh.org giving hub' }, { from: '/general-donation', to: '/give', permanent: true, note: '' },
+    { from: '/join', to: '/membership/join', permanent: true, note: '' }, { from: '/member-login', to: '/sign-in', permanent: true, note: '' }, { from: '/members-evoting', to: '/verify', permanent: true, note: 'membership verification' },
+    { from: '/prayer-schedule', to: '/prayer-times', permanent: true, note: '' }, { from: '/prayer-schedule-*', to: '/prayer-times', permanent: true, note: 'monthly pages' }, { from: '/week-schedule', to: '/khutbah', permanent: true, note: '' }, { from: '/schedule', to: '/khutbah', permanent: true, note: '' },
+    { from: '/islamic-centers', to: '/masajid', permanent: true, note: '' }, { from: '/elected-officials', to: '/leadership', permanent: true, note: '' }, { from: '/staff', to: '/about', permanent: true, note: '' },
+    { from: '/2026election', to: '/elections', permanent: false, note: 'current election' }, { from: '/nominations', to: '/elections', permanent: false, note: '' }, { from: '/elections*', to: '/elections', permanent: true, note: 'past election pages' },
+    { from: '/annual-reports', to: '/documents', permanent: true, note: '' }, { from: '/annual-report-*', to: '/documents', permanent: true, note: '' }, { from: '/isgh-constitution-and-bylaws', to: '/constitution-bylaws', permanent: true, note: '' },
+    { from: '/isgh-blog', to: '/news', permanent: true, note: '' }, { from: '/membership-updates', to: '/news', permanent: false, note: '' }, { from: '/assistance', to: '/services/financial-assistance', permanent: true, note: '' },
+    { from: '/funerals', to: '/services/funerals', permanent: true, note: '' }, { from: '/marriage', to: '/services/nikah', permanent: true, note: '' }, { from: '/dawah', to: '/services/dawah', permanent: true, note: '' }, { from: '/networking', to: '/services/job-networking', permanent: true, note: '' }, { from: '/education', to: '/services/islamic-education', permanent: true, note: '' },
+  ],
   theme: { active: 'bayou', allowUserModeToggle: true, defaultMode: 'system' }, // previous design restored (2026-10-13); admin can set 'dark'
 };

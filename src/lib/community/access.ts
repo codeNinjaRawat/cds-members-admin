@@ -24,7 +24,7 @@ export const PERMISSIONS = {
   'members.archive': { label: 'Archive and import members', group: 'Members', help: 'Archive or restore records, import from a file.', sensitive: true },
   'groups.manage': { label: 'Manage groups', group: 'Members', help: 'Create groups and change who is in them.' },
   'centers.manage': { label: 'Edit zones, centers and ZIP codes', group: 'Zones and centers', help: 'Directors and terms, center details, which ZIP code belongs to which zone.' },
-  'center.content': { label: 'Prayer times and meeting minutes', group: 'Zones and centers', help: 'Iqamah times, special prayers and meeting minutes for the centers a person may see. The calculation method needs “Manage settings”.' },
+  'center.content': { label: 'Prayer times, minutes and the masjid’s web pages', group: 'Zones and centers', help: 'Iqamah times, special prayers, meeting minutes and the website pages of the centers a person may see (pages are saved as drafts or “in review” – publishing needs “Publish website content”). The calculation method needs “Manage settings”.' },
   'zakat.view': { label: 'See Zakat and Sadaqah cases', group: 'Zakat and Sadaqah', help: 'Applications, approvals, payouts and reports – read only.', soon: 'F2' },
   'zakat.intake': { label: 'Take applications', group: 'Zakat and Sadaqah', help: 'Enter applications from the website, the phone or a walk-in.', soon: 'F2' },
   'zakat.verify': { label: 'Verify applicants', group: 'Zakat and Sadaqah', help: 'Check documents and income, record home visits, decide Zakat or Sadaqah.', soon: 'F2' },
@@ -124,6 +124,7 @@ export const BUILT_IN_ROLES: Role[] = [
   role('communication-manager', 'Communication manager', 'Messages, templates, groups and contact exports.', ['members.view', 'members.contact', 'groups.manage', 'comms.send', 'comms.settings'], { area: 'communication' }),
   role('event-manager', 'Event manager', 'Events, registrations and check-in.', ['events.manage', 'events.checkin'], { area: 'events' }),
   role('checkin-volunteer', 'Check-in volunteer', 'Checks people in at the door. Nothing else.', ['events.checkin'], { area: 'events' }),
+  role('masjid-editor', 'Masjid web editor', 'Writes and updates the pages of one masjid’s website section (drafts and review); the office publishes.', ['center.content'], { area: 'masjid', center: true }),
   role('website-editor', 'Website editor', 'Website pages, news and giving. No member data.', ['content.publish'], { area: 'website' }),
   role('election-commission', 'Election Commission', 'Freezes and corrects the voter list; sees eligibility reports.', ['members.view', 'reports.view', 'voters.freeze', 'officials.manage'], { area: 'elections' }),
   role('viewer', 'Viewer', 'Can look at members and reports, cannot change anything or see contact details.', ['members.view', 'reports.view'], { area: 'general' }),
@@ -414,3 +415,24 @@ export const mockAccess: AccessDoc = AccessObject.parse({
   ],
 });
 
+
+/* ---------------- O1.5 delegated website editing ---------------- */
+type PageLite = { slug: string; status: string; scope: { kind: 'org' } | { kind: 'masjid'; center: string } };
+/**
+ * May this admin (without "Publish website content") save this change to the pages document?
+ * Allowed only when every added, changed or removed page belongs to a masjid in the admin's scope and none of
+ * those pages ends up Published (they stay draft / review / scheduled for the office). Returns the problem, or null.
+ */
+export function pagesChangeProblem(before: Record<string, PageLite>, after: Record<string, PageLite>, me: AdminUser, doc: AccessDoc, centerName: (id: string) => string, zoneOfCenter: (name: string) => string): string | null {
+  const slugs = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const slug of slugs) {
+    const a = after[slug]; const b = before[slug];
+    if (a && b && JSON.stringify(a) === JSON.stringify(b)) continue;
+    const p = a ?? b!;
+    if (p.scope.kind !== 'masjid') return `“${slug}” is an organization page – only the office can change it.`;
+    const name = centerName(p.scope.center);
+    if (!name || !inScope(doc, me, zoneOfCenter(name), name)) return `“${slug}” belongs to ${name || p.scope.center}, which is outside your masajid.`;
+    if (a && a.status === 'published' && (!b || b.status !== 'published' || JSON.stringify(a) !== JSON.stringify(b))) return `“${slug}”: set the status to “review” – the office publishes masjid pages.`;
+  }
+  return null;
+}

@@ -545,3 +545,17 @@ Everything is configuration with the client's values as a preset; nothing is wir
 - Merged with Agent B's live-stats home pages (home-stats.ts: `feesMonth`/`feesPrevMonth` added).
 - 2026-10-20 – **Members › Contacts** (`/members/contacts`, ContactsView, nav entry): visitors who left name, email and mobile in the member app – list with search and Not members / Members filters, KPI tiles, member match link, note (members.edit), Invite to join (mailto), Remove, CSV. Live: `GET /admin/contacts`, `PATCH /admin/contacts/:id`, `DELETE /admin/contacts/:id`; demo rows otherwise. Commit 071dd16.
 
+
+## 2026-10-21 – O1.4 Page Composer (R6.1b, website v2)
+- Website › Pages: block-based Page Composer replaces the raw schema form for blocks – grouped palette (Text, Layout, Media, Live data, Forms)
+  with one-line help, insert anywhere, drag or ↑/↓ to reorder, duplicate, remove, collapsed cards with a summary, per-block form (same zod contract),
+  Page settings drawer (layout, belongs to org/masjid, public/members, status + go-live/take-down times, SEO, owner) with the live/draft reason.
+- New page: start from a template (blank, information page, masjid overview, campaign, Ramadan/Eid, announcement); `masjid/<id>/<page>` addresses set the masjid scope.
+- Preview opens pages with `?preview=1` so drafts show. Files: `components/views/PageComposer.tsx`, `lib/content/block-catalog.ts`, `styles/composer.css`.
+- Tests: admin.spec.ts "pages" updated + "page composer" test (templates, reorder, duplicate, remove, settings, live block). tsc clean.
+
+## 2026-10-21 – Website v2 admin pieces (R6.1c, R6.6, R6.11)
+- Prayer times › Friday khutbah tab (KhutbahTab.tsx): table per Friday, copy last week, paste-from-sheet import.
+- Website › Redirects and short links (RedirectsView.tsx, site-config.redirects); Pages › Website health panel (SiteHealth.tsx); Pages › Import pages…
+- Masjid web editor role / center.content on pages: scoped page list, draft/review only, "Submit for review"; `/api/store/pages` checks `pagesProblem` (server-access.ts).
+- Zones and centers › center dialog › "Masjid page" profile section (photo, story, accent, facilities, hours, social, staff).

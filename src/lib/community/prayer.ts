@@ -45,7 +45,26 @@ export const SpecialSchema = z.object({
   times: z.array(HHMM).min(1, 'Add at least one prayer time.').max(5),
   place: z.string().max(120),
 });
+/** O6 – Friday khutbah schedule (what the committee keeps in a sheet today): one row per Friday per center. */
+export const KhutbahRowSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-10-24'),
+  center: z.string().max(80),                               // center name (as in Zones and centers)
+  khateeb: z.string().max(80).default(''),
+  topic: z.string().max(160).default(''),
+  language: z.string().max(30).default(''),
+  time: z.union([HHMM, z.literal('')]).default(''),         // '' = the center's usual khutbah time
+  note: z.string().max(200).default(''),
+});
+export type KhutbahRow = z.infer<typeof KhutbahRowSchema>;
+export const KhutbahSchema = z.object({
+  enabled: z.boolean().default(false),                      // show the Friday schedule on the website
+  rows: z.array(KhutbahRowSchema).max(3000).default([]),
+  feedbackUrl: z.string().max(300).default(''),             // e.g. /feedback?topic=khutbah
+  note: z.string().max(300).default(''),                    // shown above the schedule
+}).default({ enabled: false, rows: [], feedbackUrl: '', note: '' });
+
 export const PrayerSettingsSchema = z.object({
+  khutbah: KhutbahSchema,
   method: z.enum(Object.keys(METHODS) as [Method, ...Method[]]),
   asr: z.enum(['standard', 'hanafi']),
   location: z.object({ label: z.string().max(80), lat: z.number().min(-60).max(60), lng: z.number().min(-180).max(180) }),
@@ -68,6 +87,42 @@ export const PrayerSettingsSchema = z.object({
   d.special.forEach((s, i) => { if (ids.has(s.id)) ctx.addIssue({ code: 'custom', path: ['special', i, 'id'], message: 'Two special prayers use the same id.' }); ids.add(s.id); });
 });
 export type Rule = z.infer<typeof RuleSchema>;
+/** Next Friday on or after a date (the date itself when it is a Friday). */
+export function nextFriday(dateISO: string): string {
+  const d = new Date(`${dateISO}T12:00:00Z`); const add = (5 - d.getUTCDay() + 7) % 7;
+  return new Date(d.getTime() + add * 86_400_000).toISOString().slice(0, 10);
+}
+/** Khutbah rows for one Friday (all centers) or one center (coming Fridays), sorted. */
+export function khutbahFor(k: PrayerSettings['khutbah'], opts: { date?: string; center?: string; from?: string; weeks?: number }): KhutbahRow[] {
+  let rows = k.rows.slice();
+  if (opts.date) rows = rows.filter((r) => r.date === opts.date);
+  if (opts.center) rows = rows.filter((r) => r.center === opts.center);
+  if (opts.from) { const to = new Date(Date.parse(`${opts.from}T12:00:00Z`) + (opts.weeks ?? 8) * 7 * 86_400_000).toISOString().slice(0, 10); rows = rows.filter((r) => r.date >= opts.from! && r.date <= to); }
+  return rows.sort((a, b) => a.date.localeCompare(b.date) || a.center.localeCompare(b.center) || a.time.localeCompare(b.time));
+}
+/** Parses pasted CSV/TSV (header row: date, center, khateeb, topic, language, time, note – any order, case-insensitive). Dates accept YYYY-MM-DD or MM/DD/YYYY. */
+export function parseKhutbahSheet(text: string, centers: string[]): { rows: KhutbahRow[]; errors: string[] } {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return { rows: [], errors: ['Paste a header row and at least one schedule row.'] };
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const split = (l: string) => (sep === ',' ? l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)?.map((c) => c.replace(/,$/, '').replace(/^"|"$/g, '').replace(/""/g, '"').trim()).filter((_, i, a) => i < a.length - 1 || _ !== '') ?? [] : l.split('\t').map((c) => c.trim()));
+  const head = split(lines[0]).map((h) => h.toLowerCase());
+  const col = (names: string[]) => head.findIndex((h) => names.includes(h));
+  const ix = { date: col(['date', 'friday']), center: col(['center', 'masjid', 'islamic center']), khateeb: col(['khateeb', 'khatib', 'speaker', 'imam']), topic: col(['topic', 'title', 'subject']), language: col(['language', 'lang']), time: col(['time', 'khutbah time', 'khutbah']), note: col(['note', 'notes', 'remarks']) };
+  const errors: string[] = []; const rows: KhutbahRow[] = [];
+  if (ix.date < 0 || ix.center < 0) return { rows, errors: ['The header must have a “date” and a “center” column.'] };
+  const lower = new Map(centers.map((c) => [c.toLowerCase(), c]));
+  lines.slice(1).forEach((l, i) => {
+    const c = split(l); const get = (k: keyof typeof ix) => (ix[k] >= 0 ? (c[ix[k]] ?? '') : '');
+    let date = get('date'); const m = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (m) date = `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    const center = lower.get(get('center').toLowerCase()) ?? get('center');
+    const row = KhutbahRowSchema.safeParse({ date, center, khateeb: get('khateeb'), topic: get('topic'), language: get('language'), time: get('time').replace(/^(\d):/, '0$1:'), note: get('note') });
+    if (!row.success) { errors.push(`Row ${i + 2}: ${row.error.issues[0]?.message ?? 'invalid'}`); return; }
+    if (!centers.includes(center)) errors.push(`Row ${i + 2}: “${center}” is not a center in Zones and centers (kept as typed).`);
+    rows.push(row.data);
+  });
+  return { rows, errors };
+}
 export type CenterTimes = z.infer<typeof CenterTimesSchema>;
 export type Special = z.infer<typeof SpecialSchema>;
 export type PrayerSettings = z.infer<typeof PrayerSettingsSchema>;
@@ -188,6 +243,13 @@ const standardIqamah = (dhuhrSummer = '13:45', dhuhrWinter = '13:00'): CenterTim
   asr: [R('after', 15)], maghrib: [R('after', 5, '01-01', '12-31', 1)], isha: [R('after', 15)],
 });
 export const mockPrayerSettings: PrayerSettings = {
+  khutbah: { enabled: true, feedbackUrl: '/feedback?topic=khutbah', note: 'Unless noted, khutbah starts at the center’s listed time and salat 30 minutes later. Subject to change.', rows: (() => { const f = nextFriday(new Date().toISOString().slice(0, 10)); const d = (w: number) => new Date(Date.parse(`${f}T12:00:00Z`) + w * 7 * 86_400_000).toISOString().slice(0, 10); return [
+    { date: d(0), center: 'North Islamic Center 1', khateeb: 'Imam Yusuf Ali', topic: 'Gratitude in hard times', language: 'English', time: '', note: '' },
+    { date: d(0), center: 'North Islamic Center 1', khateeb: 'Br. Ahmed Siddiqui', topic: 'The rights of neighbors', language: 'English', time: '14:15', note: 'Second jumuah' },
+    { date: d(0), center: 'Southwest Islamic Center 1', khateeb: 'Sh. Omar Farooq', topic: 'Raising children with mercy', language: 'English / Arabic', time: '', note: '' },
+    { date: d(1), center: 'North Islamic Center 1', khateeb: 'Dr. Hasan Qureshi', topic: 'Tawakkul', language: 'English', time: '', note: '' },
+    { date: d(1), center: 'Southwest Islamic Center 1', khateeb: 'Imam Yusuf Ali', topic: 'Honesty in business', language: 'English', time: '', note: '' },
+  ]; })() },
   method: 'isna', asr: 'standard',
   location: { label: 'Houston (downtown)', lat: 29.7604, lng: -95.3698 },
   adjust: { fajr: 2, sunrise: 0, dhuhr: 1, asr: 1, maghrib: 1, isha: 1 },

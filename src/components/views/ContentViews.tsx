@@ -12,6 +12,12 @@ import { DocEditor, Modal, type DocApi } from '@/components/editor/DocEditor';
 import { REGISTRY } from '@/lib/store/registry';
 import { countIssues, Panel, ScopedForm, SwitchRow, Tabs } from '@/components/editor/bits';
 import { SchemaForm } from '@/components/forms/SchemaForm';
+import { PageComposer } from './PageComposer';
+import { SiteHealthPanel } from './SiteHealth';
+import { PAGE_TEMPLATES } from '@/lib/content/block-catalog';
+import { useDoc } from '@/lib/store/use-doc';
+import { useAccess } from '@/lib/access/use-access';
+import type { OrgStructure } from '@/lib/community/org-structure';
 import { emptyValue } from '@/lib/schema-form/introspect';
 
 /* ---------- Menus and footer ---------- */
@@ -112,12 +118,25 @@ export function PagesView() {
   const [adding, setAdding] = useState(false);
   const [slug, setSlug] = useState('');
   const [removing, setRemoving] = useState<string | null>(null);
+  const [tpl, setTpl] = useState('blank');
+  const [health, setHealth] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [overwrite, setOverwrite] = useState(false);
+  const org = useDoc<OrgStructure>('org-structure');
+  const access = useAccess();
+  const allCenters = ((org.draft ?? org.base)?.centers ?? []);
+  const canPublish = access.can('content.publish');
+  const editorOnly = !canPublish && access.can('center.content');   // O1.5 masjid editor: own masajid, drafts and review only
+  const inMyScope = (centerId: string) => { const c = allCenters.find((x) => x.id === centerId); return !!c && access.inScope(c.zone, c.name); };
+  const masjids = allCenters.filter((c) => c.active && (!editorOnly || inMyScope(c.id))).map((c) => ({ id: c.id, name: c.name }));
   return (
-    <DocEditor<Record<string, Page>> storeKey="pages" title="Pages" intro="Every content page on the website, built from blocks: headings, text, lists, callouts, FAQs, facts, buttons and contact lists." previewPaths={[`/${sel}?preview=1`]}>
+    <DocEditor<Record<string, Page>> storeKey="pages" title="Pages" publishPermission={editorOnly ? 'center.content' : undefined} intro="Every page on the website, composed from blocks: text, media, layout, live data from your admin modules (prayer times, events, campaigns, leaders, masajid) and forms. Pages can belong to the organization or to one masjid, be scheduled, and be members-only." previewPaths={[`/${sel}?preview=1`]}>
       {(doc) => {
         const pages = doc.draft;
-        const slugs = Object.keys(pages).filter((s) => !q || `${s} ${pages[s].title}`.toLowerCase().includes(q.toLowerCase())).sort();
-        const current = pages[sel] ? sel : Object.keys(pages)[0];
+        const visible = (s: string) => !editorOnly || (pages[s].scope.kind === 'masjid' && inMyScope(pages[s].scope.center));
+        const slugs = Object.keys(pages).filter((s) => visible(s) && (!q || `${s} ${pages[s].title}`.toLowerCase().includes(q.toLowerCase()))).sort();
+        const current = pages[sel] && visible(sel) ? sel : slugs[0];
         return (
           <div className="pages-split">
             <Panel title="All pages">
@@ -126,18 +145,21 @@ export function PagesView() {
                 {slugs.map((s) => (
                   <li key={s}>
                     <button type="button" className={s === current ? 'active' : ''} aria-current={s === current || undefined} onClick={() => setSel(s)}>
-                      <b>{pages[s].title}</b><span>/{s}{pages[s].status === 'draft' ? ' · draft' : ''}</span>
+                      <b>{pages[s].title}</b><span>/{s}{pages[s].status === 'draft' ? ' · draft' : pages[s].status === 'review' ? ' · in review' : pages[s].status === 'scheduled' ? ' · scheduled' : pages[s].status === 'archived' ? ' · archived' : ''}</span>
                       {countIssues(doc.issues, [s]) > 0 && <span className="sf-badge">{countIssues(doc.issues, [s])}</span>}
                     </button>
                   </li>
                 ))}
               </ul>
               <button type="button" className="sf-add" onClick={() => setAdding(true)}>+ New page</button>
+              <button type="button" className="btn sm ghost" onClick={() => setHealth((v) => !v)} aria-expanded={health}>{health ? 'Hide website health' : 'Website health'}</button>
+              <button type="button" className="btn sm ghost" onClick={() => setImporting(true)}>Import pages…</button>
+              {health && <SiteHealthPanel pages={pages} onOpen={(s) => { setSel(s); setHealth(false); }} />}
             </Panel>
             {current && (
               <Panel title={pages[current].title} intro={<>Address: <code>/{current}</code> · <button type="button" className="linkish danger-text" onClick={() => setRemoving(current)}>Delete page</button></>}>
-                <SchemaForm schema={PageSchema} value={pages[current]} path={[current]} issues={doc.issues}
-                  onChange={(v) => doc.setDraft({ ...pages, [current]: v as Page })} />
+                {editorOnly && <p className="notice">You edit the pages of your masjid. Save them as <b>draft</b> or set the status to <b>review</b> – the office publishes.</p>}
+                <PageComposer page={pages[current]} path={[current]} issues={doc.issues} masjids={masjids} editorOnly={editorOnly} onChange={(v) => doc.setDraft({ ...pages, [current]: v })} />
               </Panel>
             )}
             {adding && (
@@ -146,15 +168,42 @@ export function PagesView() {
                 <p className="sf-hint">Lowercase words and dashes. Example: <code>youth-programs</code> → /youth-programs</p>
                 <input id="new-slug" className="in" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9/-]/g, '-'))} />
                 {slug && (!SLUG.test(slug) ? <p className="sf-err">Use lowercase letters, numbers and dashes.</p> : pages[slug] ? <p className="sf-err">A page with this address already exists.</p> : null)}
+                <p className="sf-hint">For a masjid page use <code>masjid/&lt;masjid&gt;/&lt;page&gt;</code> and set “Belongs to” in Page settings.</p>
+                <label className="sf-label" htmlFor="new-tpl">Start from</label>
+                <div className="pc-palette-grid" id="new-tpl" role="radiogroup" aria-label="Page template">
+                  {PAGE_TEMPLATES.map((t) => <button key={t.id} type="button" role="radio" aria-checked={tpl === t.id} className="pc-palette-item" data-on={tpl === t.id || undefined} onClick={() => setTpl(t.id)}><b>{t.label}</b><span>{t.help}</span></button>)}
+                </div>
                 <div className="modal-actions">
                   <button type="button" className="btn ghost" onClick={() => setAdding(false)}>Cancel</button>
                   <button type="button" className="btn primary" disabled={!SLUG.test(slug) || !!pages[slug]} onClick={() => {
-                    const p = { ...(emptyValue(PageSchema) as Page), slug, title: slug.split('/').pop()!.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase()), status: 'draft' as const, updatedAt: new Date().toISOString().slice(0, 10), blocks: [{ type: 'paragraph' as const, text: 'Write the first paragraph here.' }] };
+                    const title = slug.split('/').pop()!.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
+                    const t = PAGE_TEMPLATES.find((x) => x.id === tpl) ?? PAGE_TEMPLATES[0];
+                    const m = slug.match(/^masjid\/([a-z0-9-]+)(?:\/|$)/);
+                    const p = PageSchema.parse({ ...(emptyValue(PageSchema) as Page), slug, title, status: 'draft', updatedAt: new Date().toISOString().slice(0, 10), ...t.make(title), scope: m ? { kind: 'masjid', center: m[1] } : editorOnly ? { kind: 'masjid', center: masjids[0]?.id ?? '' } : { kind: 'org' } });
                     doc.setDraft({ ...pages, [slug]: p }); setSel(slug); setSlug(''); setAdding(false);
                   }}>Create page</button>
                 </div>
               </Modal>
             )}
+            {importing && (() => {
+              let parsed: { ok: Page[]; bad: string[] } = { ok: [], bad: [] };
+              if (importText.trim()) {
+                try { const j = JSON.parse(importText) as Record<string, unknown>; for (const [k, v] of Object.entries(j)) { const r = PageSchema.safeParse(v); if (r.success && r.data.slug === k) parsed.ok.push(r.data); else parsed.bad.push(k); } } catch { parsed = { ok: [], bad: ['Not valid JSON'] }; }
+              }
+              const skipped = parsed.ok.filter((p) => pages[p.slug] && !overwrite).length;
+              return (
+                <Modal title="Import pages" onClose={() => setImporting(false)}>
+                  <p className="sf-hint">Paste a pages file (for example <code>isgh-org/import/pages-import.json</code> made by <code>tools/import-isgh-pages.mjs</code>). Imported pages arrive as drafts; nothing goes live until you publish and set each page to Published.</p>
+                  <textarea className="in" rows={8} value={importText} onChange={(e) => setImportText(e.target.value)} aria-label="Pages JSON" placeholder='{ "about": { "slug": "about", "title": "About", … } }' />
+                  <label className="check"><input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} /> <span>Replace pages that already exist</span></label>
+                  {importText.trim() && <p className="sf-hint"><b>{parsed.ok.length}</b> valid page{parsed.ok.length === 1 ? '' : 's'}{skipped ? `, ${skipped} skipped (already exist)` : ''}{parsed.bad.length ? `, ${parsed.bad.length} invalid: ${parsed.bad.slice(0, 5).join(', ')}` : ''}</p>}
+                  <div className="modal-actions">
+                    <button type="button" className="btn ghost" onClick={() => setImporting(false)}>Cancel</button>
+                    <button type="button" className="btn primary" disabled={!parsed.ok.length} onClick={() => { const n = { ...pages }; for (const p of parsed.ok) if (!n[p.slug] || overwrite) n[p.slug] = { ...p, status: 'draft' }; doc.setDraft(n); setImporting(false); setImportText(''); }}>Add to the draft</button>
+                  </div>
+                </Modal>
+              );
+            })()}
             {removing && (
               <Modal title={`Delete “${pages[removing]?.title}”?`} onClose={() => setRemoving(null)}>
                 <p>Links to <code>/{removing}</code> will show “page not found” after you publish. You can bring it back from History.</p>

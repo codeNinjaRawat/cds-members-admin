@@ -156,13 +156,49 @@ test.describe('website controls', () => {
     await page.getByLabel('Web address').fill('youth-programs');
     await page.getByRole('button', { name: 'Create page' }).click();
     await expect(page.getByRole('heading', { name: 'Youth programs' })).toBeVisible();
-    await page.getByRole('button', { name: /\+ Add block/ }).click();
+    await page.getByRole('button', { name: '+ Add block', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Add a block' }).getByRole('button', { name: /^Heading/ }).click();
     await page.getByRole('button', { name: 'Publish', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Publish' }).click();
     await expect(page.locator('.notice.ok')).toBeVisible();
     const d = (await store(page, 'pages')).data;
     expect(d['youth-programs'].status).toBe('draft');
     expect(d['youth-programs'].blocks.length).toBe(2);
+    expect(d['youth-programs'].blocks[1].type).toBe('heading');
+    expect(d['youth-programs'].scope).toEqual({ kind: 'org' });
+  });
+
+  test('page composer: masjid template, reorder, duplicate, remove, settings, live block', async ({ page }) => {
+    await page.goto('/website/pages');
+    await page.getByRole('button', { name: '+ New page' }).click();
+    await page.getByLabel('Web address').fill('masjid/champions/overview');
+    await page.getByRole('radio', { name: /Masjid overview/ }).click();
+    await page.getByRole('button', { name: 'Create page' }).click();
+    const blocks = page.locator('.pc-block');
+    await expect(blocks).toHaveCount(10);
+    await expect(blocks.first()).toContainText('Prayer times');
+    // settings show the scope taken from the address and the draft reason
+    await expect(page.locator('.pc-settings-toggle')).toContainText('masjid champions');
+    await expect(page.locator('.pc-status')).toContainText('Draft');
+    // keyboard reorder: move block 2 (Next Jumuah) to the top
+    await blocks.nth(1).getByRole('button', { name: 'Move up' }).click();
+    await expect(blocks.first()).toContainText('Next Jumuah');
+    // duplicate + remove
+    await blocks.first().getByRole('button', { name: 'Duplicate' }).click();
+    await expect(blocks).toHaveCount(11);
+    await blocks.first().getByRole('button', { name: 'Remove block' }).click();
+    await expect(blocks).toHaveCount(10);
+    // open a live block and change its view
+    await blocks.nth(1).getByRole('button', { name: /Prayer times/ }).click();
+    await blocks.nth(1).getByLabel('View').selectOption('month');
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Publish' }).click();
+    await expect(page.locator('.notice.ok')).toBeVisible();
+    const d = (await store(page, 'pages')).data['masjid/champions/overview'];
+    expect(d.scope).toEqual({ kind: 'masjid', center: 'champions' });
+    expect(d.template).toBe('hub');
+    expect(d.blocks[0].type).toBe('next-jumuah');
+    expect(d.blocks[1]).toMatchObject({ type: 'prayer-times', view: 'month' });
   });
 
   test('giving: money shown in dollars, saved in cents; sample warning', async ({ page }) => {
