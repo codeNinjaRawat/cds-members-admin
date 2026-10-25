@@ -269,10 +269,10 @@ export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: Membe
     { id: 'age', label: `18 or older on ${fmtDate(rd)}`, ok: age >= 18, reason: `Age ${age} on the record date` },
     life
       ? { id: 'dues', label: `Dues for ${year}`, ok: true, reason: 'Life member – no yearly dues' }
-      : byGifts
-      ? { id: 'dues', label: `${q!.label || 'Monthly contributions'} for ${year}: ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, ok: byGifts.ok, reason: byGifts.ok ? `${fmtUsd(byGifts.total)} given by ${fmtDate(byGifts.by)}` : `${fmtUsd(byGifts.total)} given – ${fmtUsd(byGifts.needed)} short of ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, fix: byGifts.ok ? undefined : 'payment' }
       : !pay && m.voting?.[String(year)] === 'voting' && !!m.approvedOn
       ? { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: true, reason: `On Wild Apricot's voting list for ${year} (imported)` }   // imported members: Wild Apricot already checked the dues for that year
+      : byGifts
+      ? { id: 'dues', label: `${q!.label || 'Monthly contributions'} for ${year}: ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, ok: byGifts.ok, reason: byGifts.ok ? `${fmtUsd(byGifts.total)} given by ${fmtDate(byGifts.by)}` : `${fmtUsd(byGifts.total)} given – ${fmtUsd(byGifts.needed)} short of ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, fix: byGifts.ok ? undefined : 'payment' }
       : !pay && m.paidThrough && m.paidThrough >= rd && !!m.approvedOn
       ? { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: true, reason: `Membership paid through ${fmtDate(m.paidThrough)} (imported term)` }   // imported members: a term, no payment rows
       : { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: !!pay && (dues.ok || !canVote) && pay.paidOn <= rd && pay.payer !== 'other',
