@@ -30,6 +30,8 @@ export type Member = {
   paidThrough?: string | null;
   /** Live data: the database's status from the membership terms (a suspended lifetime member is 'expired'). */
   termStatus?: string;
+  /** Wild Apricot's voting lists per year (import legend): "voting" | "non-voting" | "restricted"; onlineYYYY: "yes". */
+  voting?: Record<string, string>;
   /** Never became a member: 'applied' = applied, waiting for a decision · 'incomplete' = never finished (no membership, never verified). */
   joinStage?: 'applied' | 'incomplete';
   /** the website join form for someone who has not finished: where they are and everything they typed (saved as they go) */
@@ -269,6 +271,8 @@ export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: Membe
       ? { id: 'dues', label: `Dues for ${year}`, ok: true, reason: 'Life member – no yearly dues' }
       : byGifts
       ? { id: 'dues', label: `${q!.label || 'Monthly contributions'} for ${year}: ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, ok: byGifts.ok, reason: byGifts.ok ? `${fmtUsd(byGifts.total)} given by ${fmtDate(byGifts.by)}` : `${fmtUsd(byGifts.total)} given – ${fmtUsd(byGifts.needed)} short of ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, fix: byGifts.ok ? undefined : 'payment' }
+      : !pay && m.voting?.[String(year)] === 'voting' && !!m.approvedOn
+      ? { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: true, reason: `On Wild Apricot's voting list for ${year} (imported)` }   // imported members: Wild Apricot already checked the dues for that year
       : !pay && m.paidThrough && m.paidThrough >= rd && !!m.approvedOn
       ? { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: true, reason: `Membership paid through ${fmtDate(m.paidThrough)} (imported term)` }   // imported members: a term, no payment rows
       : { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: !!pay && (dues.ok || !canVote) && pay.paidOn <= rd && pay.payer !== 'other',

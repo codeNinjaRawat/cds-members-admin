@@ -24,7 +24,8 @@ import { EventAttendees, useLiveEventCounts } from './EventAttendees';
 import { useAccess } from '@/lib/access/use-access';
 import { OrgConfigShape, PAY_LABEL, codeStatus, payMethods, securityWarnings, type OrgConfig } from '@/lib/community/org-config';
 import { buildReceipt, checkoutTotal, invoiceNumber, dueDate } from '@/lib/community/payments';
-import { PLANS, STATUS_LABEL, YEAR, ZONES, ageOn, centerOf, eligibility, fullName, lastPayment, membersWithEdits, prefsOf, renewalOf, statusOf, type Member, ORG_TZ } from '@/lib/members/members';
+import { useMembers } from './MembersView';
+import { PLANS, STATUS_LABEL, YEAR, ZONES, ageOn, centerOf, eligibility, fullName, lastPayment, prefsOf, renewalOf, statusOf, type Member, ORG_TZ } from '@/lib/members/members';
 
 const NOW = () => new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 16); // Houston local time (CDT/CST close enough for demo)
 const chicagoToday = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
@@ -143,7 +144,8 @@ export function GroupsView() {
 }
 function GroupsBody({ doc }: { doc: { draft: GroupsDoc; setDraft: (f: (d: GroupsDoc) => GroupsDoc) => void; issues: Record<string, string> } }) {
   const d = doc.draft;
-  const members = useMemo(() => membersWithEdits(), []);
+  const loaded = useMembers();   // live: fills in once the API answers (a direct visit to /groups used to show 0 members)
+  const members = useMemo(() => loaded ?? [], [loaded]);
   const facts = useMemo(() => members.map(factsOf), [members]);
   const byId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const [open, setOpen] = useState<string | null>(null);
@@ -292,7 +294,8 @@ function DeliveryLog() {
 }
 /** Communication › Send a message: members as recipients (email, mobile, choices, group facts). */
 function SendTab({ comm }: { comm: CommunicationDoc }) {
-  const people = useMemo<Recipient[]>(() => membersWithEdits().map((m) => ({ id: m.id, name: fullName(m), email: m.email, phone: m.phone, archived: !!m.archived, prefs: prefsOf(m), facts: factsOf(m) })), []);
+  const loaded = useMembers();
+  const people = useMemo<Recipient[]>(() => (loaded ?? []).map((m) => ({ id: m.id, name: fullName(m), email: m.email, phone: m.phone, archived: !!m.archived, prefs: prefsOf(m), facts: factsOf(m) })), [loaded]);
   return <CampaignsView comm={comm} people={people} now={NOW()} />;
 }
 /** Which renewal email goes out when, from Membership › Renewals and reminders – and what is missing. */
