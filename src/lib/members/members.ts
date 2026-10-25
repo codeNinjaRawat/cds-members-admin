@@ -202,7 +202,7 @@ export function statusOf(m: Member, year = YEAR): Status {
   if (m.archived) return 'archived';
   if (m.standing !== 'good') return m.standing;
   if (!m.approvedOn) return 'pending';
-  if (m.plan === 'life') return m.termStatus && m.termStatus !== 'life' && !m.payments.length ? 'expired' : 'life';   // live: no lifetime term (e.g. suspended) = not current
+  if (m.plan === 'life' || planDef(m).term === 'lifetime') return m.termStatus && m.termStatus !== 'life' && !m.payments.length && m.termStatus !== 'active' ? 'expired' : 'life';   // live: no lifetime term (e.g. suspended) = not current
   if (m.payments.some((p) => p.year === year)) return 'active';
   // live data: a membership term (e.g. imported from Wild Apricot) counts too – paid through today (this year) or the year's end
   if (m.paidThrough) return m.paidThrough >= (year === YEAR ? orgToday() : `${year}-12-31`) ? 'active' : 'expired';
@@ -255,7 +255,7 @@ export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: Membe
   const age = ageOn(m.dob, rd);
   const plan = planDef(m, plans);
   const pay = m.payments.find((p) => p.year === year);
-  const life = plan.term === 'lifetime' && m.payments.some((p) => p.amountCents >= plan.priceCents);
+  const life = plan.term === 'lifetime' && (m.payments.some((p) => p.amountCents >= plan.priceCents) || m.termStatus === 'life' || (!!m.approvedOn && !m.payments.length));   // imported lifetime members have a term, not a payment
   // P2 – "monthly contributors are members": the year's contributions must reach the total by the cut-off (rule in Membership rules)
   const q = rules?.qualifyingGifts; const byGifts = q?.enabled && plan.id === q.planId ? qualifiesByGifts(q, m.payments.map((p) => ({ on: p.paidOn, cents: p.amountCents, recurring: true })), year) : null;
   // Bylaws: own dues must COVER the record date and be paid ON OR BEFORE it (works for calendar-year and fixed-date renewals)
@@ -269,6 +269,8 @@ export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: Membe
       ? { id: 'dues', label: `Dues for ${year}`, ok: true, reason: 'Life member – no yearly dues' }
       : byGifts
       ? { id: 'dues', label: `${q!.label || 'Monthly contributions'} for ${year}: ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, ok: byGifts.ok, reason: byGifts.ok ? `${fmtUsd(byGifts.total)} given by ${fmtDate(byGifts.by)}` : `${fmtUsd(byGifts.total)} given – ${fmtUsd(byGifts.needed)} short of ${fmtUsd(q!.totalCents)} by ${fmtDate(byGifts.by)}`, fix: byGifts.ok ? undefined : 'payment' }
+      : !pay && m.paidThrough && m.paidThrough >= rd && !!m.approvedOn
+      ? { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: true, reason: `Membership paid through ${fmtDate(m.paidThrough)} (imported term)` }   // imported members: a term, no payment rows
       : { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: !!pay && (dues.ok || !canVote) && pay.paidOn <= rd && pay.payer !== 'other',
           reason: !pay ? `No ${year} dues on record` : pay.paidOn > rd ? `Paid ${fmtDate(pay.paidOn)} – after the record date (renews membership, no vote this year)` : canVote && !dues.ok ? dues.reason : pay.payer === 'other' ? 'Paid by someone who is not a relative – the Bylaws need own dues or a relative by blood or marriage' : `Paid ${fmtDate(pay.paidOn)}${pay.payer === 'self' ? '' : ` by ${pay.payer}`}`,
           fix: !pay ? 'payment' : undefined },
