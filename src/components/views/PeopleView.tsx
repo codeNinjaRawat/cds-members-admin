@@ -14,6 +14,10 @@ import { StatTile } from '@/components/charts/Charts';
 import { useAccess } from '@/lib/access/use-access';
 import { be, LIVE } from '@/lib/live/live';
 import { AddMemberDialog } from './AddMemberDialog';
+import { currentOrg } from '@/lib/access/masjid-filter';
+
+/** Center id (`aqsa-katy`) → its name; unknown ids are shown as they are. */
+const masjidName = (id: string | null) => (id ? currentOrg().centers.find((c) => c.id === id)?.name ?? id : '');
 
 type Person = { contactId: string; masjidId: string | null; firstName: string; lastName: string; email: string; phone: string; source: string; note: string; tags: string[]; createdAt: string; lastSeenAt: string;
   stage: 'contact' | 'applicant' | 'member' | 'donor' | 'applicant+donor' | 'member+donor'; becameMemberAt: string | null; firstGiftAt: string | null;
@@ -57,7 +61,7 @@ export function PeopleView() {
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase();
     return (list ?? []).filter((p) => (kind === 'all' || (kind === 'contacts' ? p.stage === 'contact' : kind === 'applicants' ? p.stage.startsWith('applicant') : kind === 'members' ? p.stage.startsWith('member') : p.giving.count > 0))
-      && (!t || `${p.firstName} ${p.lastName} ${p.email} ${p.phone} ${p.masjidId ?? ''} ${p.tags.join(' ')}`.toLowerCase().includes(t)));
+      && (!t || `${p.firstName} ${p.lastName} ${p.email} ${p.phone} ${masjidName(p.masjidId)} ${p.tags.join(' ')}`.toLowerCase().includes(t)));
   }, [list, q, kind]);
 
   async function save(p: Person) {
@@ -72,7 +76,7 @@ export function PeopleView() {
     setList((l) => (l ?? []).filter((x) => x.contactId !== p.contactId));
   }
   const exp = () => downloadCsv('people', ['First name', 'Last name', 'Email', 'Mobile', 'Masjid', 'Stage', 'Member', 'Gifts', 'Given', 'Last gift', 'Events', 'Source', 'Tags', 'Added', 'Last seen', 'Note'],
-    shown.map((p) => [p.firstName, p.lastName, p.email, phone(p.phone), p.masjidId ?? '', STAGE[p.stage].label, p.member?.id ?? '', String(p.giving.count), (p.giving.cents / 100).toFixed(2), p.giving.lastOn ?? '', String(p.events), SOURCE[p.source] ?? p.source, p.tags.join('; '), p.createdAt.slice(0, 10), p.lastSeenAt.slice(0, 10), p.note]), 'members');
+    shown.map((p) => [p.firstName, p.lastName, p.email, phone(p.phone), masjidName(p.masjidId), STAGE[p.stage].label, p.member?.id ?? '', String(p.giving.count), (p.giving.cents / 100).toFixed(2), p.giving.lastOn ?? '', String(p.events), SOURCE[p.source] ?? p.source, p.tags.join('; '), p.createdAt.slice(0, 10), p.lastSeenAt.slice(0, 10), p.note]), 'members');
   const f = funnel ?? { people: 0, contacts: 0, applicants: 0, members: 0, donors: 0, both: 0 };
   const pct = (n: number) => (f.people ? `${Math.round((n / f.people) * 100)}% of people` : '');
 
@@ -105,7 +109,7 @@ export function PeopleView() {
                 <td><strong>{p.firstName} {p.lastName}</strong><br /><a href={`mailto:${p.email}`}>{p.email}</a><br /><small className="muted">{SOURCE[p.source] ?? p.source}{p.events ? ` · ${p.events} event${p.events === 1 ? '' : 's'}` : ''}</small></td>
                 <td><span className={`pill ${STAGE[p.stage].cls}`}>{STAGE[p.stage].label}</span>{p.member && <><br /><Link href={`/members/${encodeURIComponent(p.member.id)}`}>{p.member.id}</Link>{p.member.status ? <small className="muted"> · {p.member.status}</small> : null}</>}</td>
                 <td>{p.phone ? <a href={`tel:${p.phone}`}>{phone(p.phone)}</a> : <span className="muted">—</span>}</td>
-                <td>{p.masjidId ?? <span className="muted">—</span>}</td>
+                <td>{p.masjidId ? masjidName(p.masjidId) : <span className="muted">—</span>}</td>
                 <td>{p.giving.count ? <>{usd(p.giving.cents)}<br /><small className="muted">{p.giving.count} gift{p.giving.count === 1 ? '' : 's'} · last {when(p.giving.lastOn)}</small></> : <span className="muted">—</span>}</td>
                 <td>{when(p.createdAt)}{p.lastSeenAt.slice(0, 10) !== p.createdAt.slice(0, 10) && <><br /><small className="muted">seen {when(p.lastSeenAt)}</small></>}</td>
                 <td>{editing?.id === p.contactId ? (
