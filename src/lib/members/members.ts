@@ -228,7 +228,8 @@ export function planDef(m: Pick<Member, 'plan'>, plans: Plan[] = curPlans()): Pl
 /** Paid-through date from the latest dues year on record (null for Life or never paid). */
 export function paidThroughOf(m: Member, plans?: Plan[]): string | null {
   const plan = planDef(m, plans);
-  if (plan.term === 'lifetime' || !m.payments.length) return null;
+  if (plan.term === 'lifetime') return null;
+  if (!m.payments.length) return m.paidThrough ?? null;   // imported members: a membership term, no payment rows
   return coverageOfYear(plan, Math.max(...m.payments.map((p) => p.year))).through;
 }
 /** Renewal status on a day (Active · Renewal due · Grace · Overdue · Lapsed …) from the plan's renewal date and the lifecycle rules. */
