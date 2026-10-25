@@ -559,3 +559,9 @@ Everything is configuration with the client's values as a preset; nothing is wir
 - Website › Redirects and short links (RedirectsView.tsx, site-config.redirects); Pages › Website health panel (SiteHealth.tsx); Pages › Import pages…
 - Masjid web editor role / center.content on pages: scoped page list, draft/review only, "Submit for review"; `/api/store/pages` checks `pagesProblem` (server-access.ts).
 - Zones and centers › center dialog › "Masjid page" profile section (photo, story, accent, facilities, hours, social, staff).
+
+## 2026-10-25
+- Website › Home page: new layout card "Spotlight (membership landing)" (picking it fills recommended content when empty) and a "Spotlight" tab (ScopedForm over home.spotlight); section labels for slider, benefits, numbers, status, faq. Contract files copied from web: src/lib/content/home.ts, src/lib/content/spotlight.ts; default-themes.json (theme "pop"); mock-site-config.ts (membership-only menus). tsc clean. Not deployed.
+- 2026-10-25 (later): home back to the previous editorial look; membership-only menu kept. Spotlight/Pop remain optional in admin, not active.
+- 2026-10-25 (evening): theme files + mock config + home/icons contracts copied from web; flag label "Try colors"; Home page › "Highlights slider" tab.
+- 2026-10-25 (night): site-config schema copied (menu link icon), mock config with ISGH branding and new menus, public/brand/isgh.

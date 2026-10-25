@@ -212,3 +212,10 @@
 .pe-class:first-of-type { border-top: 0; padding-top: 0; }
 .pe-note { margin: 4px 0 10px; }
 .sf-switch-row.is-disabled .switch { opacity: .55; cursor: not-allowed; }
+
+/* 2026-10-25 spotlight layout thumbnail – cream page, violet/yellow/coral blocks with ink outlines */
+.layout-thumb.spotlight { background: #FFF6E9; border: 2px solid #16112E; }
+.layout-thumb.spotlight i { border: 2px solid #16112E; }
+.layout-thumb.spotlight i:nth-child(1) { left: 8%; top: 18%; width: 44%; height: 16px; background: #5B2EFF; transform: rotate(-3deg); }
+.layout-thumb.spotlight i:nth-child(2) { left: 8%; top: 48%; width: 30%; height: 14px; background: #FFC933; transform: rotate(2deg); }
+.layout-thumb.spotlight i:nth-child(3) { right: 8%; top: 16%; width: 30%; height: 62%; background: #FF6A4D; border-radius: 10px; transform: rotate(5deg); }

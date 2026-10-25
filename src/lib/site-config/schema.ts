@@ -13,6 +13,7 @@
  * Documented in memory: web/memory/api-contract.md and BE/memory/api-contract-web.md
  */
 import { z } from 'zod';
+import { MEMBER_ICONS } from '@/lib/content/icons';
 
 const href = z.string().min(1).max(500);
 
@@ -20,6 +21,8 @@ export const NavChildSchema = z.object({
   label: z.string().min(1).max(60),
   href,
   description: z.string().max(140).optional(),
+  /** 2026-10-25: an icon from our own set, shown in the dropdown and the phone menu */
+  icon: z.enum(MEMBER_ICONS).optional(),
 });
 
 export const NavItemSchema = z.object({

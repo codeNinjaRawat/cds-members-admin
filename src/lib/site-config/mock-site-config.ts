@@ -7,7 +7,9 @@ import { DEFAULT_BRANDING, type SiteConfig } from './schema';
 
 export const mockSiteConfig: SiteConfig = {
   version: 'mock-2026-10-13',
-  branding: DEFAULT_BRANDING, // concept A "Star & Arch"; admin › Branding replaces these files
+  // 2026-10-25: the organization's own logo set (the files uploaded in Admin › Branding – brand-files/isgh)
+  branding: { ...DEFAULT_BRANDING, logoLight: '/brand/isgh/isgh-logo.svg', logoDark: '/brand/isgh/isgh-logo.svg', logoAlt: 'ISGH', favicon: '/brand/isgh/isgh-logo.svg',
+    faviconIco: '/brand/isgh/favicon.ico', appleTouchIcon: '/brand/isgh/apple-touch-icon.png', ogImage: '/brand/isgh/og-default.png', themeColor: '#9C3D25', version: 'isgh-1' },
   org: {
     name: 'Islamic Society of Greater Houston',
     shortName: 'ISGH',
@@ -23,6 +25,7 @@ export const mockSiteConfig: SiteConfig = {
     'cms.newsletter': true,
     'site.themeToggle': true,
     'i18n.languages': false,
+    'site.themePreview': true,   // 2026-10-25: "Try colors" picker so the client can compare palettes – switch off before launch
   },
   announcement: {
     id: 'renew-2027',
@@ -33,39 +36,31 @@ export const mockSiteConfig: SiteConfig = {
     startsAt: '2026-10-01T00:00:00-05:00',
     endsAt: '2027-06-30T23:59:59-05:00',
   },
+  // 2026-10-25 owner: the member website is membership-only (Become a member + Sign in) plus a few support pages.
+  // Admin › Website › Menus edits this; the old full-site menu is in git history.
   nav: [
     {
       label: 'Membership',
       children: [
-        { label: 'Become a member', href: '/membership/join', description: 'Join in about five minutes.' },
-        { label: 'Renew', href: '/membership/renew', description: 'Pay your 2027 dues and keep your vote.' },
-        { label: 'Plans and dues', href: '/membership/plans', description: 'Single, family and life membership.' },
-        { label: 'Check my status', href: '/portal', description: 'See your eligibility checklist.' },
+        { label: 'Become a member', href: '/membership/join', description: 'Join in a few minutes from your phone.', icon: 'star' },
+        { label: 'Renew', href: '/membership/renew', description: 'Pay this year’s dues and keep your vote.', icon: 'calendar' },
+        { label: 'Plans and dues', href: '/membership/plans', description: 'Annual, monthly and lifetime options.', icon: 'plan' },
+        { label: 'How to join', href: '/membership/guide', description: 'What to expect, step by step.', icon: 'form' },
+        { label: 'Verify a membership', href: '/verify', description: 'Check that a membership is active.', icon: 'shield' },
       ],
     },
     {
-      label: 'Islamic Centers',
+      label: 'For members',
       children: [
-        { label: 'Find my center', href: '/centers/find', description: 'Your address decides your zone and center.' },
-        { label: 'All masajid', href: '/masajid', description: 'Every masjid’s own pages: prayer times, Jumuah, events, giving.' },
-        { label: 'What’s happening', href: '/activity', description: 'Events, announcements and campaigns across the network.' },
-        { label: 'The five zones', href: '/centers/zones', description: 'How Greater Houston is organized.' },
-        { label: 'Leadership', href: '/leadership', description: 'Who serves you – find your representatives by ZIP.' },
-        { label: 'Prayer times', href: '/prayer-times', description: 'Adhan, iqamah and Jumu’ah at every center.' },
+        { label: 'Sign in', href: '/sign-in', description: 'A 6-digit code by email – no password.', icon: 'email' },
+        { label: 'My status', href: '/portal', description: 'Your card, voting checklist and renewal date.', icon: 'check' },
+        { label: 'My family', href: '/portal/family', description: 'Add your spouse and manage the household.', icon: 'family' },
+        { label: 'Email preferences', href: '/email-preferences', description: 'Choose what we send you.', icon: 'review' },
       ],
     },
-    {
-      label: 'Give',
-      children: [
-        { label: 'Give', href: '/give', description: 'Zakat, Sadaqah and why we give.' },
-        { label: 'Campaigns', href: '/campaigns', description: 'Goals the community is raising for now.' },
-        { label: 'Who still needs help', href: '/needs', description: 'Verified cases you can help today.' },
-        { label: 'How we helped', href: '/impact', description: 'Real programs and stories, with sources.' },
-      ],
-    },
-    { label: 'Elections', href: '/elections' },
     { label: 'News', href: '/news' },
     { label: 'About', href: '/about' },
+    { label: 'Contact', href: '/contact' },
   ],
   actions: {
     signIn: { label: 'Sign in', href: '/sign-in' },
@@ -75,19 +70,13 @@ export const mockSiteConfig: SiteConfig = {
     columns: [
       { title: 'Membership', links: [
         { label: 'Become a member', href: '/membership/join' }, { label: 'Renew', href: '/membership/renew' },
-        { label: 'Plans and dues', href: '/membership/plans' }, { label: 'Verify a membership', href: '/verify' },
-        { label: 'Check my status', href: '/portal' } ] },
-      { title: 'Community', links: [
-        { label: 'All masajid', href: '/masajid' }, { label: 'Elections', href: '/elections' },
-        { label: 'News', href: '/news' }, { label: 'Events', href: '/events' }, { label: 'Volunteer', href: '/volunteer' },
-        { label: 'Give', href: '/give' }, { label: 'Who still needs help', href: '/needs' }, { label: 'How we helped', href: '/impact' } ] },
-      { title: 'About ISGH', links: [
-        { label: 'About us', href: '/about' }, { label: 'Constitution and Bylaws', href: '/constitution-bylaws' },
-        { label: 'Annual reports', href: '/reports' }, { label: 'Leadership', href: '/leadership' }, { label: 'The five zones', href: '/centers/zones' } ] },
-      { title: 'Help and feedback', links: [
-        { label: 'FAQ', href: '/faq' }, { label: 'Contact us', href: '/contact' },
-        { label: 'Rate your experience', href: '/feedback' }, { label: 'File a complaint', href: '/complaints' },
-        { label: 'Report a website problem', href: '/feedback?topic=website' }, { label: 'Accessibility', href: '/accessibility' } ] },
+        { label: 'Plans and dues', href: '/membership/plans' }, { label: 'How to join', href: '/membership/guide' } ] },
+      { title: 'Members', links: [
+        { label: 'Sign in', href: '/sign-in' }, { label: 'My status', href: '/portal' }, { label: 'Verify a membership', href: '/verify' } ] },
+      { title: 'About', links: [
+        { label: 'About us', href: '/about' }, { label: 'News', href: '/news' }, { label: 'Constitution and Bylaws', href: '/constitution-bylaws' } ] },
+      { title: 'Help', links: [
+        { label: 'FAQ', href: '/faq' }, { label: 'Contact us', href: '/contact' }, { label: 'Accessibility', href: '/accessibility' } ] },
     ],
     social: [
       { label: 'Facebook', href: 'https://www.facebook.com/' },
@@ -123,5 +112,5 @@ export const mockSiteConfig: SiteConfig = {
     { from: '/isgh-blog', to: '/news', permanent: true, note: '' }, { from: '/membership-updates', to: '/news', permanent: false, note: '' }, { from: '/assistance', to: '/services/financial-assistance', permanent: true, note: '' },
     { from: '/funerals', to: '/services/funerals', permanent: true, note: '' }, { from: '/marriage', to: '/services/nikah', permanent: true, note: '' }, { from: '/dawah', to: '/services/dawah', permanent: true, note: '' }, { from: '/networking', to: '/services/job-networking', permanent: true, note: '' }, { from: '/education', to: '/services/islamic-education', permanent: true, note: '' },
   ],
-  theme: { active: 'editorial', allowUserModeToggle: true, defaultMode: 'light' }, // R6.5 website v2 look (admin can switch back to bayou / iznik / dusk) // previous design restored (2026-10-13); admin can set 'dark'
+  theme: { active: 'terracotta', allowUserModeToggle: true, defaultMode: 'light' }, // 2026-10-25 owner pick: Terracotta & Sand. Other palettes (navy-saffron, plum-gold, ocean-coral, indigo-rose, charcoal-amber, editorial, bayou…) in Admin › Website › Theme
 };

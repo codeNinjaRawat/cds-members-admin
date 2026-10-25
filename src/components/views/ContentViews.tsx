@@ -73,6 +73,7 @@ const FLAG_HELP: Record<string, { label: string; help: string }> = {
   'site.announcement': { label: 'Announcement bar', help: 'The thin message bar at the top of every page.' },
   'cms.newsletter': { label: 'Newsletter sign-up', help: 'The email sign-up form in the footer.' },
   'site.themeToggle': { label: 'Visitors can switch light/dark', help: 'Shows the light/dark button in the header.' },
+  'site.themePreview': { label: '“Try colors” button', help: 'A small button in the corner of the website that lets you (and visitors) preview every color theme. Only the person using it sees the change. Turn it off before launch.' },
   'i18n.languages': { label: 'Other languages', help: 'Language switcher (Spanish, Urdu, Arabic) – translations are not ready yet.' },
 };
 export function FlagsView() {
