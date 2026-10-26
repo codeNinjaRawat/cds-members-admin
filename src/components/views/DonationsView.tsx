@@ -5,6 +5,7 @@
  * Center-limited roles see the gifts of their centers. DEMO: saved in this browser.
  */
 import { DashBar, exportPage, useScope as useDashScope } from '@/components/charts/DashKit';
+import { LIVE } from '@/lib/live/live';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
 import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -38,7 +39,7 @@ export function DonationsView() {
   return (
     <div className={`page dn${openGift ? ' has-peek' : ''}`}>
       <header className="page-head">
-        <div><h1>Donations</h1><p className="page-intro">Every gift – online and in person – with its fund, center and receipt. {access.role?.centerScoped ? `Gifts at ${access.me?.centers.join(', ')}.` : 'All centers.'} Demo gifts, saved in this browser.</p></div>
+        <div><h1>Donations</h1><p className="page-intro">Every gift – online and in person – with its fund, center and receipt. {access.role?.centerScoped ? `Gifts at ${access.me?.centers.join(', ')}.` : 'All centers.'}{LIVE ? '' : ' Demo gifts, saved in this browser.'}</p></div>
         <div className="page-actions">{canFix && <button type="button" className="btn primary" onClick={() => setEntry(true)}>Record cash or check</button>}</div>
       </header>
       <Tabs label="Donations" tabs={[

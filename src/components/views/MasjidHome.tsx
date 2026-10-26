@@ -100,7 +100,8 @@ export function MasjidHome() {
   const day = dayTimes(prayer, m.name, t, m.jumuah.map((j) => j.khutbah));   // the published Prayer times settings
   const hour = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: ORG_TZ }));
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const firstName = me.name.replace(/\s*\(demo\)$/, '').split(' ')[0];
+  const clean = me.name.replace(/\s*\(demo\)$/, '');
+  const firstName = /^masjid\b|–\s*admin$/i.test(clean) ? clean.replace(/\s*–\s*admin$/i, '') : clean.split(' ')[0];   // a shared masjid account is named after the masjid
 
   // money and trends – from the members' own payment records
   const thisYear = duesByMonth(mine, YEAR, t), lastYear = duesByMonth(mine, YEAR - 1, `${YEAR - 1}${t.slice(4)}`);
