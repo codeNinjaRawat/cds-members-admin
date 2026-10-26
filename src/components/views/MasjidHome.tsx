@@ -77,15 +77,16 @@ export function MasjidHome() {
   const meetings = useMeetings();
   const zakat = useZakatCases();
   const doc = published ?? access.doc;
-  const me = access.me!;
-  const role = access.role!;
+  const me = access.me;
+  const role = access.role;
   const t = today();
-  const masjids = org.centers.filter((c) => me.centers.includes(c.name));
+  const masjids = org.centers.filter((c) => !!me && me.centers.includes(c.name));
   const [sel, setSel] = useState(0);
   const m: Center | undefined = masjids[sel] ?? masjids[0];
   const mine = useMemo(() => members.filter((x) => m && centerOf(x) === m.name && access.inScope(x.zone, centerOf(x), x.zip)), [members, m, access.ready, access.me?.id, access.dashIndex]); // eslint-disable-line react-hooks/exhaustive-deps
   const [now, setNow] = useState('');
   useEffect(() => { setNow(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ORG_TZ })); }, []);
+  if (!me || !role) return <div className="page"><p className="cv-empty">Loading…</p></div>;
   if (!m) return <div className="page"><p className="cv-empty">Your role has no masjid yet. Ask the organization admin.</p></div>;
 
   const k = masjidNumbers(mine);
@@ -267,8 +268,9 @@ export function ZoneHome() {
   const members = useMembers() ?? [];
   const { access: published } = useDocs();
   const doc = published ?? access.doc;
-  const me = access.me!;
-  const zones = org.zones.filter((z) => me.zones.includes(z.id as ZoneId));
+  const me = access.me;
+  const zones = org.zones.filter((z) => !!me && me.zones.includes(z.id as ZoneId));
+  if (!me) return <div className="page"><p className="cv-empty">Loading…</p></div>;
   return (
     <div className="page mh">
       <header className="page-head"><div><p className="eyebrow">Zone dashboard · {access.role?.name}</p><h1>{zones.map((z) => z.name).join(', ')}</h1><p className="page-intro">Every masjid of your zone: members, renewals and who serves.</p></div></header>

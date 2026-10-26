@@ -43,8 +43,9 @@ const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 
 export function useAccess() {
   const [doc, setDoc] = useState<AccessDoc | null>(cache);
-  const [acting, setActingId] = useState<string | null>(null);
-  const [dash, setDash] = useState(0);
+  // live: start from the session already loaded by another screen – a second copy of this hook must never render one frame as "nobody" (the masjid home page crashed on it)
+  const [acting, setActingId] = useState<string | null>(() => (LIVE ? currentSession()?.actingAs.admin ?? null : null));
+  const [dash, setDash] = useState(() => (LIVE ? Math.max(0, currentSession()?.current ?? 0) : 0));
   useEffect(() => {
     const read = () => {
       if (LIVE) { const s = currentSession(); setActingId(s?.actingAs.admin ?? null); setDash(Math.max(0, s?.current ?? 0)); setDoc(s ? cache : null); return; }
