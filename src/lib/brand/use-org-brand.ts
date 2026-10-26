@@ -9,7 +9,7 @@ import { LIVE, be } from '@/lib/live/live';
 export type OrgBrand = { logoLight: string; logoDark: string; logoAlt: string };
 let cache: OrgBrand | null | undefined;
 let loading: Promise<OrgBrand | null> | null = null;
-const own = (v?: string) => !!v && !v.startsWith('/brand/');   // the product's own files = no organization logo yet
+const own = (v?: string) => !!v && !/^\/brand\/[^/]+$/.test(v);   // the product's own files (/brand/logo-mark.svg …) = no organization logo yet; /brand/<org>/… is the organization's
 
 export function useOrgBrand(): OrgBrand | null {
   const [b, setB] = useState<OrgBrand | null>(cache ?? null);

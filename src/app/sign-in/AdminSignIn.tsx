@@ -6,7 +6,11 @@
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LIVE, be } from '@/lib/live/live';
-import { useOrgBrand } from '@/lib/brand/use-org-brand';
+import { useOrgBrand, type OrgBrand } from '@/lib/brand/use-org-brand';
+import { mockSiteConfig } from '@/lib/site-config/mock-site-config';
+
+/** Shown until the organization's own logo is loaded (admin/public/brand/isgh). */
+const FALLBACK_BRAND: OrgBrand = { logoLight: mockSiteConfig.branding?.logoLight ?? '/brand/isgh/isgh-logo.svg', logoDark: mockSiteConfig.branding?.logoDark ?? '/brand/isgh/isgh-logo.svg', logoAlt: mockSiteConfig.branding?.logoAlt ?? '' };
 
 type Dash = { kind: string; label: string; role: string; where: string; index: number; adminId: string };
 type Step = 'email' | 'code' | 'two-step' | 'choose';
@@ -21,11 +25,14 @@ export function AdminSignIn() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState<Dash[]>([]);
-  const brand = useOrgBrand();   // the organization's logo when it uploaded one
-  const [org, setOrg] = useState<{ name: string; shortName: string; productName: string; founded?: number }>({ name: '', shortName: '', productName: '' });
+  const brand = useOrgBrand() ?? FALLBACK_BRAND;   // the organization's logo; until it is known, the logo shipped with this admin
+  const [org, setOrg] = useState<{ name: string; shortName: string; productName: string; founded?: number }>({ name: mockSiteConfig.org.name, shortName: mockSiteConfig.org.shortName, productName: mockSiteConfig.org.productName ?? '', founded: mockSiteConfig.org.founded });
   const head = useRef<HTMLHeadingElement>(null);
   const q = typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search);
   useEffect(() => { const e = q.get('email'); if (e) setEmail(e); }, []);   // from the website's dashboard chooser
+  // Opened from a website login menu (e.g. a masjid site): "?as=staff|official&from=<masjid name>" – shown as context only, it grants nothing.
+  const [ctx, setCtx] = useState<{ as: string; from: string } | null>(null);
+  useEffect(() => { const as = q.get('as'); const from = (q.get('from') ?? '').replace(/[^\p{L}\p{N} '’.&()-]/gu, '').slice(0, 60); if (as === 'staff' || as === 'official') setCtx({ as, from }); }, []);
   useEffect(() => { head.current?.focus(); }, [step]);
   useEffect(() => { if (LIVE) void be<{ data: { org?: typeof org } }>('GET', 'public/documents/site-config').then((r) => { if (r.ok && r.data.data?.org) setOrg((o) => ({ ...o, ...r.data.data.org })); }); }, []);   // the organization's own name (never hard-coded)
 
@@ -51,7 +58,7 @@ export function AdminSignIn() {
 
   const send = async (e: FormEvent) => {
     e.preventDefault();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return setError('Enter your work email address.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return setError('Enter your email address.');
     if (!password) return setError('Enter your password.');
     setBusy(true); setError('');
     const r = await be<{ dashboards: Dash[]; current: number; twoStep: { required: boolean; ok: boolean } }>('POST', 'auth/password', { email: email.trim().toLowerCase(), password });
@@ -101,33 +108,34 @@ export function AdminSignIn() {
           <circle cx="200" cy="200" r="34" /><path d="M200 166 V234 M166 200 H234 M176 176 L224 224 M224 176 L176 224" />
         </svg>
         <div className="si-brand">
-          {brand ? <span className="si-mark si-img"><img src={brand.logoLight} alt="" /></span> : <span className="si-mark">{short.slice(0, 1)}</span>}
-          <div><b>{org.name || 'Administration'}</b><small>{org.productName ? `${org.productName} · admin` : 'Admin'}</small></div>
+          <span className="si-mark si-img"><img src={brand.logoLight} alt="" /></span>
+          <div><b>{org.name}</b><small>Admin</small></div>
         </div>
         <div className="si-copy">
-          <h2>Serving the community, one record at a time.</h2>
+          <h2>Manage {short} in one place.</h2>
           <ul>
-            <li><span>01</span>Members, renewals and family records</li>
-            <li><span>02</span>Elections, voter lists and officials</li>
-            <li><span>03</span>Events, giving and zakat</li>
+            <li><span>01</span>Members and renewals</li>
+            <li><span>02</span>Elections and voting</li>
+            <li><span>03</span>Events, donations and Zakat</li>
           </ul>
         </div>
-        <p className="si-foot">{org.founded ? `Serving since ${org.founded}` : 'Secure staff access'}</p>
+        <p className="si-foot">{org.founded ? `Since ${org.founded}` : 'For staff and officials'}</p>
       </aside>
 
       <section className="si-side">
       <div className="si-card">
         <div className="si-card-top">
-          {brand ? <span className="si-mark sm si-img"><img src={brand.logoLight} alt="" /></span> : <span className="si-mark sm">{short.slice(0, 1)}</span>}
+          <span className="si-mark sm si-img"><img src={brand.logoLight} alt="" /></span>
           <ol className="si-steps" aria-label="Sign-in steps">
             {['Sign in', 'Dashboard'].map((t, i) => <li key={t} className={i + 1 < stepNo ? 'done' : i + 1 === stepNo ? 'now' : ''} aria-current={i + 1 === stepNo ? 'step' : undefined}>{t}</li>)}
           </ol>
         </div>
         {step === 'email' && (
           <form onSubmit={send} noValidate>
-            <h1 className="si-h" ref={head} tabIndex={-1}>Welcome back</h1>
-            <p className="si-lead">Sign in to the {short} admin with your work email and password.</p>
-            <label className="field"><span>Work email</span><input className="in si-in" type="email" placeholder="you@example.org" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error || undefined} aria-describedby={error ? 'si-err' : undefined} autoFocus /></label>
+            {ctx && <p className="si-ctx"><span aria-hidden="true">{ctx.as === 'official' ? '★' : '◆'}</span>{ctx.as === 'official' ? 'Elected officials' : 'Staff sign-in'}{ctx.from && <> · {ctx.from}</>}</p>}
+            <h1 className="si-h" ref={head} tabIndex={-1}>Sign in</h1>
+            <p className="si-lead">{ctx?.as === 'official' ? 'Use the email you gave us as an elected official.' : 'Use your admin email and password.'}</p>
+            <label className="field"><span>Email</span><input className="in si-in" type="email" placeholder="you@example.org" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error || undefined} aria-describedby={error ? 'si-err' : undefined} autoFocus /></label>
             <label className="field"><span>Password</span><input className="in si-in" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!error || undefined} aria-describedby={error ? 'si-err' : undefined} /></label>
             {error && <p className="field-error" id="si-err" role="alert">{error}</p>}
             <button className="btn primary si-go" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
