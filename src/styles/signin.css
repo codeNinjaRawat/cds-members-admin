@@ -90,3 +90,6 @@
   .si-card { animation: si-in .5s cubic-bezier(.2, .8, .2, 1) both; }
   @keyframes si-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 }
+/* context chip when opened from a website login menu (?as=staff|official&from=…) */
+.si-ctx { display: inline-flex; align-items: center; gap: .45rem; margin: 0 0 .9rem; padding: .3rem .75rem; border-radius: 999px; font-size: .82rem; font-weight: 600; color: var(--ink-2); background: color-mix(in srgb, currentColor 8%, transparent); border: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.si-ctx span { font-size: .8rem; opacity: .8; }
