@@ -334,3 +334,21 @@ code { font-size: .8rem; }
 .pp-table .pill.st-member { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .pp-table .pill.st-donor { background: color-mix(in srgb, var(--success, #2e7d32) 22%, transparent); }
 .pp-table .pill.pp-tag { margin: 0 4px 4px 0; font-size: .78rem; }
+
+/* Members list – clean report layout (2026-10-28): tabs wrap instead of hiding, tighter rows, sticky header, contact column */
+.m-views { flex-wrap: wrap; overflow-x: visible; row-gap: .15rem; }
+.m-grid td { padding-block: .5rem; }
+.m-zone { display: block; white-space: nowrap; }
+.m-zone small { white-space: nowrap; }
+.m-contact { white-space: nowrap; }
+.m-contact a { text-decoration: none; }
+.m-contact a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.m-contact small { display: block; font-size: .76rem; color: var(--ink-3); max-width: 26ch; overflow: hidden; text-overflow: ellipsis; }
+.m-grid tbody tr:nth-child(even):not(.is-sel):not(.is-peek):not(:hover) { background: color-mix(in srgb, var(--ink) 2.5%, transparent); }
+@media (max-width: 760px) {
+  .m-zone { display: inline; }
+  .m-contact { white-space: normal; }
+  .m-contact > a, .m-zone { white-space: nowrap; }
+  .m-zone small { white-space: normal; }
+  .m-contact small { display: inline; margin-left: .4rem; max-width: none; }
+}

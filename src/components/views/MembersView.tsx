@@ -29,7 +29,7 @@ const VIEWS = [
   { id: 'archived', label: 'Archived', test: (r: Row) => r.status === 'archived' },
 ] as const;
 type ViewId = (typeof VIEWS)[number]['id'];
-type SortKey = 'added' | 'name' | 'plan' | 'zone' | 'status' | 'paid';
+type SortKey = 'added' | 'name' | 'plan' | 'zone' | 'status' | 'vote' | 'paid';
 const SIZES = [25, 50, 100];
 const ST_CLASS: Record<Status, string> = { active: 'st-active', life: 'st-approved', pending: 'st-board-review', expired: 'st-needs-info', resigned: 'st-muted', expelled: 'st-bad', archived: 'st-muted' };
 
@@ -66,13 +66,14 @@ export function MembersView({ search = '' }: { search?: string }) {
     const next = { ...cur, ...patch, page: 'page' in patch ? patch.page! : 1 };
     const u = new URL(window.location.href); u.search = '';
     for (const k of Object.keys(next) as (keyof Q)[]) if (next[k] !== DEFAULT_Q[k]) u.searchParams.set(k, String(next[k]));
-    window.history.replaceState(null, '', u);
-    if (patch.view !== undefined) queueMicrotask(() => window.dispatchEvent(new Event('isgh:tab'))); // keep the sidebar in step
+    // the address is written after render (writing it inside a state update makes Next's router update mid-render)
+    queueMicrotask(() => { window.history.replaceState(null, '', u); if (patch.view !== undefined) window.dispatchEvent(new Event('isgh:tab')); }); // keep the sidebar in step
     return next;
   }), []);
   const needle = useDeferredValue(q.q);
 
   const access = useAccess();
+  const contact = access.can('members.contact');
   // nothing is listed until the signed-in person's scope is known – a zone or area role must never see the whole list for a moment
   const rows: Row[] = useMemo(() => (access.ready ? (members ?? []) : []).filter((m) => access.inScope(m.zone, centerOf(m), m.zip)).map((m) => { const lp = lastPayment(m); return { m, status: statusOf(m), vote: eligibility(m), paid: lp?.paidOn ?? '' }; }), [members, access.ready, access.me?.id, access.dashIndex]);
   const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, rows.filter(v.test).length])) as Record<ViewId, number>, [rows]);
@@ -83,7 +84,7 @@ export function MembersView({ search = '' }: { search?: string }) {
     const out = rows.filter((r) => view.test(r)
       && (!q.zone || r.m.zone === q.zone) && (!q.plan || r.m.plan === q.plan) && (!q.status || r.status === q.status) && (!q.center || centerOf(r.m) === q.center)
       && (!s || `${fullName(r.m)} ${r.m.email} ${r.m.id} ${r.m.zip}`.toLowerCase().includes(s) || (sd.length >= 4 && digits(r.m.phone).includes(sd))));
-    const key = (r: Row): string => q.sort === 'added' ? `${r.m.appliedOn} ${r.m.id}` : q.sort === 'name' ? `${r.m.last} ${r.m.first}` : q.sort === 'plan' ? PLANS[r.m.plan].name : q.sort === 'zone' ? `${ZONES[r.m.zone]} ${centerOf(r.m)}` : q.sort === 'status' ? STATUS_LABEL[r.status] : r.paid;
+    const key = (r: Row): string => q.sort === 'added' ? `${r.m.appliedOn} ${r.m.id}` : q.sort === 'name' ? `${r.m.last} ${r.m.first}` : q.sort === 'plan' ? PLANS[r.m.plan].name : q.sort === 'zone' ? `${ZONES[r.m.zone]} ${centerOf(r.m)}` : q.sort === 'status' ? STATUS_LABEL[r.status] : q.sort === 'vote' ? (r.vote.eligible ? '1' : '0') : r.paid;
     out.sort((a, b) => key(a).localeCompare(key(b)) * (q.dir === 'asc' ? 1 : -1));
     return out;
   }, [rows, q.view, q.zone, q.plan, q.status, q.center, q.sort, q.dir, needle]);
@@ -209,7 +210,7 @@ export function MembersView({ search = '' }: { search?: string }) {
               <tr>
                 <th scope="col" className="m-check"><input type="checkbox" aria-label="Select all on this page" checked={allShown} onChange={() => setSel((s) => allShown ? s.filter((id) => !shown.some((r) => r.m.id === id)) : Array.from(new Set([...s, ...shown.map((r) => r.m.id)])))} /></th>
                 {sortBtn('name', 'Member')}{sortBtn('status', 'Status')}
-                <th scope="col">Vote {YEAR}</th>{sortBtn('plan', 'Plan')}{sortBtn('zone', 'Zone')}{sortBtn('added', 'Added')}{sortBtn('paid', 'Last paid')}
+                {sortBtn('vote', `Vote ${YEAR}`)}{sortBtn('plan', 'Plan')}{sortBtn('zone', 'Zone and center')}{contact && <th scope="col">Contact</th>}{sortBtn('added', 'Added')}{sortBtn('paid', 'Last paid')}
               </tr>
             </thead>
             <tbody>
@@ -218,11 +219,12 @@ export function MembersView({ search = '' }: { search?: string }) {
                   onClick={(e) => { if ((e.target as HTMLElement).closest('input,a,button')) return; openPeek(m.id); }}>
                   <td className="m-check"><input type="checkbox" aria-label={`Select ${fullName(m)}`} checked={sel.includes(m.id)} onChange={() => setSel((s) => s.includes(m.id) ? s.filter((x) => x !== m.id) : [...s, m.id])} /></td>
                   <td data-label="Member"><a className="m-who" href={`/members/${m.id}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); openPeek(m.id); }}>
-                    <span className="m-av" aria-hidden="true">{initials(m)}</span><span><b>{fullName(m)}</b><small>{m.id}</small></span></a></td>
+                    <span><b>{fullName(m)}</b><small>{m.id}</small></span></a></td>
                   <td data-label="Status"><span className={`st ${ST_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
                   <td data-label={`Vote ${YEAR}`}><span className={`m-vote ${vote.eligible ? 'yes' : 'no'}`} title={vote.summary}><i aria-hidden="true">{vote.eligible ? '✓' : '–'}</i>{vote.eligible ? 'Yes' : 'No'}</span></td>
                   <td data-label="Plan">{PLANS[m.plan].name}</td>
-                  <td data-label="Zone"><span className="m-zone" title={centerOf(m)}>{ZONES[m.zone]}</span></td>
+                  <td data-label="Zone"><span className="m-zone">{ZONES[m.zone]}<small>{centerOf(m)}</small></span></td>
+                  {contact && <td data-label="Contact" className="m-contact"><a href={`tel:+1${digits(m.phone)}`}>{m.phone}</a><small><a href={`mailto:${m.email}`}>{m.email}</a></small></td>}
                   <td data-label="Added" className="num">{m.appliedOn ? fmtDate(m.appliedOn) : '—'}</td>
                   <td data-label="Last paid" className="num">{paid ? fmtDate(paid) : '—'}</td>
                 </tr>

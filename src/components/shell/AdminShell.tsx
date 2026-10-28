@@ -39,7 +39,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const mod = moduleForPath(pathname);
   // the photo for this part of the admin (sidebar group → SECTION_ART); dashboards carry their own band
   const group = pathname === '/' ? 'Overview' : pathname.startsWith('/families') ? 'Family trees' : (NAV_TREE.find((n) => n.href && n.href !== '/' && pathname.startsWith(n.href.split('?')[0])) ?? NAV_TREE.find((n) => n.children?.some((c) => c.href !== '#' && pathname.split('?')[0] === c.href.split('?')[0] || (c.href !== '#' && c.href.split('?')[0] !== '/' && pathname.startsWith(c.href.split('?')[0] + '/')))))?.label ?? '';
-  const artKey = SECTION_ART[group] ?? null;
+  // data and report pages (the member lists) stay plain – no section photo above the table
+  const artKey = pathname.startsWith('/members') ? null : SECTION_ART[group] ?? null;
   const artUrl = useArtUrl(artKey);
   const wallKey = WALL_PHOTOS[a.wallpaper] ?? null;
   const closed = me && (me.org.status === 'suspended' || me.org.status === 'cancelled');
