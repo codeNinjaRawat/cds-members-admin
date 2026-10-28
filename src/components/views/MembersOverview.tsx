@@ -34,7 +34,7 @@ export function MembersOverview() {
   const mostMonth = o.monthly[1].counts.reduce<number>((b, v, i, a) => ((v ?? -1) > (a[b] ?? -1) ? i : b), 0);
   const topPlan = [...o.plans].sort((a, b) => b.count - a.count)[0];
   const topZone = [...o.zones].sort((a, b) => b.voters + b.others - (a.voters + a.others))[0];
-  const biggestAge = [...o.ages].sort((a, b) => b.count - a.count)[0];
+  const biggestAge = [...o.ages].filter((a) => a.band !== 'Not given').sort((a, b) => b.count - a.count)[0];
   const card = o.methods.find((m) => m.id === 'card')!;
   const payTotal = o.methods.reduce((s, m) => s + m.count, 0);
   const scope = sc.label;

@@ -6,7 +6,7 @@
 import { ageOn, eligibility, PLANS, statusOf, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId } from './members';
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const AGE_BANDS = ['18–29', '30–39', '40–49', '50–59', '60–69', '70+'] as const;
+export const AGE_BANDS = ['18–29', '30–39', '40–49', '50–59', '60–69', '70+', 'Not given'] as const;
 export type Overview = {
   total: number; joinedThisYear: number; voters: number; pending: number;
   renewal: { renewed: number; due: number };
@@ -22,6 +22,8 @@ export type Overview = {
   statuses: { id: Status; label: string; count: number }[];
 };
 
+/** No birth date on file (blank, or Wild Apricot's 1900 placeholder) is its own group – it used to land in 70+. */
+const noDob = (dob: string) => !dob || dob < '1901';
 const band = (age: number): (typeof AGE_BANDS)[number] => (age < 30 ? '18–29' : age < 40 ? '30–39' : age < 50 ? '40–49' : age < 60 ? '50–59' : age < 70 ? '60–69' : '70+');
 
 export function memberOverview(all: Member[], opts: { today: string; zone?: ZoneId | '' }): Overview {
@@ -42,7 +44,7 @@ export function memberOverview(all: Member[], opts: { today: string; zone?: Zone
   const cumulativeCents = MONTHS.slice(0, month).map((_, i) => (run += thisYear.filter((p) => Number(p.paidOn.slice(5, 7)) === i + 1 && p.paidOn.startsWith(String(YEAR))).reduce((s, p) => s + p.amountCents, 0)));
 
   // Due to renew: approved, in good standing, not Life, not pending.
-  const due = current.filter((r) => r.m.plan !== 'life' && r.m.approvedOn && r.m.standing === 'good');
+  const due = current.filter((r) => r.status !== 'life' && r.m.plan !== 'life' && r.m.approvedOn && r.m.standing === 'good');   // life plans are 'life-family' / 'life-individual' too – they never renew
   const joinsFrom = YEAR - 14;
   const statusOrder: Status[] = ['active', 'life', 'expired', 'pending'];
   return {
@@ -50,7 +52,8 @@ export function memberOverview(all: Member[], opts: { today: string; zone?: Zone
     joinedThisYear: current.filter((r) => r.m.joined === YEAR).length,
     voters: rows.filter((r) => r.vote.eligible).length,
     pending: rows.filter((r) => r.status === 'pending').length,
-    renewal: { renewed: due.filter((r) => r.m.payments.some((p) => p.year === YEAR)).length, due: due.length },
+    // renewed = dues for this year recorded here, or an imported term still in force this year (Wild Apricot's payments were not imported)
+    renewal: { renewed: due.filter((r) => r.m.payments.some((p) => p.year === YEAR) || (!!r.m.paidThrough && r.m.paidThrough >= today && r.m.paidThrough.slice(0, 4) >= String(YEAR))).length, due: due.length },
     duesCents: thisYear.reduce((s, p) => s + p.amountCents, 0),
     duesLastYearSameDate: pays.filter((p) => p.year === YEAR - 1 && p.paidOn <= sameDateLastYear).reduce((s, p) => s + p.amountCents, 0),
     monthly, cumulativeCents,
@@ -60,7 +63,7 @@ export function memberOverview(all: Member[], opts: { today: string; zone?: Zone
       const z = current.filter((r) => r.m.zone === id);
       return { id, label: ZONES[id], voters: z.filter((r) => r.vote.eligible).length, others: z.filter((r) => !r.vote.eligible).length };
     }),
-    ages: AGE_BANDS.map((b) => ({ band: b, count: current.filter((r) => band(ageOn(r.m.dob, today)) === b).length })),
+    ages: AGE_BANDS.map((b) => ({ band: b, count: current.filter((r) => (noDob(r.m.dob) ? 'Not given' : band(ageOn(r.m.dob, today))) === b).length })),
     joins: Array.from({ length: YEAR - joinsFrom + 1 }, (_, i) => joinsFrom + i).map((y) => ({ year: y, count: current.filter((r) => r.m.joined === y).length })),
     statuses: statusOrder.map((id) => ({ id, label: id === 'expired' ? 'Not renewed' : id === 'pending' ? 'Pending approval' : id === 'life' ? 'Life' : 'Active', count: current.filter((r) => r.status === id).length })),
   };

@@ -268,7 +268,9 @@ export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: Membe
     { id: 'approved', label: 'Application approved by the Board', ok: !!m.approvedOn, reason: m.approvedOn ? `Approved ${fmtDate(m.approvedOn)}` : 'Waiting for Board approval', fix: m.approvedOn ? undefined : 'approve' },
     { id: 'muslim', label: 'Voting member class', ok: canVote, reason: !cls.canVote ? noVoteMessage(rules, plan.memberClass) : canVote ? cls.label : `The ${plan.name} plan does not include a vote` },
     { id: 'age', label: `18 or older on ${fmtDate(rd)}`, ok: age >= 18, reason: `Age ${age} on the record date` },
-    life
+    !pay && m.voting?.[String(year)] === 'non-voting'
+      ? { id: 'dues', label: `On the ${year} voting list`, ok: false, reason: `Marked non-voting for ${year} in Wild Apricot (imported)`, fix: 'payment' }   // the imported list decides that year unless dues were recorded here
+      : life
       ? { id: 'dues', label: `Dues for ${year}`, ok: true, reason: 'Life member – no yearly dues' }
       : !pay && m.voting?.[String(year)] === 'voting' && !!m.approvedOn
       ? { id: 'dues', label: `Own dues for ${year} paid by ${fmtDate(rd)}`, ok: true, reason: `On Wild Apricot's voting list for ${year} (imported)` }   // imported members: Wild Apricot already checked the dues for that year
