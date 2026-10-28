@@ -3,7 +3,7 @@
  * DEMO: runs over the browser's member list. Live: GET /admin/members/overview?zone= returns the same shape
  * (server side, inside the admin's zone scope – BE/memory/api-contract-reports.md).
  */
-import { ageOn, eligibility, PLANS, statusOf, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId } from './members';
+import { ageOn, centerOf, eligibility, PLANS, statusOf, voteListOf, VOTE_LIST_LABEL, YEAR, ZONES, type Member, type PlanId, type Status, type VoteList, type ZoneId } from './members';
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const AGE_BANDS = ['18–29', '30–39', '40–49', '50–59', '60–69', '70+', 'Not given'] as const;
@@ -20,6 +20,10 @@ export type Overview = {
   ages: { band: (typeof AGE_BANDS)[number]; count: number }[];
   joins: { year: number; count: number }[];
   statuses: { id: Status; label: string; count: number }[];
+  /** Wild Apricot voting list per member for this year – the groups add up to `total`. */
+  voteLists: { id: VoteList; label: string; count: number; voters: number }[];
+  /** Members with no masjid (their ZIP code belongs to no masjid) – counted in total, in no zone or masjid. */
+  noMasjid: number;
 };
 
 /** No birth date on file (blank, or Wild Apricot's 1900 placeholder) is its own group – it used to land in 70+. */
@@ -65,6 +69,8 @@ export function memberOverview(all: Member[], opts: { today: string; zone?: Zone
     }),
     ages: AGE_BANDS.map((b) => ({ band: b, count: current.filter((r) => (noDob(r.m.dob) ? 'Not given' : band(ageOn(r.m.dob, today))) === b).length })),
     joins: Array.from({ length: YEAR - joinsFrom + 1 }, (_, i) => joinsFrom + i).map((y) => ({ year: y, count: current.filter((r) => r.m.joined === y).length })),
+    voteLists: (['voting', 'both', 'non-voting', 'none', 'not-imported'] as VoteList[]).map((id) => { const g = rows.filter((r) => r.status !== 'resigned' && r.status !== 'expelled' && voteListOf(r.m) === id); return { id, label: VOTE_LIST_LABEL[id], count: g.length, voters: g.filter((r) => r.vote.eligible).length }; }).filter((g) => g.count > 0),
+    noMasjid: current.filter((r) => !centerOf(r.m)).length,
     statuses: statusOrder.map((id) => ({ id, label: id === 'expired' ? 'Not renewed' : id === 'pending' ? 'Pending approval' : id === 'life' ? 'Life' : 'Active', count: current.filter((r) => r.status === id).length })),
   };
 }

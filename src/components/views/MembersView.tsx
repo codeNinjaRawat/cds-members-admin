@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   centerOf, centersOf, demoMembers, digits, eligibility, fmtDate, fullName, initials, lastPayment, MEMBERS_EVENT, membersWithEdits, PLANS, recordDate,
-  renewalOf, STATUS_LABEL, statusOf, toCsv, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId, ORG_TZ } from '@/lib/members/members';
+  renewalOf, STATUS_LABEL, statusOf, toCsv, voteListOf, YEAR, ZONES, type Member, type PlanId, type Status, type ZoneId, ORG_TZ } from '@/lib/members/members';
 import { useOrgConfig } from '@/lib/members/use-org-config';
 import { LIVE } from '@/lib/live/live';
 import { useAccess } from '@/lib/access/use-access';
@@ -27,6 +27,10 @@ const VIEWS = [
   { id: 'id-check', label: 'Photo ID to check', test: (r: Row) => r.m.idCheck !== 'verified' && r.m.standing === 'good' },
   { id: 'life', label: 'Life members', test: (r: Row) => r.status === 'life' },
   { id: 'archived', label: 'Archived', test: (r: Row) => r.status === 'archived' },
+  // shown only when someone is in them – records that need a look so every count adds up
+  { id: 'no-masjid', label: 'No masjid', test: (r: Row) => r.status !== 'archived' && !centerOf(r.m), extra: true },
+  { id: 'vote-check', label: `On both voting lists ${YEAR}`, test: (r: Row) => r.status !== 'archived' && voteListOf(r.m) === 'both', extra: true },
+  { id: 'no-list', label: `On no voting list ${YEAR}`, test: (r: Row) => r.status !== 'archived' && voteListOf(r.m) === 'none', extra: true },
 ] as const;
 type ViewId = (typeof VIEWS)[number]['id'];
 type SortKey = 'added' | 'name' | 'plan' | 'zone' | 'status' | 'vote' | 'paid';
@@ -147,7 +151,7 @@ export function MembersView({ search = '' }: { search?: string }) {
       <section className="m-table glass-pane" aria-labelledby="m-h">
         <h2 id="m-h" className="sr-only">Member list</h2>
         <div className="m-views" role="tablist" aria-label="Saved views">
-          {VIEWS.map((v) => (
+          {VIEWS.filter((v) => !('extra' in v) || (members && counts[v.id] > 0) || q.view === v.id).map((v) => (
             <button key={v.id} role="tab" type="button" aria-selected={q.view === v.id} className="m-view" onClick={() => setQ({ view: v.id, peek: '' })}>
               {v.label}<span>{members ? counts[v.id] : ''}</span>
             </button>

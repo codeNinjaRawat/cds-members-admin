@@ -253,11 +253,23 @@ export function approvalBlockers(m: Member, rules: MembershipRules = curRules(),
 }
 const quoteCents = (p: Plan) => (p.term === 'recurring' ? 0 : p.priceCents);
 const fmtUsd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: c % 100 ? 2 : 0 });
+/** Year the record came over from Wild Apricot (0 = not imported). Up to that year Wild Apricot's voting lists are the record. */
+export const importYear = (m: Member) => (m.source === 'import' ? Number((m.audit ?? []).find((a) => /^Imported from Wild Apricot/.test(a.action))?.at.slice(0, 4) ?? 0) || 0 : 0);
+/** Which Wild Apricot voting list a member is on for a year – every member falls in exactly one group (dashboard, member list). */
+export type VoteList = 'voting' | 'both' | 'non-voting' | 'none' | 'not-imported';
+export const VOTE_LIST_LABEL: Record<VoteList, string> = { voting: 'On the voting list', both: 'On both lists (voting and non-voting) – check', 'non-voting': 'On the non-voting list', none: 'On no voting list', 'not-imported': 'Joined here (rules apply)' };
+export function voteListOf(m: Member, year = YEAR): VoteList {
+  if (!importYear(m) || year > importYear(m)) return 'not-imported';
+  const v = m.voting?.[String(year)];
+  return v === 'voting' ? (m.voting?.[`conflict${year}`] === 'yes' ? 'both' : 'voting') : v === 'non-voting' ? 'non-voting' : 'none';
+}
+
 export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: MembershipRules = curRules()): { eligible: boolean; checks: Check[]; summary: string } {
   const rd = recordDate(year);
   const age = ageOn(m.dob, rd);
   const plan = planDef(m, plans);
   const pay = m.payments.find((p) => p.year === year);
+  const waList = voteListOf(m, year);   // imported records: Wild Apricot's list for the year is the record (owner, 2026-10-29)
   const life = plan.term === 'lifetime' && (m.payments.some((p) => p.amountCents >= plan.priceCents) || m.termStatus === 'life' || (!!m.approvedOn && !m.payments.length));   // imported lifetime members have a term, not a payment
   // P2 – "monthly contributors are members": the year's contributions must reach the total by the cut-off (rule in Membership rules)
   const q = rules?.qualifyingGifts; const byGifts = q?.enabled && plan.id === q.planId ? qualifiesByGifts(q, m.payments.map((p) => ({ on: p.paidOn, cents: p.amountCents, recurring: true })), year) : null;
@@ -268,8 +280,8 @@ export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: Membe
     { id: 'approved', label: 'Application approved by the Board', ok: !!m.approvedOn, reason: m.approvedOn ? `Approved ${fmtDate(m.approvedOn)}` : 'Waiting for Board approval', fix: m.approvedOn ? undefined : 'approve' },
     { id: 'muslim', label: 'Voting member class', ok: canVote, reason: !cls.canVote ? noVoteMessage(rules, plan.memberClass) : canVote ? cls.label : `The ${plan.name} plan does not include a vote` },
     { id: 'age', label: `18 or older on ${fmtDate(rd)}`, ok: age >= 18, reason: `Age ${age} on the record date` },
-    !pay && m.voting?.[String(year)] === 'non-voting'
-      ? { id: 'dues', label: `On the ${year} voting list`, ok: false, reason: `Marked non-voting for ${year} in Wild Apricot (imported)`, fix: 'payment' }   // the imported list decides that year unless dues were recorded here
+    !pay && waList !== 'not-imported' && waList !== 'voting' && waList !== 'both'
+      ? { id: 'dues', label: `On the ${year} voting list`, ok: false, reason: waList === 'non-voting' ? `On Wild Apricot's non-voting list for ${year}` : `On no Wild Apricot voting list for ${year}`, fix: 'payment' }   // the imported list decides that year unless dues were recorded here
       : life
       ? { id: 'dues', label: `Dues for ${year}`, ok: true, reason: 'Life member – no yearly dues' }
       : !pay && m.voting?.[String(year)] === 'voting' && !!m.approvedOn
@@ -284,9 +296,12 @@ export function eligibility(m: Member, year = YEAR, plans?: Plan[], rules: Membe
     { id: 'residency', label: 'Lives in a zone and has an Islamic Center', ok: !!centerOf(m), reason: `${ZONES[m.zone]} zone · ${centerOf(m)}${m.centerOverride ? ' (approved change)' : ''}`, fix: 'center' },
     { id: 'standing', label: 'In good standing', ok: m.standing === 'good' && !m.archived, reason: m.archived ? `Archived ${fmtDate(m.archived.on)} – restore the record first` : m.standing === 'good' ? 'No resignation or expulsion' : m.standing === 'resigned' ? 'Resigned – must apply again' : 'Expelled (ethics) – must apply again' },
   ];
-  const eligible = checks.every((c) => c.ok);
-  const first = checks.find((c) => !c.ok);
-  return { eligible, checks, summary: eligible ? `Can vote in ${year}` : first ? first.reason : '' };
+  // on Wild Apricot's voting list (and no dues recorded here): the list is the record – every check is accepted, the reason says why
+  const fromList = !pay && (waList === 'voting' || waList === 'both') && m.standing === 'good' && !m.archived;
+  const final = fromList ? checks.map((c) => (c.ok ? c : { ...c, ok: true, reason: `${c.reason} – accepted: on Wild Apricot's ${year} voting list`, fix: undefined })) : checks;
+  const eligible = final.every((c) => c.ok);
+  const first = final.find((c) => !c.ok);
+  return { eligible, checks: final, summary: eligible ? (fromList ? `Can vote in ${year} (Wild Apricot voting list${waList === 'both' ? ' – also on the non-voting list, check' : ''})` : `Can vote in ${year}`) : first ? first.reason : '' };
 }
 
 /* ---------- Houston formats ---------- */

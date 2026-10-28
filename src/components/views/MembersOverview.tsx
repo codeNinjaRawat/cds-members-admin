@@ -64,9 +64,15 @@ export function MembersOverview() {
             note={`${money(Math.abs(dueDiff))} ${dueDiff >= 0 ? 'more' : 'less'} than ${YEAR - 1} by ${fmtDate(today).slice(0, 5)}`} spark={o.cumulativeCents} />
         </div>}
 
-        {show('mo.status') && <ChartCard id="status" className="mo-status" title="Where members stand" note={<><b>{n(o.pending)}</b> applications wait for the Board · <Link href="/members?view=not-renewed">see who has not renewed</Link></>}
+        {show('mo.status') && <ChartCard id="status" className="mo-status" title="Where members stand" note={<><b>{n(o.pending)}</b> applications wait for the Board · <Link href="/members?view=not-renewed">see who has not renewed</Link>{o.noMasjid > 0 && <> · <Link href="/members?view=no-masjid"><b>{n(o.noMasjid)}</b> with no masjid</Link> (ZIP code belongs to no masjid)</>}</>}
           table={{ head: ['Status', 'Members'], rows: o.statuses.map((s) => [s.label, s.count]) }}>
           <ShareBar label="Members by status" items={o.statuses.map((s) => ({ id: s.id, label: s.label, value: s.count }))} />
+        </ChartCard>}
+
+        {show('mo.status') && <ChartCard id="votelists" className="mo-status" title={`Voting lists ${YEAR} (Wild Apricot)`}
+          note={<>Every member is in one group – they add up to <b>{n(o.total)}</b>.{o.voteLists.some((g) => g.id === 'both') && <> <Link href="/members?view=vote-check">See who is on both lists</Link>.</>}</>}
+          table={{ head: ['List', 'Members', `Can vote in ${YEAR}`], rows: [...o.voteLists.map((g) => [g.label, g.count, g.voters] as (string | number)[]), ['Total', o.total, o.voters]] }}>
+          <ShareBar label="Members by voting list" items={o.voteLists.map((g) => ({ id: g.id, label: g.label, value: g.count }))} />
         </ChartCard>}
 
         {show('mo.payments') && <ChartCard id="payments" className="mo-wide" title="Dues payments each month" note={<>{YEAR} vs {YEAR - 1}. The busiest month this year was <b>{MONTHS[mostMonth]}</b>; renewals open November 1.</>}
@@ -83,7 +89,7 @@ export function MembersOverview() {
         </ChartCard>}
 
         {show('mo.zones') && <ChartCard id="zones" className="mo-half" title="Members and voters by zone" note={<>{topZone.label} has the most members ({n(topZone.voters + topZone.others)}).</>}
-          table={{ head: ['Zone', `Can vote in ${YEAR}`, 'Cannot vote yet', 'Members'], rows: o.zones.map((z) => [z.label, z.voters, z.others, z.voters + z.others]) }}>
+          table={{ head: ['Zone', `Can vote in ${YEAR}`, 'Cannot vote yet', 'Members'], rows: [...o.zones.map((z) => [z.label, z.voters, z.others, z.voters + z.others] as (string | number)[]), ...(o.noMasjid && !zone ? [['No masjid (ZIP not covered)', '', '', o.noMasjid]] : []), ['Total', '', '', o.zones.reduce((s, z) => s + z.voters + z.others, 0) + (zone ? 0 : o.noMasjid)]] }}>
           <StackedBars label="Members by zone" parts={[{ name: `Can vote in ${YEAR}`, slot: 1 }, { name: 'Cannot vote yet', slot: 2 }]}
             rows={o.zones.filter((z) => (zone ? z.id === zone : access.inScope(z.id))).map((z) => ({ id: z.id, label: z.label, values: [z.voters, z.others] }))} />
         </ChartCard>}
