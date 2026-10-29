@@ -377,3 +377,20 @@ code { font-size: .8rem; }
   .cm-table td.row-actions, .pp-table td.actions { justify-content: flex-start; text-align: left; padding-top: .4rem; }
   .pp-table td:first-child br + small { display: block; }
 }
+
+/* Member list (2026-10-29): one toolbar row – view picker, search, filters, count – and denser rows so more members show */
+.page.members .m-table { padding-top: .75rem; gap: .55rem; }
+.m-filters { flex-wrap: nowrap; gap: .45rem; }
+.m-viewpick { flex: none; }
+.m-viewpick select { min-height: 34px; font-size: .84rem; max-width: 240px; }
+.m-filters .m-search .in { min-height: 34px; font-size: .88rem; }
+.m-filters .m-filter-btn { min-height: 34px; font-size: .84rem; padding: 0 .8rem; }
+.m-filters .m-count { flex: none; margin: 0 0 0 .2rem; font-size: .78rem; white-space: nowrap; }
+.btn.icon-only { width: 30px; padding: 0; justify-content: center; position: relative; }
+.btn.icon-only .m-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; margin: 0; }
+.m-grid th { padding: .4rem .6rem; font-size: .7rem; }
+.m-grid td, .m-grid td.num { padding-block: .38rem !important; font-size: .86rem; line-height: 1.3; }
+.m-who b { font-size: .88rem; }
+.m-who small, .m-zone small, .m-contact small { font-size: .72rem; line-height: 1.25; }
+.m-grid .st, .m-vote { font-size: .72rem; }
+@media (max-width: 760px) { .m-filters { flex-wrap: wrap; } .m-viewpick, .m-viewpick select { width: 100%; max-width: none; } .m-filters .m-count { flex-basis: 100%; margin: 0; } }

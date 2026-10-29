@@ -11,10 +11,10 @@ test('default look is Onyx and gold with full sidebar; wallpaper does not animat
 test('list: saved views with counts, view lives in the address, sidebar follows', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Members', level: 1 })).toBeVisible();
   await expect(page.locator('.m-count')).toContainText('of 320');
-  await page.getByRole('tab', { name: /Can vote 2026/ }).click();
+  await page.getByRole('combobox', { name: 'View' }).selectOption('voters');
   await expect(page).toHaveURL(/view=voters/);
   await expect(page.locator('.sub-link.active')).toHaveText('Can vote this year');
-  const n = Number((await page.getByRole('tab', { name: /Can vote 2026/ }).locator('span').textContent()) ?? 0);
+  const n = Number(/\((\d[\d,]*)\)/.exec((await page.getByRole('combobox', { name: 'View' }).locator('option:checked').textContent()) ?? '')?.[1].replace(/,/g, '') ?? 0);
   await expect(page.locator('.m-count')).toContainText(`of ${n}`);
   await expect(page.locator('.m-vote.no')).toHaveCount(0);
   await page.reload();

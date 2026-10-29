@@ -226,3 +226,12 @@ main { overflow-x: clip; }
 .top .pill-select, .top select.in { min-height: 32px; }
 .top .msearch kbd { font-size: .68rem; }
 .pf-banner { padding: .4rem .8rem; font-size: .84rem; }   /* slimmer notice strip */
+/* sidebar rhythm (2026-10-29): every top item the same height, tighter sub-links, quieter section gaps */
+:root:not([data-nav="rail"]) .tree { gap: 2px; }
+:root:not([data-nav="rail"]) .tree > .node > .side-link { min-height: 36px; padding-block: .38rem; }
+:root:not([data-nav="rail"]) .side-link.parent.with-home { padding: 0; min-height: 36px; }
+:root:not([data-nav="rail"]) .side-link.parent.with-home .home-link { padding: .38rem .7rem; }
+:root:not([data-nav="rail"]) .side-link.parent.with-home .chev-btn { width: 26px; height: 26px; }
+:root:not([data-nav="rail"]) .tree .sub { margin: 1px 0 4px 1.55rem; gap: 0; }
+:root:not([data-nav="rail"]) .sub-link { padding: .28rem .6rem; font-size: .85rem; line-height: 1.3; }
+:root:not([data-nav="rail"]) .side-sec { margin: .7rem 0 .15rem; }

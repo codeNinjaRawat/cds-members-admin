@@ -128,36 +128,36 @@ export function MembersView({ search = '' }: { search?: string }) {
 
   return (
     <div className={`page members${peekRow ? ' has-peek' : ''}`}>
-      <header className="page-head m-head-row">
+      <header className="page-head m-head-row ph-line">
         <div>
           <h1>Members <span className="m-total">{members ? rows.filter((r) => r.status !== 'archived').length.toLocaleString('en-US') : ''}</span></h1>
-          <p className="page-intro">Voting record date {fmtDate(recordDate(YEAR))}</p>
+          <p className="page-intro">Record date {fmtDate(recordDate(YEAR))}</p>
         </div>
         <div className="page-actions">
           {purgeDue.n > 0 && (
             <details className="m-notices">
-              <summary className="btn ghost"><span className="m-dot" aria-hidden="true" />1 notice</summary>
+              <summary className="btn xs icon-only" aria-label="1 notice" title="1 notice"><span className="m-dot" aria-hidden="true" /><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></summary>
               <div className="m-pop glass-float" role="note">
                 <p className="notice id-purge">{purgeDue.n.toLocaleString('en-US')} photo ID file{purgeDue.n === 1 ? ' is' : 's are'} past the {purgeDue.keep}-day keep period (Settings › Configuration › Security). The BE deletes the files nightly and keeps only “verified on (date) by (admin)”.</p>
               </div>
             </details>
           )}
-          {LIVE && access.can('members.edit') && <button className="btn primary" onClick={() => setDialog({ kind: 'add' })}>Add member</button>}
-          {access.can('members.archive') && <button className="btn" onClick={() => setDialog({ kind: 'import' })}>Import</button>}
-          {access.can('members.contact') && <button className="btn" onClick={() => setDialog({ kind: 'export' })} disabled={!filtered.length}>Export this view</button>}
+          {access.can('members.archive') && <button className="btn xs icon-only" aria-label="Import members" title="Import members" onClick={() => setDialog({ kind: 'import' })}><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 12l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}
+          {access.can('members.contact') && <button className="btn xs icon-only" aria-label="Export this view" title="Export this view (CSV)" onClick={() => setDialog({ kind: 'export' })} disabled={!filtered.length}><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0-12L8 7m4-4l4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}
+          {LIVE && access.can('members.edit') && <button className="btn xs primary" onClick={() => setDialog({ kind: 'add' })}><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>Add member</button>}
         </div>
       </header>
 
       <section className="m-table glass-pane" aria-labelledby="m-h">
         <h2 id="m-h" className="sr-only">Member list</h2>
-        <div className="m-views" role="tablist" aria-label="Saved views">
-          {VIEWS.filter((v) => !('extra' in v) || (members && counts[v.id] > 0) || q.view === v.id).map((v) => (
-            <button key={v.id} role="tab" type="button" aria-selected={q.view === v.id} className="m-view" onClick={() => setQ({ view: v.id, peek: '' })}>
-              {v.label}<span>{members ? counts[v.id] : ''}</span>
-            </button>
-          ))}
-        </div>
         <div className="m-filters">
+          <label className="m-viewpick"><span className="sr-only">View</span>
+            <select className="in pill-select" aria-label="View" value={q.view} onChange={(e) => setQ({ view: e.target.value as ViewId, peek: '' })}>
+              {VIEWS.filter((v) => !('extra' in v) || (members && counts[v.id] > 0) || q.view === v.id).map((v) => (
+                <option key={v.id} value={v.id}>{v.label}{members ? ` (${counts[v.id].toLocaleString('en-US')})` : ''}</option>
+              ))}
+            </select>
+          </label>
           <label className="m-search">
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M20 20l-4-4" stroke="currentColor" strokeWidth="2" /></svg>
             <span className="sr-only">Search members</span>
@@ -167,6 +167,7 @@ export function MembersView({ search = '' }: { search?: string }) {
             <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
             Filters{filterChips.length ? <span className="m-badge">{filterChips.length}</span> : null}
           </button>
+          <p className="m-count" aria-live="polite">{!members || !access.ready ? 'Loading…' : filtered.length ? `${((page - 1) * q.size + 1).toLocaleString('en-US')}–${Math.min(page * q.size, filtered.length).toLocaleString('en-US')} of ${filtered.length.toLocaleString('en-US')}` : 'No matches'}</p>
         </div>
         {showFilters && (
           <div className="m-filter-panel" id="m-filter-panel">
@@ -206,7 +207,6 @@ export function MembersView({ search = '' }: { search?: string }) {
           </div>
         )}
 
-        <p className="m-count" aria-live="polite">{!members || !access.ready ? 'Loading members…' : filtered.length ? `Showing ${((page - 1) * q.size + 1).toLocaleString('en-US')}–${Math.min(page * q.size, filtered.length).toLocaleString('en-US')} of ${filtered.length.toLocaleString('en-US')}` : 'No members match. Try fewer filters.'}</p>
 
         <div className="m-scroll">
           <table className="m-grid">
