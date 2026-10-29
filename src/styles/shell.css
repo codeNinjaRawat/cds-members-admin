@@ -215,3 +215,5 @@ main { overflow-x: clip; }
 .msearch-all { font-size: .82rem; font-weight: 600; color: var(--accent-ink); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; margin-top: 2px; }
 .msearch-note { margin: 0; padding: .7rem .75rem; font-size: .86rem; color: var(--ink-3); }
 @media (max-width: 720px) { .msearch kbd { display: none; } .msearch-pop { position: fixed; left: 12px; right: 12px; top: 64px; min-width: 0; } }
+.top .msearch { min-width: 2.75rem; flex: 1 1 0; }
+@media (max-width: 560px) { .top .msearch { padding-right: .6rem; } .top .msearch .msearch-in::placeholder { color: transparent; } }

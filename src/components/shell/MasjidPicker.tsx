@@ -5,6 +5,9 @@
  * `unrouted` adds "Not routed yet" for screens whose records can exist before a masjid is known.
  */
 import { UNROUTED, useMasjidFilter, type MasjidFilter } from '@/lib/access/masjid-filter';
+
+/** "North" → "North Zone"; a name that already says zone stays as it is. */
+const zoneLabel = (name: string) => (/zone$/i.test(name.trim()) ? name : `${name} Zone`);
 import { ZONES, type ZoneId } from '@/lib/members/members';
 
 export function MasjidPicker({ f, unrouted = false, label = 'Masjid', className = '' }: { f?: MasjidFilter; unrouted?: boolean; label?: string; className?: string }) {
@@ -19,8 +22,8 @@ export function MasjidPicker({ f, unrouted = false, label = 'Masjid', className 
       <option value="">All masjids</option>
       {unrouted && <option value={UNROUTED}>Not routed yet</option>}
       {zones.map((z) => (
-        <optgroup key={z} label={`${ZONES[z]} Zone`}>
-          <option value={`zone:${z}`}>All of {ZONES[z]} Zone</option>
+        <optgroup key={z} label={zoneLabel(ZONES[z])}>
+          <option value={`zone:${z}`}>All of {zoneLabel(ZONES[z])}</option>
           {m.org.centers.filter((c) => c.active && c.zone === z && m.access.inScope(z, c.name)).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
         </optgroup>
       ))}
