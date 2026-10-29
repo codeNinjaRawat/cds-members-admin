@@ -34,6 +34,11 @@ export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, pr
   const needs = publishPermission ?? permissionForDoc(storeKey);
   const mayPublish = access.can(needs);
   const previewRef = useRef<PreviewHandle>(null);
+  // owner 2026-10-29: the website preview is opened when wanted (it took half the screen, often blank) – remembered per browser
+  const [showPreview, setShowPreview] = useState(false);
+  useEffect(() => { try { setShowPreview(localStorage.getItem('isgh-preview') === '1'); } catch { /* */ } }, []);
+  const togglePreview = () => setShowPreview((v) => { try { localStorage.setItem('isgh-preview', v ? '0' : '1'); } catch { /* */ } return !v; });
+  const withPreview = preview && showPreview;
   const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState('');
   const [history, setHistory] = useState(false);
@@ -60,7 +65,7 @@ export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, pr
   const publish = async () => { const ok = await doc.publish(note || undefined); setConfirm(false); if (ok) setNote(''); }; // result shows in the page banner
 
   return (
-    <div className={`page${preview ? ' with-preview' : ''}`}>
+    <div className={`page${withPreview ? ' with-preview' : ''}`}>
       <header className="page-head">
         <div>
           <h1>{title}</h1>
@@ -74,6 +79,7 @@ export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, pr
           </p> : doc.dirty ? <p className="page-status"><span className="pill warn">Unpublished changes on another tab</span></p> : null}
         </div>
         {actions && <div className="page-actions">
+          {preview && <button type="button" className={`btn ghost${showPreview ? ' on' : ''}`} aria-pressed={showPreview} onClick={togglePreview}>{showPreview ? 'Hide preview' : 'Preview'}</button>}
           <button type="button" className="btn ghost" onClick={() => setHistory(true)}>History</button>
           <button type="button" className="btn ghost" disabled={!doc.dirty} onClick={doc.discard}>Discard changes</button>
           <button type="button" className="btn primary" disabled={!mayPublish || !doc.dirty || problems.length > 0 || otherProblems > 0 || doc.busy !== null}
@@ -99,7 +105,7 @@ export function DocEditor<T>({ storeKey, title, intro, scope, preview = true, pr
 
       <div className="page-grid">
         <div className="editor-col">{children(doc, previewRef)}</div>
-        {preview && <div className="preview-col">{aside}<LivePreview ref={previewRef} paths={previewPaths ?? REGISTRY[storeKey].preview} /></div>}
+        {withPreview ? <div className="preview-col">{aside}<LivePreview ref={previewRef} paths={previewPaths ?? REGISTRY[storeKey].preview} /></div> : aside ? <div className="preview-col">{aside}</div> : null}
       </div>
 
       {confirm && (

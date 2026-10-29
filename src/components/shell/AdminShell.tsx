@@ -44,7 +44,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   // data and report pages (the member lists) stay plain – no section photo above the table
   // the sidebar section of this page (People, Masjids, Money …) – lets a whole section share one page style
   const section = (() => { let sec = ''; for (const n of NAV_TREE) { sec = n.section ?? sec; if (n.label === group || n.children?.some((c) => c.label === group)) return sec; } return ''; })();
-  const artKey = section === 'People' || /^\/(members|groups|families)(\/|$)/.test(pathname) ? null : SECTION_ART[group] ?? null;   // the People section works without photo bands
+  const artKey: keyof typeof SECTION_ART | null = null;   // owner 2026-10-29: no photo bands above pages – the work starts at the top (SECTION_ART kept for later use)
+  void SECTION_ART; void group;
   const artUrl = useArtUrl(artKey);
   const wallKey = WALL_PHOTOS[a.wallpaper] ?? null;
   const closed = me && (me.org.status === 'suspended' || me.org.status === 'cancelled');

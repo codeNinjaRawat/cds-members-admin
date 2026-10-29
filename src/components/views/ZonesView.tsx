@@ -62,7 +62,8 @@ function Presets({ doc }: { doc: Doc }) {
   const [ask, setAsk] = useState(false);
   const p = STRUCTURE_PRESETS.find((x) => x.id === id)!;
   return (
-    <div className="zn-presets glass-pane">
+    <details className="zn-presets glass-pane fold-panel">
+      <summary>Start from a preset <small>– load a ready-made map into the draft</small></summary>
       <div className="zn-preset-row">
         <label className="sf-field zn-preset-pick"><span className="sf-label">Start from a preset</span><select className="in" aria-label="Map preset" value={id} onChange={(e) => setId(e.target.value)}>{STRUCTURE_PRESETS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
         <button type="button" className="btn" onClick={() => setAsk(true)}>Load into the draft</button>
@@ -76,7 +77,7 @@ function Presets({ doc }: { doc: Doc }) {
           <div className="modal-actions"><button type="button" className="btn" onClick={() => setAsk(false)}>Keep my map</button><button type="button" className="btn primary" onClick={() => { doc.setDraft(structuredClone(p.doc)); setAsk(false); }}>Load into the draft</button></div>
         </Modal>
       )}
-    </div>
+    </details>
   );
 }
 

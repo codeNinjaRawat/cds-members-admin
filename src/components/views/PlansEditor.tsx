@@ -52,7 +52,8 @@ export function PlansEditor({ doc }: { doc: Doc }) {
   const words = rulesInWords(d);
   return (
     <div className="pe">
-      <section className="glass-pane pe-presets" aria-label="Start from a preset">
+      <details className="glass-pane pe-presets fold-panel" aria-label="Start from a preset">
+        <summary>Start from a preset <small>– ISGH today, the Wild Apricot levels or the Bylaws set</small></summary>
         <div className="pe-preset-row">
           <Field label="Start from a preset" className="pe-preset-pick"><select className="in" aria-label="Plan preset" value={preset} onChange={(e) => setPreset(e.target.value)}>{PLAN_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
           <button type="button" className="btn" onClick={() => setAsk(true)}>Load into the draft</button>
@@ -65,7 +66,7 @@ export function PlansEditor({ doc }: { doc: Doc }) {
             <div className="modal-actions"><button type="button" className="btn" onClick={() => setAsk(false)}>Keep my plans</button><button type="button" className="btn primary" onClick={load}>Load into the draft</button></div>
           </Modal>
         )}
-      </section>
+      </details>
 
       <Field label="Membership year being sold" err={err('year')} className="pe-year"><input className="in in-num" type="number" aria-label="Membership year" value={d.year} onChange={(e) => set((x) => { x.year = Number(e.target.value || 0); })} /></Field>
 
