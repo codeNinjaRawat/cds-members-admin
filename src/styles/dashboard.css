@@ -267,10 +267,12 @@ i.s1 { background: var(--s1); } i.s2 { background: var(--s2); }
 @media (max-width: 700px) { .cc .d-head { flex-wrap: wrap; } .cc-legend { flex-wrap: wrap; white-space: normal; } .yr { padding-top: 1rem; } }
 .cc-trend .chart-box svg { display: block; width: 100%; height: auto; max-height: 300px; }
 
-/* Home (2026-10-29): small plain greeting, KPI tiles in one even row */
-.cc-head { align-items: baseline; margin-bottom: .2rem; }
-.cc-head h1 { font-size: clamp(1.25rem, 1.6vw, 1.55rem); }
-.cc-head .page-intro { font-size: .85rem; margin-top: .1rem; }
+/* Home (2026-10-29): iOS-style large title – small date above, one solid bold line, short intro */
+.cc-head { display: block; margin-bottom: .35rem; }
+.cc-head .cc-date { margin: 0 0 .15rem; font: 600 .74rem/1.2 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.cc-head h1, :root[data-preset] .page-head.cc-head h1 { font-family: var(--font-body); font-variation-settings: normal; font-weight: 800; font-size: clamp(1.45rem, 2vw, 1.85rem); line-height: 1.15; letter-spacing: -.02em; color: var(--ink); margin: 0; }
+.cc-head .cc-greet, :root[data-preset] .page-head.cc-head .cc-greet { font: inherit; font-size: 1em; color: var(--ink); }
+.cc-head .page-intro { font-size: .86rem; margin: .2rem 0 0; color: var(--ink-3); }
 .cc-kpis { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); }
 .cc-kpi .cc-kl { min-height: 2.5em; line-height: 1.25; }   /* labels may take two lines; values stay on one baseline */
 @media (max-width: 1180px) and (min-width: 821px) { .cc-kpis { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); } }

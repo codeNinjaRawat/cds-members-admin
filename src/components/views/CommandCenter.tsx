@@ -52,10 +52,10 @@ export function CommandCenter() {
     <div className="page cc">
       <header className="page-head cc-head">
         <div>
-          <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
+          <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: ORG_TZ })}</p>
+          <h1 suppressHydrationWarning>Assalamu alaikum, {firstName}<span className="cc-greet" suppressHydrationWarning> · {greet}</span></h1>
           <p className="page-intro">What needs you today across membership, giving and the website.</p>
         </div>
-        <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: ORG_TZ })}</p>
       </header>
 
       {show('cc.ribbon') && <YearRibbon />}
