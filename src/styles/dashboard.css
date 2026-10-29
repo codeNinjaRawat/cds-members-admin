@@ -309,3 +309,12 @@ i.s1 { background: var(--s1); } i.s2 { background: var(--s2); }
 .m-skel span { display: block; height: 14px; border-radius: 7px; width: 100%; background: linear-gradient(100deg, var(--field) 30%, color-mix(in srgb, var(--ink) 10%, var(--field)) 50%, var(--field) 70%) 0 0 / 220% 100%; animation: data-shimmer 1.3s linear infinite; }
 .m-skel:nth-child(odd) span { width: 82%; }
 @media (prefers-reduced-motion: reduce) { .data-loading::after, .m-skel span { animation: none; } }
+
+/* one-line page header (2026-10-29): bold title, short grey context after a divider, small buttons on the right */
+.page-head.ph-line { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.page-head.ph-line > div:first-child { display: flex; align-items: center; gap: .8rem; flex: 1 1 auto; min-width: 0; }
+.page-head.ph-line h1, :root[data-preset] .page-head.ph-line h1 { font-family: var(--font-body); font-variation-settings: normal; font-weight: 800; font-size: clamp(1.25rem, 1.7vw, 1.55rem); line-height: 1.2; letter-spacing: -.02em; margin: 0; white-space: nowrap; }
+.page-head.ph-line .page-intro { margin: 0; font-size: .86rem; color: var(--ink-3); padding-left: .8rem; border-left: 1px solid var(--line-strong, var(--line)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.page-head.ph-line .page-actions { flex: none; display: flex; gap: .4rem; margin: 0; }
+.page-head.ph-line .page-actions .btn.sm { min-height: 32px; padding: 0 .85rem; font-size: .8rem; }
+@media (max-width: 640px) { .page-head.ph-line > div:first-child { flex-wrap: wrap; row-gap: .2rem; } .page-head.ph-line .page-intro { border-left: 0; padding-left: 0; flex-basis: 100%; } }

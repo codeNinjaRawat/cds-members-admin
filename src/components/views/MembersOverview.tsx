@@ -45,14 +45,14 @@ export function MembersOverview() {
 
   return (
     <div className="page mo">
-      <header className="page-head mo-head">
+      <header className="page-head mo-head ph-line">
         <div>
           <h1>Members dashboard</h1>
           <p className="page-intro">{scope} · as of {fmtDate(today)}</p>
         </div>
         <div className="page-actions">
-          <Link className="btn" href="/members">Open the member list</Link>
-          <Link className="btn" href="/reports?tab=voters">Voter list</Link>
+          <Link className="btn sm" href="/members">Open the member list</Link>
+          <Link className="btn sm" href="/reports?tab=voters">Voter list</Link>
         </div>
       </header>
 
