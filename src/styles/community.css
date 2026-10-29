@@ -787,3 +787,40 @@
 .cmp-hits button { width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: inherit; font: inherit; }
 .cmp-hits button:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .cmp-pics { margin-top: 10px; }
+
+/* Groups page (2026-10-29): one toolbar row, a flat list in one panel, compact rows */
+.gr-bar { flex-wrap: nowrap; justify-content: flex-start; gap: .45rem; }
+.gr-bar .chip-row { flex: none; display: flex; gap: .25rem; flex-wrap: nowrap; }
+.gr-bar .chip-row small { margin-left: .3rem; font-weight: 800; opacity: .65; }
+.gr-bar > .in { flex: 1 1 200px; max-width: none; min-height: 32px; font-size: .84rem; }
+.gr-switch { flex: none; display: inline-flex; align-items: center; gap: .4rem; font-size: .78rem; font-weight: 600; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.gr-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.gr-switch .track { width: 30px; height: 17px; border-radius: 999px; background: var(--line-strong, var(--line)); position: relative; transition: background .15s; }
+.gr-switch .thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: translate .15s; }
+.gr-switch input:checked + .track { background: var(--accent-ink); }
+.gr-switch input:checked + .track .thumb { translate: 13px 0; }
+.gr-switch input:focus-visible + .track { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.gr-list { padding: .2rem .4rem; border-radius: var(--r-lg); margin-top: .6rem; }
+.gr-list .cv-item { border-radius: 10px; }
+.gr-list .cv-item:last-child { border-bottom: 0; }
+.gr-list .cv-row { padding-block: .5rem !important; min-height: 0; }
+.gr-list .cv-row b { font-size: .88rem; }
+.gr-list .cv-meta { font-size: .76rem; }
+.gr-list .cv-count { font-size: .78rem; }
+.gr-list .cv-item.open { background: var(--pane-strong); }
+.gr-none { padding: .9rem .6rem; }
+.gr-help { margin-top: .6rem; font-size: .8rem; }
+.gr-help summary { cursor: pointer; color: var(--ink-3); font-weight: 600; }
+@media (max-width: 900px) { .gr-bar { flex-wrap: wrap; } .gr-bar .chip-row { flex-basis: 100%; overflow-x: auto; } }
+
+/* an open group: who is in it on the left, its settings on the right (wide screens) */
+.gr-list .cv-edit { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 1rem 1.4rem; align-items: start; padding: .3rem .4rem 1rem; }
+.gr-list .cv-edit > .gr-warns, .gr-list .cv-edit > .gr-empty { grid-column: 1 / -1; }
+.gr-list .cv-people ul { list-style: none; margin: .2rem 0 .6rem; padding: 0; display: grid; gap: 1px; }
+.gr-list .cv-people li { display: flex; align-items: baseline; gap: .5rem; padding: .25rem .4rem; border-radius: 7px; font-size: .84rem; }
+.gr-list .cv-people li:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.gr-list .cv-people li small { flex: 1; min-width: 0; color: var(--ink-3); font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr-list .cv-people li .linkish { flex: none; font-size: .74rem; opacity: 0; }
+.gr-list .cv-people li:hover .linkish, .gr-list .cv-people li .linkish:focus-visible { opacity: 1; }
+.gr-list .cv-people .row-actions .btn { min-height: 28px; font-size: .76rem; }
+@media (max-width: 1000px) { .gr-list .cv-edit { grid-template-columns: 1fr; } .gr-list .cv-people li .linkish { opacity: 1; } }

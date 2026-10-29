@@ -156,7 +156,10 @@ function GroupsBody({ doc }: { doc: { draft: GroupsDoc; setDraft: (f: (d: Groups
   const set = (fn: (x: GroupsDoc) => void) => doc.setDraft((x) => { const c = structuredClone(x); fn(c); return c; });
   const mf = useMasjidFilter();
   const inView = useMemo(() => new Set(members.filter((m) => mf.keep(m.zone, centerOf(m), m.zip)).map((m) => m.id)), [members, mf.zone, mf.masjid, mf.access.ready, mf.access.me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shown = d.groups.map((g, i) => ({ g, i, n: membersOf(g, facts).filter((f) => inView.has(f.id)).length })).filter(({ g, n }) => (!mf.narrowed || n > 0) && (!q || `${g.name} ${g.description}`.toLowerCase().includes(q.toLowerCase())));
+  const [kind, setKind] = useState<'all' | 'automatic' | 'manual' | 'archived'>('all');
+  const ofKind = (g: Group, k: typeof kind) => (k === 'all' ? !g.archived : k === 'archived' ? g.archived : !g.archived && g.kind === k);
+  const kindCount = (k: typeof kind) => d.groups.filter((g) => ofKind(g, k)).length;
+  const shown = d.groups.map((g, i) => ({ g, i, n: membersOf(g, facts).filter((f) => inView.has(f.id)).length })).filter(({ g, n }) => ofKind(g, kind) && (!mf.narrowed || n > 0) && (!q || `${g.name} ${g.description}`.toLowerCase().includes(q.toLowerCase())));
   const add = (kind: Group['kind']) => {
     const id = uid(kind === 'manual' ? 'new-group' : 'new-automatic-group', d.groups.map((g) => g.id));
     set((x) => { x.groups.unshift({ id, name: kind === 'manual' ? 'New group' : 'New automatic group', description: '', kind, rules: kind === 'automatic' ? [{ field: 'zone', op: 'is', value: 'North' }] : [], match: 'all', include: [], exclude: [], memberIds: [], joinPolicy: 'admins', showInProfile: false, leaders: [], leadersCanEmail: false, pageAccess: true, archived: false }); });
@@ -164,15 +167,24 @@ function GroupsBody({ doc }: { doc: { draft: GroupsDoc; setDraft: (f: (d: Groups
   };
   return (
     <div className="cv">
-      <Panel><SwitchRow id="gr-on" label="Use groups" help="Off hides groups from emails, events and pages (the groups are kept)." checked={d.enabled} onChange={(v) => set((x) => { x.enabled = v; })} /></Panel>
-      <div className="cv-bar">
+      {/* one toolbar row (2026-10-29): kind chips with counts, search, the on/off switch and the two "new" buttons; the masjid comes from the top bar */}
+      <div className="cv-bar gr-bar">
+        <div className="chip-row" role="group" aria-label="Show">
+          {([['all', 'All'], ['automatic', 'Automatic'], ['manual', 'Kept by admins'], ['archived', 'Archived']] as const).map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{l}<small>{kindCount(k)}</small></button>
+          ))}
+        </div>
         <label className="sr-only" htmlFor="gr-q">Find a group</label>
         <input id="gr-q" className="in" type="search" placeholder="Find a group" value={q} onChange={(e) => setQ(e.target.value)} />
-        <MasjidPicker />
-        <button type="button" className="btn" onClick={() => add('automatic')}>New automatic group</button>
-        <button type="button" className="btn primary" onClick={() => add('manual')}>New group</button>
+        <label className="gr-switch" title="Off hides groups from emails, events and pages (the groups are kept).">
+          <input type="checkbox" role="switch" checked={d.enabled} onChange={(e) => set((x) => { x.enabled = e.target.checked; })} />
+          <span className="track" aria-hidden="true"><span className="thumb" /></span><span>Groups {d.enabled ? 'on' : 'off'}</span>
+        </label>
+        <button type="button" className="btn xs" onClick={() => add('automatic')}>+ Automatic group</button>
+        <button type="button" className="btn xs primary" onClick={() => add('manual')}>+ New group</button>
       </div>
-      <ul className="cv-list">
+      <ul className="cv-list flat gr-list glass-pane">
+        {!shown.length && <li className="gr-none muted">No groups {q ? 'match' : 'here'}.</li>}
         {shown.map(({ g, i, n }) => {
           const bad = countIssues(doc.issues, [`groups.${i}`]);
           const people = membersOf(g, facts).filter((f) => inView.has(f.id)).slice(0, 8).map((f) => byId.get(f.id)!).filter(Boolean);
@@ -196,10 +208,8 @@ function GroupsBody({ doc }: { doc: { draft: GroupsDoc; setDraft: (f: (d: Groups
                   <div className="cv-people">
                     <p className="sf-label">{n ? `First ${people.length} of ${n}` : 'Nobody yet'}</p>
                     <ul>{people.map((m) => <li key={m.id}><Link href={`/members/${m.id}`}>{fullName(m)}</Link><small>{centerOf(m)} · {STATUS_LABEL[statusOf(m)]}</small>
-                      {g.kind === 'manual' && <button type="button" className="linkish" onClick={() => set((x) => { x.groups[i].memberIds = x.groups[i].memberIds.filter((id) => id !== m.id); })}>Remove<span className="sr-only"> {fullName(m)}</span></button>}</li>)}</ul>
-                    {g.kind === 'automatic' && people.length > 0 && (
-                      <ul className="gr-except">{people.map((m) => <li key={m.id}><button type="button" className="linkish" onClick={() => set((x) => { x.groups[i].exclude = [...(x.groups[i].exclude ?? []), m.id]; })}>Leave out {fullName(m)}</button></li>)}</ul>
-                    )}
+                      {g.kind === 'manual' && <button type="button" className="linkish" onClick={() => set((x) => { x.groups[i].memberIds = x.groups[i].memberIds.filter((id) => id !== m.id); })}>Remove<span className="sr-only"> {fullName(m)}</span></button>}
+                      {g.kind === 'automatic' && <button type="button" className="linkish" title="Keep this person out of the group even though the rule matches" onClick={() => set((x) => { x.groups[i].exclude = [...(x.groups[i].exclude ?? []), m.id]; })}>Leave out<span className="sr-only"> {fullName(m)}</span></button>}</li>)}</ul>
                     {g.kind === 'manual' && (
                       <div className="cv-find">
                         <label className="sr-only" htmlFor={`gf-${g.id}`}>Add a member by name or ID</label>
@@ -225,7 +235,7 @@ function GroupsBody({ doc }: { doc: { draft: GroupsDoc; setDraft: (f: (d: Groups
           );
         })}
       </ul>
-      <p className="sf-hint">Rule values: Zone ({choices.zone.join(', ')}), Islamic Center (its name), Plan ({choices.plan.join(', ')}), Status ({FIXED_VALUES.status!.join(', ')}), Renewal status ({FIXED_VALUES.renewal!.join(', ')}), Can vote (yes / no), Last payment ({FIXED_VALUES.payment!.join(', ')}), Age and Year joined (numbers, with at least / at most). Archived members are never in a group.</p>
+      <details className="gr-help"><summary>Rule values</summary><p className="sf-hint">Zone ({choices.zone.join(', ')}), Islamic Center (its name), Plan ({choices.plan.join(', ')}), Status ({FIXED_VALUES.status!.join(', ')}), Renewal status ({FIXED_VALUES.renewal!.join(', ')}), Can vote (yes / no), Last payment ({FIXED_VALUES.payment!.join(', ')}), Age and Year joined (numbers, with at least / at most). Archived members are never in a group.</p></details>
     </div>
   );
 }
