@@ -59,7 +59,7 @@ export function MembersOverview() {
       <DashBar s={sc} show={{ zone: true, masjid: true }} report={{ href: '/reports', label: 'Membership report' }} onExport={() => exportPage('members-dashboard')}
         extra={<span className="mo-chip">Membership year {YEAR} · record date {fmtDate(recordDate(YEAR))}</span>} />
 
-      <div className={`mo-grid${members ? '' : ' loading'}`}>
+      <div className={`mo-grid${members ? '' : ' loading data-loading'}`} aria-busy={!members || undefined}>
         {show('mo.kpis') && <div className="mo-kpis">
           <StatTile id="total" hero label="Members" value={n(o.total)} note={`${n(o.joinedThisYear)} joined in ${YEAR}`} spark={o.joins.map((j) => j.count)} />
           <StatTile id="voters" label={`Can vote in ${YEAR}`} value={n(o.voters)} note={`${pct(o.voters, o.total)}% of members`} meter={{ value: o.voters, of: o.total }} />

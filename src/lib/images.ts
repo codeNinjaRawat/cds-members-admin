@@ -48,12 +48,12 @@ export const remoteSrc = (k: PhotoKey, w = 1800) => `https://images.pexels.com/p
 /** Which photo belongs to which part of the admin (section = the sidebar group). */
 export const SECTION_ART: Record<string, PhotoKey> = {
   Overview: 'minarets-sunset',
-  Members: 'congregation', 'Work queues': 'ledger', Communication: 'envelopes', 'Membership rules': 'quran-open',
-  'Masjids and zones': 'map-pin', 'Prayer times': 'mosque-moon', Events: 'iftar',
-  'Zakat and Sadaqah': 'dates', Donations: 'coins', Fundraising: 'market-night', Finance: 'calculator', 'Member benefits': 'store-shelves',
-  'Elected officials': 'meeting-table', 'Meetings and minutes': 'meeting', Elections: 'ballot',
-  Website: 'desk-laptop', 'Giving page': 'quran-dark', Reports: 'ceiling-patterns', Settings: 'houston-night', 'Coming next': 'tile-mosaic',
-  'Family trees': 'family',
+  Members: 'congregation', 'Work Queues': 'ledger', Communication: 'envelopes', 'Membership Rules': 'quran-open',
+  'Masjids and Zones': 'map-pin', 'Prayer Times': 'mosque-moon', Events: 'iftar',
+  'Zakat and Sadaqah': 'dates', Donations: 'coins', Fundraising: 'market-night', Finance: 'calculator', 'Member Benefits': 'store-shelves',
+  'Elected Officials': 'meeting-table', 'Meetings and Minutes': 'meeting', Elections: 'ballot',
+  Website: 'desk-laptop', 'Giving Page': 'quran-dark', Reports: 'ceiling-patterns', Settings: 'houston-night', 'Coming Next': 'tile-mosaic',
+  'Family Trees': 'family',
 };
 /** Photo wallpapers offered in My appearance. */
 export const WALL_PHOTOS: Record<string, PhotoKey> = { arches: 'mosque-arches', ceiling: 'ceiling-geometric', mosaic: 'tile-mosaic', skyline: 'houston-skyline', moon: 'mosque-night', dusk: 'houston-night' };

@@ -8,6 +8,7 @@ import { SECTION_ART, WALL_PHOTOS } from '@/lib/images';
 import { ViewingChip } from './MasjidPicker';
 import { IdleLock } from './IdleLock';
 import { MemberSearch } from './MemberSearch';
+import { DataLoading } from './DataLoading';
 import { useAccess, setActing, setDashboard } from '@/lib/access/use-access';
 import { LIVE, signOut } from '@/lib/live/live';
 import { useOrgBrand } from '@/lib/brand/use-org-brand';
@@ -39,7 +40,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { me, site, can } = useOrg();
   const mod = moduleForPath(pathname);
   // the photo for this part of the admin (sidebar group → SECTION_ART); dashboards carry their own band
-  const group = pathname === '/' ? 'Overview' : pathname.startsWith('/families') ? 'Family trees' : (NAV_TREE.find((n) => n.href && n.href !== '/' && pathname.startsWith(n.href.split('?')[0])) ?? NAV_TREE.find((n) => n.children?.some((c) => c.href !== '#' && pathname.split('?')[0] === c.href.split('?')[0] || (c.href !== '#' && c.href.split('?')[0] !== '/' && pathname.startsWith(c.href.split('?')[0] + '/')))))?.label ?? '';
+  const group = pathname === '/' ? 'Overview' : pathname.startsWith('/families') ? 'Family Trees' : (NAV_TREE.find((n) => n.href && n.href !== '/' && pathname.startsWith(n.href.split('?')[0])) ?? NAV_TREE.find((n) => n.children?.some((c) => c.href !== '#' && pathname.split('?')[0] === c.href.split('?')[0] || (c.href !== '#' && c.href.split('?')[0] !== '/' && pathname.startsWith(c.href.split('?')[0] + '/')))))?.label ?? '';
   // data and report pages (the member lists) stay plain – no section photo above the table
   const artKey = /^\/(members|groups|families)(\/|$)/.test(pathname) ? null : SECTION_ART[group] ?? null;
   const artUrl = useArtUrl(artKey);
@@ -91,6 +92,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="shell">
       <a className="skip" href="#main">Skip to content</a>
       <IdleLock />
+      <DataLoading signedIn={!!access.me} />
       <aside className={`side glass-nav${drawer ? ' open' : ''}`} aria-label="Admin sections">
         <div className="side-brand">
           <img src={brand?.logoLight ?? '/brand/logo-mark.svg'} alt="" width={34} height={34} className="mark-light" />
@@ -113,7 +115,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <MemberSearch />
           <ViewingChip />
           {LIVE && <span className="env live" title="Connected to the API – changes are saved to the database">Live</span>}
-          <a className="top-link" href={site} target="_blank" rel="noopener noreferrer">Open website<span className="sr-only"> (opens in a new tab)</span></a>
+          <a className="top-link" href={site} target="_blank" rel="noopener noreferrer">Open Website<span className="sr-only"> (opens in a new tab)</span></a>
           <button className={`icon-btn work-btn${work ? ' on' : ''}`} aria-label={work ? 'Leave work mode (Esc)' : 'Work mode – full page (Ctrl+Shift+F)'} aria-pressed={work} title={work ? 'Leave work mode (Esc)' : 'Work mode: the whole screen for the page (Ctrl+Shift+F)'} onClick={() => update({ work: work ? 'off' : 'on' })}>
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">{work ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" strokeWidth="1.8" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" strokeWidth="1.8" />}</svg>
           </button>
@@ -127,10 +129,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <select className="in pill-select" aria-label="Dashboard" value={String(access.dashIndex)} onChange={(e) => {
                 if (e.target.value === 'member') { window.open(`${site}/portal`, '_blank', 'noopener'); return; }
                 const i = Number(e.target.value); const x = assignmentsOf(access.person!)[i];
-                setDashboard(i, `${access.doc.roles.find((r) => r.id === x.roleId)?.name ?? x.roleId} – ${whereOf(access.doc, x, (z) => `${ZONES[z as ZoneId] ?? z} Zone`)}`);
+                setDashboard(i, `${access.doc.roles.find((r) => r.id === x.roleId)?.name ?? x.roleId} – ${whereOf(access.doc, x, (z) => { const n = ZONES[z as ZoneId] ?? z; return /zone$/i.test(n) ? n : `${n} Zone`; })}`);
               }}>
-                {assignmentsOf(access.person).map((x, i) => <option key={i} value={i}>{access.doc.roles.find((r) => r.id === x.roleId)?.name ?? x.roleId} · {whereOf(access.doc, x, (z) => `${ZONES[z as ZoneId] ?? z} Zone`)}</option>)}
-                {access.person.memberId && <option value="member">My membership ↗</option>}
+                {assignmentsOf(access.person).map((x, i) => <option key={i} value={i}>{access.doc.roles.find((r) => r.id === x.roleId)?.name ?? x.roleId} · {whereOf(access.doc, x, (z) => { const n = ZONES[z as ZoneId] ?? z; return /zone$/i.test(n) ? n : `${n} Zone`; })}</option>)}
+                {access.person.memberId && <option value="member">My Membership ↗</option>}
               </select></label>
           )}
           {LIVE ? (

@@ -295,3 +295,17 @@ i.s1 { background: var(--s1); } i.s2 { background: var(--s2); }
   .cc .cc-side { display: flex; flex-direction: column; }
   .cc .cc-side > section.d-card { flex: 1 1 0; height: auto; }   /* the three share the column's height equally */
 }
+
+/* loading (2026-10-29): data still on its way – a soft shimmer instead of zeros, and a pill in the corner */
+.data-loading { position: relative; pointer-events: none; }
+.data-loading > * { opacity: .38; transition: opacity .25s; }
+.data-loading::after { content: ""; position: absolute; inset: 0; border-radius: 22px; pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--ink) 7%, transparent) 40%, transparent 60%) 0 0 / 220% 100%;
+  animation: data-shimmer 1.3s linear infinite; }
+@keyframes data-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.data-pill { position: fixed; right: 18px; bottom: 18px; z-index: 70; display: inline-flex; align-items: center; gap: .55rem; padding: .55rem .9rem; border-radius: 999px; font: 600 .84rem var(--font-body); color: var(--ink); background: var(--pane-solid); border: 1px solid var(--line-strong, var(--line)); box-shadow: 0 10px 28px rgb(0 0 0 / .3); }
+.data-pill .spinner { width: 15px; height: 15px; }
+.m-skel td { padding: .7rem .6rem !important; border-bottom: 1px solid var(--line); }
+.m-skel span { display: block; height: 14px; border-radius: 7px; width: 100%; background: linear-gradient(100deg, var(--field) 30%, color-mix(in srgb, var(--ink) 10%, var(--field)) 50%, var(--field) 70%) 0 0 / 220% 100%; animation: data-shimmer 1.3s linear infinite; }
+.m-skel:nth-child(odd) span { width: 82%; }
+@media (prefers-reduced-motion: reduce) { .data-loading::after, .m-skel span { animation: none; } }

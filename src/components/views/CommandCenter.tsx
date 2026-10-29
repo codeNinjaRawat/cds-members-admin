@@ -10,6 +10,7 @@ import { useAccess } from '@/lib/access/use-access';
 import { useWidgets } from '@/lib/dashboards/widgets';
 import { ORG_TZ } from '@/lib/members/members';
 import { useHomeStats } from './useHomeStats';
+import { useMembers } from './MembersView';
 import { useOrg } from '@/lib/platform/use-org';
 import { LIVE } from '@/lib/live/live';
 import Link from 'next/link';
@@ -43,6 +44,7 @@ export function CommandCenter() {
   const zones = st.zones;
   const peak = st.peak;
   const moneyK = st.money.map((c) => Math.round(c / 1000) / 100);
+  const loadingMembers = useMembers() === null;   // live: the records are still on their way – no zeros meanwhile
   const [now, setNow] = useState('');
   useEffect(() => { setNow(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ORG_TZ })); }, []);
   const hour = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: ORG_TZ }));
@@ -60,7 +62,7 @@ export function CommandCenter() {
 
       {show('cc.ribbon') && <YearRibbon />}
 
-      <div className="cc-grid">
+      <div className={`cc-grid${loadingMembers ? ' data-loading' : ''}`} aria-busy={loadingMembers || undefined}>
         <div className="cc-main">
           <div className="cc-kpis" style={{ '--n': kpis.filter((k) => show(`cc.kpi.${k.id}`)).length } as CSSProperties}>
             {kpis.filter((k) => show(`cc.kpi.${k.id}`)).map((k, i) => (

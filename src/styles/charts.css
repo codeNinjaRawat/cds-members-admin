@@ -120,7 +120,7 @@
 .mo-filter { display: inline-flex; gap: .5rem; align-items: center; font-size: .85rem; color: var(--ink-3); }
 .mo-chip { font-size: .8rem; color: var(--ink-3); }
 .mo-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--gap, 1rem); transition: opacity .2s; }
-.mo-grid.loading { opacity: .5; }
+.mo-grid.loading { }   /* look: .data-loading (dashboard.css) */
 .mo-kpis { grid-column: 1 / -1; display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: var(--gap, 1rem); }
 .mo-status { grid-column: 1 / -1; }
 .mo-wide { grid-column: span 8; } .mo-side { grid-column: span 4; } .mo-half { grid-column: span 6; }

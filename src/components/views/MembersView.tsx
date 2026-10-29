@@ -218,6 +218,7 @@ export function MembersView({ search = '' }: { search?: string }) {
               </tr>
             </thead>
             <tbody>
+              {(!members || !access.ready) && Array.from({ length: 8 }, (_, i) => <tr key={`sk${i}`} className="m-skel" aria-hidden="true"><td colSpan={9}><span /></td></tr>)}
               {shown.map(({ m, status, vote, paid }) => (
                 <tr key={m.id} className={[sel.includes(m.id) ? 'is-sel' : '', q.peek === m.id ? 'is-peek' : ''].join(' ').trim() || undefined}
                   onClick={(e) => { if ((e.target as HTMLElement).closest('input,a,button')) return; openPeek(m.id); }}>

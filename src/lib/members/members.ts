@@ -334,10 +334,16 @@ export function addImportedMembers(list: Member[]) {
 export const NOTICE_EVENT = 'ms:notice';
 export const notice = (text: string, tone: 'ok' | 'error' = 'error') => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(NOTICE_EVENT, { detail: { text, tone } })); };
 let live: Member[] | null = null; let liveLoading: Promise<void> | null = null;
+/** Loader (2026-10-29): the shell shows "Loading member records…" while the list is on its way. */
+export const MEMBERS_LOADING_EVENT = 'isgh:members-loading';
+export const membersLoading = () => !!liveLoading;
+/** Live: start the member list in the background once the admin is open, so Members, dashboards and search open at once. */
+export function prefetchLiveMembers() { if (LIVE && typeof window !== 'undefined' && !live && !liveLoading) void loadLiveMembers(); }
 export function loadLiveMembers(force = false): Promise<void> {
   if (!force && live) return Promise.resolve();
   if (!force && liveLoading) return liveLoading;
   const settings = fetch('/api/store/membership-settings', { cache: 'no-store' }).then((x) => (x.ok ? x.json() : null)).then((j) => { const p = MembershipSettingsSchema.safeParse(j?.data); if (p.success) setOrgMembershipSettings(p.data); }).catch(() => {});
+  if (typeof window !== 'undefined') queueMicrotask(() => window.dispatchEvent(new Event(MEMBERS_LOADING_EVENT)));
   liveLoading = Promise.all([be<{ members: Member[] }>('GET', 'admin/members?view=any&limit=all'), settings]).then(([r]) => {
     liveLoading = null;
     if (r.ok) live = r.data.members; else if (r.status !== 401) notice(`Members could not be loaded: ${r.message}`);
