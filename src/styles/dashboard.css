@@ -315,6 +315,17 @@ i.s1 { background: var(--s1); } i.s2 { background: var(--s2); }
 .page-head.ph-line > div:first-child { display: flex; align-items: center; gap: .8rem; flex: 1 1 auto; min-width: 0; }
 .page-head.ph-line h1, :root[data-preset] .page-head.ph-line h1 { font-family: var(--font-body); font-variation-settings: normal; font-weight: 800; font-size: clamp(1.25rem, 1.7vw, 1.55rem); line-height: 1.2; letter-spacing: -.02em; margin: 0; white-space: nowrap; }
 .page-head.ph-line .page-intro { margin: 0; font-size: .86rem; color: var(--ink-3); padding-left: .8rem; border-left: 1px solid var(--line-strong, var(--line)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.page-head.ph-line .page-actions { flex: none; display: flex; gap: .4rem; margin: 0; }
-.page-head.ph-line .page-actions .btn.sm { min-height: 32px; padding: 0 .85rem; font-size: .8rem; }
+.page-head.ph-line .page-actions { flex: none; display: flex; align-items: center; gap: .35rem; margin: 0; }
 @media (max-width: 640px) { .page-head.ph-line > div:first-child { flex-wrap: wrap; row-gap: .2rem; } .page-head.ph-line .page-intro { border-left: 0; padding-left: 0; flex-basis: 100%; } }
+
+/* extra-small buttons and selects, and the Export menu (2026-10-29) */
+.btn.xs { min-height: 28px; padding: 0 .7rem; font-size: .76rem; font-weight: 600; gap: .3rem; }
+select.xs, .pill-select.xs { min-height: 28px; font-size: .76rem; padding-left: .7rem; max-width: 190px; }
+.xmenu { position: relative; display: inline-block; }
+.xmenu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
+.xmenu > summary::-webkit-details-marker { display: none; }
+.xmenu[open] > summary svg { rotate: 180deg; }
+.xmenu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 190px; padding: .3rem; display: grid; gap: 2px; border-radius: 12px; background: var(--pane-solid); border: 1px solid var(--line-strong, var(--line)); box-shadow: 0 14px 34px rgb(0 0 0 / .28); }
+.xmenu-pop > a, .xmenu-pop > button { display: block; width: 100%; text-align: left; padding: .45rem .65rem; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: 500 .84rem var(--font-body); text-decoration: none; cursor: pointer; }
+.xmenu-pop > a:hover, .xmenu-pop > button:hover, .xmenu-pop > :focus-visible { background: color-mix(in srgb, var(--accent-ink) 14%, transparent); outline: none; }
+@media print { .xmenu, .page-actions { display: none !important; } }

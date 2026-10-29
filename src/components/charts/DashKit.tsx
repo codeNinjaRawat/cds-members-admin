@@ -10,7 +10,7 @@
 import { LIVE } from '@/lib/live/live';
 import { ORG_TZ } from '@/lib/members/members';
 import Link from 'next/link';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAccess } from '@/lib/access/use-access';
 import { logAudit } from '@/lib/access/audit';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
@@ -89,12 +89,26 @@ export function DashBar({ s, show, report, onExport, extra }: {
         {(show.zone || show.masjid) && <MasjidPicker f={s.filter} />}
         {extra}
       </div>
-      <div className="dbar-actions">
-        {report && <Link className="btn sm" href={report.href}>{report.label}</Link>}
-        {onExport && <button type="button" className="btn sm" onClick={onExport}>Download CSV</button>}
-        <button type="button" className="btn sm ghost" onClick={() => window.print()}>Print</button>
-      </div>
+      <div className="dbar-actions"><ExportMenu report={report} onExport={onExport} /></div>
     </div>
+  );
+}
+
+/** One small "Export" button: the report, the CSV and Print live in its menu (owner 2026-10-29: no row of buttons). */
+export function ExportMenu({ report, onExport }: { report?: { href: string; label: string }; onExport?: () => void }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { const on = (e: PointerEvent) => { if (ref.current?.open && !ref.current.contains(e.target as Node)) ref.current.removeAttribute('open'); };
+    document.addEventListener('pointerdown', on); return () => document.removeEventListener('pointerdown', on); }, []);   // a click elsewhere closes it
+  const close = (e: React.MouseEvent) => { (e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open'); };
+  return (
+    <details ref={ref} className="xmenu" onKeyDown={(e) => { if (e.key === 'Escape') (e.currentTarget as HTMLDetailsElement).removeAttribute('open'); }}>
+      <summary className="btn xs">Export<svg width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg></summary>
+      <div className="xmenu-pop" role="menu">
+        {report && <Link role="menuitem" href={report.href} onClick={close}>{report.label}</Link>}
+        {onExport && <button type="button" role="menuitem" onClick={(e) => { close(e); onExport(); }}>Download CSV</button>}
+        <button type="button" role="menuitem" onClick={(e) => { close(e); window.print(); }}>Print</button>
+      </div>
+    </details>
   );
 }
 

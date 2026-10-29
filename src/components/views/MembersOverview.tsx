@@ -6,7 +6,8 @@
  */
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { DashBar, exportPage, useScope } from '@/components/charts/DashKit';
+import { ExportMenu, exportPage, useScope } from '@/components/charts/DashKit';
+import { MasjidPicker } from '@/components/shell/MasjidPicker';
 import { centerOf, fmtDate, orgToday, recordDate, YEAR, ZONES, type ZoneId } from '@/lib/members/members';
 import { memberOverview, money, MONTHS } from '@/lib/members/overview';
 import { useAccess } from '@/lib/access/use-access';
@@ -51,13 +52,12 @@ export function MembersOverview() {
           <p className="page-intro">{scope} · as of {fmtDate(today)}</p>
         </div>
         <div className="page-actions">
-          <Link className="btn sm" href="/members">Open the member list</Link>
-          <Link className="btn sm" href="/reports?tab=voters">Voter list</Link>
+          <MasjidPicker f={sc.filter} className="xs" />
+          <Link className="btn xs" href="/members">Member list</Link>
+          <Link className="btn xs" href="/reports?tab=voters">Voter list</Link>
+          <ExportMenu report={{ href: '/reports', label: 'Membership report' }} onExport={() => exportPage('members-dashboard')} />
         </div>
       </header>
-
-      <DashBar s={sc} show={{ zone: true, masjid: true }} report={{ href: '/reports', label: 'Membership report' }} onExport={() => exportPage('members-dashboard')}
-        extra={<span className="mo-chip">Membership year {YEAR} · record date {fmtDate(recordDate(YEAR))}</span>} />
 
       <div className={`mo-grid${members ? '' : ' loading data-loading'}`} aria-busy={!members || undefined}>
         {show('mo.kpis') && <div className="mo-kpis">
