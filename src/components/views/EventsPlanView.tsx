@@ -267,7 +267,7 @@ function Analytics() {
     <div className="ep-an">
       <DashBar s={ds} show={{ period: 'past', zone: true, masjid: true }} report={{ href: '/events/dashboard', label: 'Events dashboard' }} onExport={() => exportPage('event-analytics', [], document.querySelector('.ep-an'))}
         extra={<select className="in pill-select" aria-label="Kind of event" value={cat} onChange={(e) => setCat(e.target.value)}><option value="">All kinds</option>{(Object.keys(CATEGORY_LABEL) as EventItem['category'][]).map((k) => <option key={k} value={k}>{CATEGORY_LABEL[k]}</option>)}</select>} />
-      <p className="muted small">{access.role?.centerScoped ? `Your masjid · ` : ''}Demo history of 2026 events (fictional)</p>
+      <p className="muted small">{access.role?.centerScoped ? `Your masjid · ` : ''}2026 events</p>
       {list.length === 0 ? <p className="cv-empty">No past events here yet.</p> : (<>
         <div className="viz-tiles ep-tiles">
           <StatTile id="ev-count" label="Events" value={n(st.events)} hero />

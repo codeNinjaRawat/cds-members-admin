@@ -65,7 +65,7 @@ export function QueuesDashboard() {
   const exp = () => downloadCsv('work-queues', ['Case', 'Queue', 'Member ID', 'Zone', 'Masjid', 'Submitted', 'Days waiting', 'Target days', 'State'],
     open.map((c) => { const m = who.get(c.memberId)!; const t = sla(c); return [c.id, QUEUES.find((q) => q.id === c.queue)!.label, c.memberId, ZONES[m.zone], centerOf(m), fmtD(c.submitted), t.days, t.target, t.tone === 'late' ? 'Past target' : t.tone === 'due' ? 'Due' : 'On time']; }));
   return (
-    <DashPage title="Work queues dashboard" intro={<>{s.label} · cases sent in during the {PERIODS[s.period].toLowerCase()}{LIVE ? '' : ' · demo data'}</>}
+    <DashPage title="Work queues dashboard" intro={<>{s.label} · cases sent in during the {PERIODS[s.period].toLowerCase()}</>}
       bar={<DashBar s={s} show={{ period: 'past', zone: true, masjid: true }} report={{ href: '/queues?tab=applications', label: 'Open the queues' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="open" hero label="Open cases" value={n(open.length)} note={`${n(cases.length)} came in · ${n(decided)} decided`} meter={{ value: decided, of: Math.max(1, cases.length) }} />
@@ -113,7 +113,7 @@ export function CommsDashboard() {
   ];
   const exp = () => downloadCsv('messages', ['Sent', 'Message', 'Kind', 'To', 'Delivered', 'Opened', 'Open rate'], sends.map((x) => [fmtD(x.on), x.what, x.kind, x.to, x.delivered, x.opened, `${pct(x.opened, x.delivered)}%`]));
   return (
-    <DashPage title="Communication dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()}{LIVE ? '' : ' · demo data'}</>}
+    <DashPage title="Communication dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()}</>}
       bar={<DashBar s={s} show={{ period: 'past', zone: true, masjid: true }} report={{ href: '/communication?tab=log', label: 'Delivery log' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="sent" hero label="Messages sent" value={n(sends.length)} note={`${n(sum('to'))} emails in all`} />
@@ -159,7 +159,7 @@ export function MasjidsDashboard() {
   const warns = structureWarnings(org, todayCT()).filter((w) => (!w.zone || zonesShown.some((z) => z.id === w.zone)) && (!w.center || masjids.some((c) => c.id === w.center)));
   const exp = () => downloadCsv('masjids', ['Masjid', 'Zone', 'Service-area ZIP codes', 'Members', 'Renewed', 'Associate Director', 'Seats filled'], rows.map((r) => [r.c.name, org.zones.find((z) => z.id === r.c.zone)?.name ?? '', r.c.zips.join(' '), r.members, r.current, r.ad || 'Vacant', `${r.filled}/${SEATS.length}`]));
   return (
-    <DashPage title="Masjids and zones dashboard" intro={<>{s.label} · {n(masjids.length)} masjids{LIVE ? '' : ' · demo data'}</>}
+    <DashPage title="Masjids and zones dashboard" intro={<>{s.label} · {n(masjids.length)} masjids</>}
       bar={<DashBar s={s} show={{ zone: true }} report={{ href: '/masjids', label: 'Masjid working bodies' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="masjids" hero label="Masjids" value={n(masjids.length)} note={`in ${zonesShown.length} zone${zonesShown.length === 1 ? '' : 's'}`} />
@@ -204,7 +204,7 @@ export function EventsDashboard() {
     : Array.from({ length: s.period === 'year' ? 13 - Number(t.slice(5, 7)) : 12 }, (_, i) => { const m0 = Number(t.slice(5, 7)) - 1 + i; const m = `${Number(t.slice(0, 4)) + Math.floor(m0 / 12)}-${String((m0 % 12) + 1).padStart(2, '0')}`; return { label: `${MONTH[m0 % 12]} ${m.slice(0, 4)}`, value: ahead.filter((e) => e.start.startsWith(m)).length }; });
   const exp = () => downloadCsv('events', ['Date', 'Event', 'Place', 'Kind', 'Status', 'Registered', 'Capacity'], ahead.map((e) => [fmtD(e.start), e.title, e.location.center || e.location.name, CATEGORY_LABEL[e.category], e.approval.state === 'pending' ? 'Waiting for approval' : e.status, e.registration.enabled ? e.registered : '', e.registration.capacity || '']));
   return (
-    <DashPage title="Events dashboard" intro={<>{s.masjid || 'All places'} · {FUTURE[s.period].toLowerCase()} ahead, {PERIODS[s.period].toLowerCase()} behind{LIVE ? '' : ' · demo data'}</>}
+    <DashPage title="Events dashboard" intro={<>{s.masjid || 'All places'} · {FUTURE[s.period].toLowerCase()} ahead, {PERIODS[s.period].toLowerCase()} behind</>}
       bar={<DashBar s={s} show={{ period: 'ahead', masjid: true }} report={{ href: '/events/plan?tab=analytics', label: 'Event analytics' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="ahead" hero label="Coming up" value={n(ahead.length)} note={`${n(ahead.filter((e) => e.status === 'published').length)} on the website`} />
@@ -243,7 +243,7 @@ export function MeetingsDashboard() {
   const months = MONTH.map((mo, i) => ({ label: mo, value: held.filter((m) => Number(m.date.slice(5, 7)) === i + 1).length }));
   const exp = () => downloadCsv('meetings', ['Meeting', 'Body', 'Masjid', 'Date', 'Present', 'Seats', 'Quorum', 'Decisions', 'Minutes'], ms.map((m) => [m.id, BODIES[m.body], m.center, fmtD(m.date), m.present, m.seats, quorumMet(m) ? 'Yes' : 'No', m.decisions.length, m.status]));
   return (
-    <DashPage title="Meetings dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()}{LIVE ? '' : ' · demo data'}</>}
+    <DashPage title="Meetings dashboard" intro={<>{s.label} · {PERIODS[s.period].toLowerCase()}</>}
       bar={<DashBar s={s} show={{ period: 'past', zone: true, masjid: true }} report={{ href: '/minutes?tab=calendar', label: 'Required meetings check' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="held" hero label="Meetings held" value={n(held.length)} note={`${n(ms.length - held.length)} planned`} />
@@ -279,7 +279,7 @@ export function ElectionsDashboard() {
   const zones = (Object.keys(ZONES) as ZoneId[]).filter((z) => ms.some((m) => m.zone === z));
   const exp = () => downloadCsv('voters-by-masjid', ['Zone', 'Masjid', 'Members', 'Can vote', 'Share'], Array.from(new Set(ms.map(centerOf))).sort().map((c) => { const l = el.filter((x) => centerOf(x.m) === c); const v = l.filter((x) => x.e.eligible).length; return [ZONES[l[0].m.zone], c, l.length, v, `${pct(v, l.length)}%`]; }));
   return (
-    <DashPage title="Elections dashboard" intro={<>{s.label} · voting year {YEAR}{LIVE ? '' : ' · demo data'}</>}
+    <DashPage title="Elections dashboard" intro={<>{s.label} · voting year {YEAR}</>}
       bar={<DashBar s={s} show={{ zone: true, masjid: true }} report={{ href: '/reports?tab=voters', label: 'Voter list' }} onExport={exp} />}>
       <div className="mo-kpis">
         <StatTile id="voters" hero label={`Can vote in ${YEAR}`} value={n(voters.length)} note={`${pct(voters.length, ms.length)}% of ${n(ms.length)} members`} meter={{ value: voters.length, of: Math.max(1, ms.length) }} />

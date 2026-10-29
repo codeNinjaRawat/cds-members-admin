@@ -40,7 +40,7 @@ export function fourEyesProblem(req: Request, slug: string, data: unknown): stri
   const approvers = doc.admins.filter((a) => a.id !== admin.id && can(doc, a, 'integrations.manage', t)).map((a) => a.id);
   return fourEyes(before.data, after.data, admin.id, approvers);
 }
-export const actorName = (req: Request, slug: string) => actorFor(req, slug).admin?.name ?? 'Admin (demo)';
+export const actorName = (req: Request, slug: string) => actorFor(req, slug).admin?.name ?? 'Admin';
 /** M2: a masjid leader without admins.manage may only change their own masjid's working body. null = fine. */
 export function teamProblem(req: Request, slug: string, data: unknown): string | null {
   const { doc, admin } = actorFor(req, slug);

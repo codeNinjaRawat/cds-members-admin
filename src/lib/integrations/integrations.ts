@@ -250,10 +250,10 @@ export const mockIntegrations: IntegrationsDoc = {
   email: { enabled: true, provider: 'fake', mode: 'test', domain: 'isgh.org', fromTransactional: 'membership@isgh.org', fromBulk: 'news@news.isgh.org', dns: { spf: 'ok', dkim: 'unknown', dmarc: 'missing' } },
   sms: { enabled: false, provider: 'fake', mode: 'test', from: '+17135550100', registration: { type: '10dlc', status: 'not-started' }, countries: ['US'] },
   giving: { accounts: [
-    { id: 'zeffy-org', provider: 'zeffy', enabled: true, label: 'ISGH – Zeffy (organization)', scope: 'organization', center: '', formUrl: 'https://www.zeffy.com/donation-form/isgh-demo', apiKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Mohammad (demo)' }, lastSync: '2026-10-15T12:50:00.000Z' },
+    { id: 'zeffy-org', provider: 'zeffy', enabled: true, label: 'ISGH – Zeffy (organization)', scope: 'organization', center: '', formUrl: 'https://www.zeffy.com/donation-form/isgh-demo', apiKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Mohammad' }, lastSync: '2026-10-15T12:50:00.000Z' },
     { id: 'zeffy-sw1', provider: 'zeffy', enabled: true, label: 'Southwest Islamic Center 1 – Zeffy', scope: 'center', center: 'Southwest Islamic Center 1', formUrl: 'https://www.zeffy.com/donation-form/sw1-demo', lastSync: '' },
   ] },
-  stripe: { enabled: true, mode: 'test', publishableKey: 'pk_test_51ISGHdemo0000', secretKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Mohammad (demo)' }, ach: false, applePayDomainVerified: false, statementDescriptor: 'ISGH MEMBERSHIP' },
+  stripe: { enabled: true, mode: 'test', publishableKey: 'pk_test_51ISGHdemo0000', secretKey: { last4: 'demo', setAt: '2026-10-13', setBy: 'Mohammad' }, ach: false, applePayDomainVerified: false, statementDescriptor: 'ISGH MEMBERSHIP' },
   google: { enabled: false, clientId: '', redirectUris: [] },
   fallback: { emailProvider: null, smsProvider: null },
 };

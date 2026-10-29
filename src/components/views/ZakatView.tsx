@@ -50,7 +50,7 @@ export function ZakatView() {
       <header className="page-head">
         <div>
           <h1>Zakat and Sadaqah</h1>
-          <p className="page-intro">Help for people in need – from application to payout. {scope ? `You see cases at ${scope}.` : 'All zones.'} Demo cases, saved in this browser.</p>
+          <p className="page-intro">Help for people in need – from application to payout. {scope ? `You see cases at ${scope}.` : 'All zones.'}</p>
         </div>
         <div className="page-actions">
           {access.can('zakat.intake') && <button type="button" className="btn primary" onClick={() => setIntake(true)}>New application</button>}

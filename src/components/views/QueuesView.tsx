@@ -150,7 +150,7 @@ export function QueuesView({ search = '' }: { search?: string }) {
       <header className="page-head">
         <div>
           <h1>Work queues</h1>
-          <p className="page-intro">Everything waiting for a decision, oldest first. Each case shows the rule it is judged by.{LIVE ? '' : ' Demo data – decisions stay in this browser.'}</p>
+          <p className="page-intro">Everything waiting for a decision, oldest first. Each case shows the rule it is judged by.</p>
         </div>
       </header>
 
@@ -360,7 +360,7 @@ function CaseBody({ c, m }: { c: Case; m: Member }) {
         <div className="wq-idtop">{c.nameOnId ? c.doc.toUpperCase() : 'NO ID UPLOADED YET'}</div>
         <div className="wq-idbody"><span className="wq-photo" aria-hidden="true">{initials(m)}</span>
           <dl><div><dt>Name</dt><dd>{c.nameOnId || '—'}</dd></div><div><dt>Date of birth</dt><dd>{c.dobOnId ? fmtDate(c.dobOnId) : '—'}</dd></div><div><dt>Expires</dt><dd>{c.expires ? fmtDate(c.expires) : '—'}</dd></div></dl></div>
-        <figcaption>Demo picture – the real upload shows here (stored encrypted, deleted 90 days after the check)</figcaption>
+        <figcaption>The uploaded picture shows here (stored encrypted, deleted 90 days after the check)</figcaption>
       </figure>
       <dl className="m-defs wq-app"><div className="m-def"><dt>Application name</dt><dd>{fullName(m)}</dd></div><div className="m-def"><dt>Application date of birth</dt><dd>{fmtDate(m.dob)}</dd></div></dl>
     </div>

@@ -39,7 +39,7 @@ export function DonationsView() {
   return (
     <div className={`page dn${openGift ? ' has-peek' : ''}`}>
       <header className="page-head">
-        <div><h1>Donations</h1><p className="page-intro">Every gift – online and in person – with its fund, center and receipt. {access.role?.centerScoped ? `Gifts at ${access.me?.centers.join(', ')}.` : 'All centers.'}{LIVE ? '' : ' Demo gifts, saved in this browser.'}</p></div>
+        <div><h1>Donations</h1><p className="page-intro">Every gift – online and in person – with its fund, center and receipt. {access.role?.centerScoped ? `Gifts at ${access.me?.centers.join(', ')}.` : 'All centers.'}</p></div>
         <div className="page-actions">{canFix && <button type="button" className="btn primary" onClick={() => setEntry(true)}>Record cash or check</button>}</div>
       </header>
       <Tabs label="Donations" tabs={[
@@ -230,7 +230,7 @@ function GiftPanel({ d, s, canFix, onClose }: { d: Donation; s: DonationSettings
           <button type="submit" className="btn primary" disabled={!fund}>Save</button>
         </form>
       )}
-      {canFix && needsReceipt(d, s) && <div className="zk-act"><h3>Receipt</h3><p className="sf-hint">Gifts of {usd(s.receiptAboveCents)} or more need a written acknowledgment for the donor’s taxes.</p><button type="button" className="btn" onClick={() => saveDonation({ ...d, receiptSent: true }, 'Receipt sent', d.donor.email)}>Mark receipt sent (demo)</button></div>}
+      {canFix && needsReceipt(d, s) && <div className="zk-act"><h3>Receipt</h3><p className="sf-hint">Gifts of {usd(s.receiptAboveCents)} or more need a written acknowledgment for the donor’s taxes.</p><button type="button" className="btn" onClick={() => saveDonation({ ...d, receiptSent: true }, 'Receipt sent', d.donor.email)}>Mark receipt sent</button></div>}
       {canFix && !d.refunded && <div className="zk-act"><button type="button" className="btn ghost danger-ghost" onClick={() => saveDonation({ ...d, refunded: true }, 'Refunded', usd(d.amountCents))}>Mark as refunded</button></div>}
     </aside>
   );

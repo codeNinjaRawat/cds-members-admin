@@ -150,7 +150,7 @@ function Admins({ doc }: { doc: ADoc }) {
                 {err(i, 'twoStep') && <p className="sf-err">{err(i, 'twoStep')}</p>}
                 <div className="row-actions">
                   {a.status !== 'suspended' ? <button type="button" className="btn sm" onClick={() => set(i, { status: 'suspended' })}>Suspend</button> : <button type="button" className="btn sm" onClick={() => set(i, { status: 'active' })}>Bring back</button>}
-                  {a.status === 'invited' && <button type="button" className="btn sm" onClick={() => set(i, { status: 'active' })}>Mark invitation accepted (demo)</button>}
+                  {a.status === 'invited' && <button type="button" className="btn sm" onClick={() => set(i, { status: 'active' })}>Mark invitation accepted</button>}
                 </div>
               </div>
             </td></tr>,

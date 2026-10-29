@@ -201,7 +201,7 @@ export function rulesFor(c: Case, m: Member): Rule[] {
 /* ---------- decisions and who took a case: demo = this browser, live = shared by the office (GET/PUT /admin/queues/state) ---------- */
 const KEY = 'isgh-admin-queues';
 export const QUEUES_EVENT = 'isgh:queues';
-let me = 'Mohammad (demo)';
+let me = 'Mohammad';
 /** Who is working the queue (demo: a sample name; live: the signed-in admin's id). */
 export const queueMe = () => me;
 export const setQueueMe = (id: string) => { me = id; };

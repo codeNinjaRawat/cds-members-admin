@@ -75,7 +75,7 @@ export function TeamMessagesView({ search = '' }: { search?: string }) {
       <header className="page-head">
         <div>
           <h1>Team messages</h1>
-          <p className="page-intro">Talk to a colleague or a department here instead of email and WhatsApp – with the member, ticket or case attached, and “Make a task” when a note becomes work. Demo – messages stay in this browser.</p>
+          <p className="page-intro">Talk to a colleague or a department here instead of email and WhatsApp – with the member, ticket or case attached, and “Make a task” when a note becomes work.</p>
         </div>
         <div className="page-actions">
           <button type="button" className="btn" onClick={() => { setNewDm(true); setNewCh(false); }}>New message</button>

@@ -64,13 +64,13 @@ export function seedTickets(now: string, s: WorkSettings, admins: AdminLite[]): 
 
 export function seedWork(now: string, s: WorkSettings, admins: AdminLite[], tickets: Ticket[]): { projects: Project[]; tasks: Task[] } {
   const today = now.slice(0, 10);
-  const me: Actor = { id: 'owner', name: 'Mohammad (demo)' };
+  const me: Actor = { id: 'owner', name: 'Mohammad' };
   const agm = projectFromTemplate(s.tasks.templates.find((t) => t.id === 'agm') ?? s.tasks.templates[0], { name: 'Annual General Meeting 2026', anchor: dayShift(now, 24), owner: 'gen-secretary', center: '', by: { id: 'gen-secretary', name: admins.find((a) => a.id === 'gen-secretary')?.name ?? 'General Secretary' }, at: shift(now, -72), visibility: 'organization' }, admins);
   agm.project.color = 'violet';
   const P = (id: string, name: string, color: Project['color'], owner: string, center: string, visibility: Project['visibility'], due: string, members: string[], description = ''): Project => ({ id, name, color, owner, center, visibility, members, due, anchor: '', templateId: '', archived: false, createdAt: shift(now, -240), description });
   const renew = P('prj-renewal-2027', 'Renewal season 2027', 'green', 'owner', '', 'organization', dayShift(now, 40), ['owner', 'membership-office', 'board-secretary', 'web-editor', 'comms'], 'Everything before renewals open on November 1.');
   const coats = P('prj-coat-drive', 'Winter coat drive', 'blue', 'ad-se1', SE1, 'masjid', dayShift(now, 30), ['ad-se1', 'ms-se1', 'fs-se1'], 'Collect, sort and give out coats before December.');
-  const T = (p: Partial<Task> & Pick<Task, 'id' | 'title'>): Task => ({ projectId: '', parentId: '', notes: '', owner: 'owner', helpers: [], status: 'todo', priority: 'normal', start: '', due: '', labels: [], checklist: [], repeat: null, links: [], comments: [], createdAt: shift(now, -100), createdBy: admins.find((a) => a.id === (p.owner ?? 'owner'))?.name ?? 'Mohammad (demo)', doneAt: '', order: 0, ...p });
+  const T = (p: Partial<Task> & Pick<Task, 'id' | 'title'>): Task => ({ projectId: '', parentId: '', notes: '', owner: 'owner', helpers: [], status: 'todo', priority: 'normal', start: '', due: '', labels: [], checklist: [], repeat: null, links: [], comments: [], createdAt: shift(now, -100), createdBy: admins.find((a) => a.id === (p.owner ?? 'owner'))?.name ?? 'Mohammad', doneAt: '', order: 0, ...p });
   const c = (text: string, done = false, i = 0) => ({ id: `c${i}-${text.length}`, text, done });
   const parking = tickets.find((t) => t.id === 'T-1041');
   const tasks: Task[] = [
@@ -83,14 +83,14 @@ export function seedWork(now: string, s: WorkSettings, admins: AdminLite[], tick
     T({ id: 'task-coat-boxes', projectId: coats.id, title: 'Put collection boxes at both entrances', owner: 'ad-se1', due: dayShift(now, 1), order: 0, labels: ['volunteers'] }),
     T({ id: 'task-coat-sort', projectId: coats.id, title: 'Sort coats by size with the youth group', owner: 'ms-se1', helpers: ['ad-se1'], due: dayShift(now, 14), order: 1, labels: ['volunteers'] }),
     T({ id: 'task-coat-thanks', projectId: coats.id, title: 'Thank-you post for donors', owner: 'fs-se1', due: dayShift(now, 32), order: 2, priority: 'low' }),
-    T({ id: 'task-finance-report', title: 'Monthly finance report to the Board', owner: 'treasurer', createdBy: 'Mohammad (demo)', due: dayShift(now, 3), repeat: { every: 'month', interval: 1 }, labels: ['finance', 'board'], checklist: [c('Bank reconciliation', false, 1), c('Fund balances', false, 2), c('Send to the Board secretary', false, 3)] }),
+    T({ id: 'task-finance-report', title: 'Monthly finance report to the Board', owner: 'treasurer', createdBy: 'Mohammad', due: dayShift(now, 3), repeat: { every: 'month', interval: 1 }, labels: ['finance', 'board'], checklist: [c('Bank reconciliation', false, 1), c('Fund balances', false, 2), c('Send to the Board secretary', false, 3)] }),
     T({ id: 'task-parking-roster', title: 'Friday parking volunteers roster', owner: 'ad-se1', due: dayShift(now, 2), repeat: { every: 'week', interval: 1 }, labels: ['volunteers'] }),
     T({ id: 'task-sample-items', title: 'Turn off the sample giving items before launch', owner: 'owner', due: dayShift(now, 5), priority: 'low' }),
     T({ id: 'task-zones-map', title: 'Ask the client for the Zones map (KML) for the real zone boundaries', owner: 'owner', due: dayShift(now, -3), priority: 'high', labels: ['board'], notes: 'Needed for the ISGH preset: ZIP lists per zone or the KML export of the Google My Map.' }),
-    T({ id: 'task-wa-export', title: 'Trial import of the Wild Apricot contact export', owner: 'membership-office', due: dayShift(now, 6), createdBy: 'Mohammad (demo)', checklist: [c('Get the export file', false, 1), c('Run Members › Import with the Wild Apricot preset', false, 2), c('Check duplicates', false, 3)] }),
+    T({ id: 'task-wa-export', title: 'Trial import of the Wild Apricot contact export', owner: 'membership-office', due: dayShift(now, 6), createdBy: 'Mohammad', checklist: [c('Get the export file', false, 1), c('Run Members › Import with the Wild Apricot preset', false, 2), c('Check duplicates', false, 3)] }),
     T({ id: 'task-names', title: 'Confirm the four “name to confirm” centers', owner: 'owner', due: dayShift(now, 9), helpers: ['gen-secretary'] }),
   ];
-  if (parking) tasks.push(T({ id: 'task-cones', title: `Buy cones and “Keep clear” signs (${parking.id})`, owner: 'sw-director', due: dayShift(now, -1), priority: 'high', links: [{ kind: 'ticket', id: parking.id, label: parking.subject }], comments: [{ at: shift(now, -44), by: 'Mohammad (demo)', text: 'From the parking ticket – the cones should be in place before Friday.' }] }));
+  if (parking) tasks.push(T({ id: 'task-cones', title: `Buy cones and “Keep clear” signs (${parking.id})`, owner: 'sw-director', due: dayShift(now, -1), priority: 'high', links: [{ kind: 'ticket', id: parking.id, label: parking.subject }], comments: [{ at: shift(now, -44), by: 'Mohammad', text: 'From the parking ticket – the cones should be in place before Friday.' }] }));
   return { projects: [renew, agm.project, coats], tasks };
 }
 
@@ -241,7 +241,7 @@ export function useWork() {
     load(); window.addEventListener(WORK_EVENT, load); window.addEventListener('storage', load);
     return () => { window.removeEventListener(WORK_EVENT, load); window.removeEventListener('storage', load); };
   }, [access.ready]); // eslint-disable-line react-hooks/exhaustive-deps
-  const me: Actor = { id: access.me?.id ?? (LIVE ? '' : 'owner'), name: access.me?.name ?? (LIVE ? '' : 'Mohammad (demo)') };
+  const me: Actor = { id: access.me?.id ?? (LIVE ? '' : 'owner'), name: access.me?.name ?? (LIVE ? '' : 'Mohammad') };
   const viewer: Viewer = useMemo(() => ({ ...viewerFor(access.me?.id ?? '', access.role?.id ?? 'owner', access.inScope, !(access.role?.centerScoped || access.role?.zoneScoped || access.role?.areaScoped)), name: access.me?.name }), [access.doc, access.me, access.role]); // eslint-disable-line react-hooks/exhaustive-deps
   const setTickets = (f: (l: Ticket[]) => Ticket[]) => { if (LIVE) return liveSet('tickets', f); const cur = ensureSeed(admins, settings).tickets; write(K.tickets, f(cur)); };
   const setTasks = (f: (l: Task[]) => Task[]) => { if (LIVE) return liveSet('tasks', f); const cur = ensureSeed(admins, settings).tasks; write(K.tasks, f(cur)); };

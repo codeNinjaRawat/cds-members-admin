@@ -94,7 +94,7 @@ const LABELS: Record<string, string> = {
   amountCents: 'Amount', mapHint: 'Map hint', hoursLabel: 'Office hours text', mapUrl: 'Map link', taxNote: 'Tax note', shortName: 'Short name', productName: 'Site name',
   logoLight: 'Logo for light backgrounds', logoDark: 'Logo for dark backgrounds', logoAlt: 'Logo text alternative', faviconIco: 'Favicon (.ico)', appleTouchIcon: 'Apple touch icon',
   ogImage: 'Share image (1200×630)', themeColor: 'Browser bar color', version: 'Version', startsAt: 'Show from', endsAt: 'Show until', walletImage: 'Wallet tile photo',
-  stockPhoto: 'This is a stock photo', verifiedBy: 'Verified by', updatedAt: 'Last updated', featured: 'Featured', sample: 'Sample (demo) item',
+  stockPhoto: 'This is a stock photo', verifiedBy: 'Verified by', updatedAt: 'Last updated', featured: 'Featured', sample: 'Sample item',
   // WildApricot-style options (events, groups, communication, configuration, renewals)
   guestPriceCents: 'Price per guest', planIds: 'Plans', groupIds: 'Groups', onlineUrl: 'Online link', daysBefore: 'Days before',
   ccAdmins: 'Copy every email to', replyTo: 'Reply-to email', fromName: 'From name', quietHours: 'Quiet hours (no texts)', consentText: 'Consent text',
@@ -108,9 +108,9 @@ const LABELS: Record<string, string> = {
   termPrices: 'Price for paying several years at once', bundle: 'Household (bundle)', maxMembers: 'People in the household', anchorDate: 'Renewal date (MM-DD)',
   aheadLimitDays: 'Can renew this many days early', allowLevelChange: 'Members can change plan', prorate: 'Charge less for a part year', duplicateCheck: 'Warn about possible duplicates',
   showPast: 'Show past events', defaultReminderDays: 'Default reminder (days before)', joinPolicy: 'Who can add people', showInProfile: 'Show on member profiles',
-  leadersCanEmail: 'Leaders can email the group', pageAccess: 'Can be used to limit pages and events', memberIds: 'Members (IDs)', refund: 'Refund when someone cancels in time', feeCents: 'Fee kept (cents)', typeCounts: 'Registered per type (demo)', startsOn: 'First day', oncePerPerson: 'Once per person', achPercent: 'Bank transfer fee (%)', achCapCents: 'Bank transfer fee cap (cents)', payLaterDays: 'Pay-later invoices due after (days)', match: 'People must match', include: 'Always in (member IDs)', exclude: 'Never in (member IDs)', groupEmailsByLeaders: 'Group leaders can send emails',
+  leadersCanEmail: 'Leaders can email the group', pageAccess: 'Can be used to limit pages and events', memberIds: 'Members (IDs)', refund: 'Refund when someone cancels in time', feeCents: 'Fee kept (cents)', typeCounts: 'Registered per type', startsOn: 'First day', oncePerPerson: 'Once per person', achPercent: 'Bank transfer fee (%)', achCapCents: 'Bank transfer fee cap (cents)', payLaterDays: 'Pay-later invoices due after (days)', match: 'People must match', include: 'Always in (member IDs)', exclude: 'Never in (member IDs)', groupEmailsByLeaders: 'Group leaders can send emails',
   invoicePrefix: 'Invoice number prefix', receiptNote: 'Note on receipts', refundPolicy: 'Refund policy', showCenter: 'Show the Islamic Center', showPhone: 'Show phone', showEmail: 'Show email',
-  showPhoto: 'Show photo', showRenewal: 'Show renewal date', optIn: 'Members must opt in', audience: 'Who can see it', registered: 'Registered (demo)', waiting: 'On the waitlist (demo)',
+  showPhoto: 'Show photo', showRenewal: 'Show renewal date', optIn: 'Members must opt in', audience: 'Who can see it', registered: 'Registered', waiting: 'On the waitlist',
 };
 export function labelFor(key: string): string {
   if (LABELS[key]) return LABELS[key];

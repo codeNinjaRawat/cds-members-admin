@@ -24,7 +24,7 @@ export function IdleLock() {
       <div className="idle-card glass-float">
         <h2 id="idle-h">Locked for safety</h2>
         <p>No activity for {minutes} minutes, so member details are hidden. Settings › Configuration › Security sets this time.</p>
-        <button type="button" className="btn primary" autoFocus onClick={() => { last.current = Date.now(); setLocked(false); }}>Continue (demo)</button>
+        <button type="button" className="btn primary" autoFocus onClick={() => { last.current = Date.now(); setLocked(false); }}>Continue</button>
       </div>
     </div>
   );

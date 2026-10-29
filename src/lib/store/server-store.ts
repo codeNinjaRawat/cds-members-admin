@@ -84,7 +84,7 @@ export function publishDoc(k: DocKey, body: { data: unknown; baseVersion?: numbe
   if (typeof body.baseVersion === 'number' && body.baseVersion !== current.version) {
     return { ok: false, status: 409, error: `Someone published a newer version (v${current.version}) after you opened this page.` };
   }
-  const next: Stored = { data: parsed.data, version: current.version + 1, publishedAt: new Date().toISOString(), by: body.by || 'Admin (demo)', note: body.note?.slice(0, 200) };
+  const next: Stored = { data: parsed.data, version: current.version + 1, publishedAt: new Date().toISOString(), by: body.by || 'Admin', note: body.note?.slice(0, 200) };
   writeAtomic(file(k, slug), next);
   writeAtomic(file(k, slug, '.history'), [next, ...getHistory(k, slug)].slice(0, MAX_HISTORY));
   return { ok: true, version: next.version, publishedAt: next.publishedAt };

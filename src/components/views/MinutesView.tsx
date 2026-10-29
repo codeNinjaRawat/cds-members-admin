@@ -48,7 +48,7 @@ export function MinutesView() {
   return (
     <div className={`page mn${current ? ' has-peek' : ''}`}>
       <header className="page-head">
-        <div><h1>Meetings and minutes</h1><p className="page-intro">Every meeting the Bylaws call for – notice, attendance, quorum, decisions and the minutes – and a check that the required meetings happen. {access.role?.centerScoped ? `Council meetings of ${access.me?.centers.join(', ')}.` : ''} Demo records, saved in this browser.</p></div>
+        <div><h1>Meetings and minutes</h1><p className="page-intro">Every meeting the Bylaws call for – notice, attendance, quorum, decisions and the minutes – and a check that the required meetings happen. {access.role?.centerScoped ? `Council meetings of ${access.me?.centers.join(', ')}.` : ''}</p></div>
         <div className="page-actions">{(access.can('center.content') || access.can('settings.manage')) && <button type="button" className="btn primary" onClick={startNew}>Record a meeting</button>}</div>
       </header>
       <Tabs label="Meetings and minutes" tabs={[

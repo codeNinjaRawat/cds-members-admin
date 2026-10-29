@@ -52,7 +52,7 @@ function FocusOverview() {
     <div className="page dash">
       <header className="page-head">
         <div>
-          <h1>Membership and renewals {!LIVE && <span className="live-pill"><i aria-hidden="true" />Demo data</span>}</h1>
+          <h1>Membership and renewals</h1>
           <p className="page-intro">Applications waiting, the renewals before the {md(st.dates.recordDate)} record date, members by zone and giving – in one view.</p>
         </div>
         <div className="page-actions">

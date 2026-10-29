@@ -153,7 +153,7 @@ export function MasjidHome() {
       <header className="page-head">
         <div>
           <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
-          <p className="page-intro">{role.areaScoped ? 'Your ZIP codes' : 'Your masjid'} at a glance – members, dues, who serves and what needs you.{LIVE ? '' : ' Demo data.'}</p>
+          <p className="page-intro">{role.areaScoped ? 'Your ZIP codes' : 'Your masjid'} at a glance – members, dues, who serves and what needs you.</p>
         </div>
         <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: ORG_TZ })}</p>
       </header>
@@ -242,7 +242,7 @@ export function MasjidHome() {
       </div>
 
       <footer className="cc-status glass-pane">
-        <span><i className="on" aria-hidden="true" />{LIVE ? 'Live – numbers from the member records on the server' : 'Demo mode – numbers from the demo member records'}</span>
+        <span><i className="on" aria-hidden="true" />{LIVE ? 'Live – numbers from the member records on the server' : 'Numbers from the member records on this computer'}</span>
         <span suppressHydrationWarning>Refreshed {now} CT</span>
         <span>{m.name} · {ZONES[m.zone as ZoneId]} Zone</span>
       </footer>

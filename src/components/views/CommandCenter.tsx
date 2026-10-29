@@ -55,7 +55,7 @@ export function CommandCenter() {
         <ArtBand k="minarets-sunset" side="left" />
         <div>
           <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
-          <p className="page-intro">What needs you today across membership, giving and the website.{LIVE ? '' : ' Demo records.'}</p>
+          <p className="page-intro">What needs you today across membership, giving and the website.</p>
         </div>
         <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: ORG_TZ })}</p>
       </header>
@@ -156,7 +156,7 @@ export function CommandCenter() {
       </div>
 
       <footer className="cc-status glass-pane">
-        <span><i className="on" aria-hidden="true" />{LIVE ? 'Live – connected to the server' : 'Demo mode – publishing to the local folder'}</span>
+        <span><i className="on" aria-hidden="true" />{LIVE ? 'Live – connected to the server' : 'Saved on this computer'}</span>
         <span suppressHydrationWarning>Refreshed {now}</span>
         <span>{me?.org.name ?? ''}</span>
       </footer>

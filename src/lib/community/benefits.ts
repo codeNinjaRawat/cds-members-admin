@@ -244,14 +244,14 @@ const P = (id: string, name: string, category: Category, center: string, status:
 export const mockBenefits: Benefits = {
   enabled: true, requireReview: true, showLocked: true,
   partners: [
-    P('crescent-grocers', 'Crescent Grocers (demo)', 'food', 'Southwest Islamic Center 1', 'approved', '2027-06-30', '2026-01-12', { address: '1000 Demo Blvd, Houston, TX 77036', phone: '(713) 555-0110', contact: { name: 'Store manager', email: 'manager@crescent.example.org' } }),
-    P('olive-grill', 'Olive Tree Grill (demo)', 'food', 'North Islamic Center 1', 'approved', '2026-11-05', '2026-02-03'),
-    P('family-clinic', 'Sunrise Family Clinic (demo)', 'health', '', 'approved', '2027-12-31', '2026-03-20', { website: 'https://clinic.example.org' }),
-    P('quran-tutors', 'Bright Path Tutoring (demo)', 'education', 'Northwest Islamic Center 1', 'approved', '2027-05-31', '2026-04-02'),
-    P('safar-travel', 'Safar Travel (demo)', 'travel', '', 'approved', '2027-03-31', '', { notes: 'Hajj and Umrah packages – review the payment plan terms (no interest).' }),
-    P('bayou-auto', 'Gulf Coast Auto Care (demo)', 'home', 'Southeast Islamic Center 1', 'approved', '2026-09-30', '2025-10-01'),
-    P('noor-books', 'Noor Books and Gifts (demo)', 'shopping', '', 'approved', '2027-08-31', '2026-05-15', { website: 'https://books.example.org' }),
-    P('tax-help', 'Main Street Tax Help (demo)', 'professional', 'South Islamic Center 2', 'proposed', '', ''),
+    P('crescent-grocers', 'Crescent Grocers', 'food', 'Southwest Islamic Center 1', 'approved', '2027-06-30', '2026-01-12', { address: '1000 Demo Blvd, Houston, TX 77036', phone: '(713) 555-0110', contact: { name: 'Store manager', email: 'manager@crescent.example.org' } }),
+    P('olive-grill', 'Olive Tree Grill', 'food', 'North Islamic Center 1', 'approved', '2026-11-05', '2026-02-03'),
+    P('family-clinic', 'Sunrise Family Clinic', 'health', '', 'approved', '2027-12-31', '2026-03-20', { website: 'https://clinic.example.org' }),
+    P('quran-tutors', 'Bright Path Tutoring', 'education', 'Northwest Islamic Center 1', 'approved', '2027-05-31', '2026-04-02'),
+    P('safar-travel', 'Safar Travel', 'travel', '', 'approved', '2027-03-31', '', { notes: 'Hajj and Umrah packages – review the payment plan terms (no interest).' }),
+    P('bayou-auto', 'Gulf Coast Auto Care', 'home', 'Southeast Islamic Center 1', 'approved', '2026-09-30', '2025-10-01'),
+    P('noor-books', 'Noor Books and Gifts', 'shopping', '', 'approved', '2027-08-31', '2026-05-15', { website: 'https://books.example.org' }),
+    P('tax-help', 'Main Street Tax Help', 'professional', 'South Islamic Center 2', 'proposed', '', ''),
   ],
   offers: [
     { id: 'grocers-10', partnerId: 'crescent-grocers', title: '10% off groceries', details: 'On any purchase. Not with other sales.', kind: 'percent', value: 10, redeem: 'card', code: '', url: '', plans: ['single', 'family', 'life', 'associate'], goodStanding: false, limit: 'unlimited', from: '2026-01-15', until: '2027-06-30', status: 'live', featured: true },

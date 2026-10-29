@@ -107,7 +107,7 @@ export function MemberProfile({ id }: { id: string }) {
           <small className="muted">To merge, use Work queues › Possible duplicates.</small>
         </section>
       )}
-      {flash && <p className="notice glass-pane" role="status">{flash} <span className="muted">{LIVE ? 'Saved and added to the audit log.' : 'Demo – saved in this browser and in the audit log.'}</span></p>}
+      {flash && <p className="notice glass-pane" role="status">{flash} <span className="muted">{LIVE ? 'Saved and added to the audit log.' : 'Saved and added to the audit log.'}</span></p>}
 
       <div className="m360-grid">
         <aside className="m-elig glass-pane" aria-labelledby="el-h">

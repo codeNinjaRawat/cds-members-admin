@@ -104,7 +104,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <p>2027 renewals open November 1. Check dues, dates and reminder text before members start paying.</p>
           <Link href="/membership" className="btn sm side-card-btn">Review plans and dates</Link>
         </div>}
-        <p className="side-foot">Demo mode – changes publish to a local folder, not the live site.</p>
       </aside>
       {drawer && <button className="scrim" aria-label="Close menu" onClick={() => setDrawer(false)} />}
 
@@ -116,9 +115,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <span>Find a setting or page</span><kbd>Ctrl K</kbd>
           </button>
           <ViewingChip />
-          {LIVE
-            ? <span className="env live" title="Connected to the API – changes are saved to the database">Live</span>
-            : <span className="env" title="Changes go to the local demo store (../.demo-store). The real site is not touched.">Demo</span>}
+          {LIVE && <span className="env live" title="Connected to the API – changes are saved to the database">Live</span>}
           <a className="top-link" href={site} target="_blank" rel="noopener noreferrer">Open website<span className="sr-only"> (opens in a new tab)</span></a>
           <button className={`icon-btn work-btn${work ? ' on' : ''}`} aria-label={work ? 'Leave work mode (Esc)' : 'Work mode – full page (Ctrl+Shift+F)'} aria-pressed={work} title={work ? 'Leave work mode (Esc)' : 'Work mode: the whole screen for the page (Ctrl+Shift+F)'} onClick={() => update({ work: work ? 'off' : 'on' })}>
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">{work ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" strokeWidth="1.8" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" strokeWidth="1.8" />}</svg>
@@ -141,8 +138,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
           )}
           {LIVE ? (
             <span className="acting signed-in"><span className="sr-only">Signed in as</span>{access.me?.name ?? ''} <button type="button" className="btn sm ghost" onClick={() => void signOut()}>Sign out</button></span>
-          ) : <label className="acting"><span className="sr-only">Acting as (demo)</span>
-            <select className="in pill-select" aria-label="Acting as (demo)" value={access.me?.id ?? ''} onChange={(e) => { const x = access.doc.admins.find((y) => y.id === e.target.value); setActing(e.target.value, x?.name); }}>
+          ) : <label className="acting"><span className="sr-only">Acting as</span>
+            <select className="in pill-select" aria-label="Acting as" value={access.me?.id ?? ''} onChange={(e) => { const x = access.doc.admins.find((y) => y.id === e.target.value); setActing(e.target.value, x?.name); }}>
               {access.doc.admins.filter((x) => x.status === 'active').map((x) => <option key={x.id} value={x.id}>{x.name} – {access.doc.roles.find((r) => r.id === x.roleId)?.name ?? x.roleId}</option>)}
             </select></label>}
         </header>

@@ -351,7 +351,7 @@ export const DEFAULT_RULES: MembershipRules = mockMembershipSettings.rules;
 export const PLAN_PRESETS: { id: string; name: string; blurb: string; plans: Plan[]; rules: MembershipRules }[] = [
   { id: 'isgh-2026', name: 'ISGH today (isgh.org, 2026)', blurb: 'Three categories: Checkomatic (monthly contributors, primary and spouse – $40 by June 30), Individual $20 a year, Lifetime $1,000 / $1,500 or by a $25,000 gift.', plans: ISGH_CURRENT_LEVELS, rules: ISGH_CURRENT_RULES },
   { id: 'wildapricot', name: 'ISGH in Wild Apricot (older levels)', blurb: 'The 7 levels as set up in Wild Apricot: Individual $20, Family $75 (3 years $180, 5 years $285), Lifetime $1,000 / $1,500, Check-o-matic and Unverified – renewing December 15.', plans: ISGH_WILDAPRICOT_LEVELS, rules: { ...ISGH_CURRENT_RULES, qualifyingGifts: { ...ISGH_CURRENT_RULES.qualifyingGifts, planId: 'checkomatic' } } },
-  { id: 'bylaws', name: 'Bylaws minimums (demo)', blurb: 'Single $25, Family $40, Life $1,000 and Associate $25 – the demo set.', plans: mockMembershipSettings.plans, rules: DEFAULT_RULES },
+  { id: 'bylaws', name: 'Bylaws minimums', blurb: 'Single $25, Family $40, Life $1,000 and Associate $25 – the demo set.', plans: mockMembershipSettings.plans, rules: DEFAULT_RULES },
 ];
 
 /** Does a member on the qualifying-contributions plan count for a year? Gifts: when, how much, recurring or not. */

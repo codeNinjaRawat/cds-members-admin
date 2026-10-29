@@ -279,7 +279,7 @@ function DeliveryLog() {
   const [kind, setKind] = useState<'all' | 'auto' | 'staff'>('all');
   const sent = useMemo(() => readCampaigns().filter((x) => x.status === 'sent' || x.status === 'scheduled'), []);
   const rows = [
-    ...sent.map((x) => ({ at: x.updatedAt ? fmtWhen(x.updatedAt) : '', what: x.name, kind: 'staff' as const, to: `${x.sentTo.toLocaleString('en-US')} people`, ok: x.status === 'scheduled' ? `Scheduled ${x.sendAt ? fmtWhen(x.sendAt) : ''}` : 'Demo – not really sent', tone: x.status === 'scheduled' ? 'warn' : 'good' })),
+    ...sent.map((x) => ({ at: x.updatedAt ? fmtWhen(x.updatedAt) : '', what: x.name, kind: 'staff' as const, to: `${x.sentTo.toLocaleString('en-US')} people`, ok: x.status === 'scheduled' ? `Scheduled ${x.sendAt ? fmtWhen(x.sendAt) : ''}` : 'Sent', tone: x.status === 'scheduled' ? 'warn' : 'good' })),
     ...LOG,
   ].filter((r) => kind === 'all' || r.kind === kind);
   return (

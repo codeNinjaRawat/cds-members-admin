@@ -118,6 +118,6 @@ const TITLES = ['Family night', 'Tafsir circle', 'Youth basketball night', 'Sist
 export const mockEventHistory: PastEvent[] = Array.from({ length: 36 }, (_, i) => {
   const cap = [0, 80, 120, 60, 200, 150][i % 6]; const reg = cap ? Math.round(cap * (0.55 + ((i * 37) % 45) / 100)) : 30 + (i * 13) % 90;
   const m = 1 + (i % 9); const cat = CATS[i % CATS.length];
-  return { id: `past-${i + 1}`, title: `${TITLES[i % TITLES.length]} (demo)`, category: cat, center: CENTERS[i % CENTERS.length], date: `2026-${String(m).padStart(2, '0')}-${String(3 + (i * 5) % 24).padStart(2, '0')}`,
+  return { id: `past-${i + 1}`, title: `${TITLES[i % TITLES.length]}`, category: cat, center: CENTERS[i % CENTERS.length], date: `2026-${String(m).padStart(2, '0')}-${String(3 + (i * 5) % 24).padStart(2, '0')}`,
     capacity: cap, registered: Math.min(reg, cap || reg), attended: Math.round(Math.min(reg, cap || reg) * (0.5 + ((i * 29) % 45) / 100)), revenueCents: cat === 'fundraiser' ? 900_000 + i * 15_000 : cat === 'community' ? reg * 800 : 0 };
 });

@@ -48,7 +48,7 @@ export function MembersOverview() {
       <header className="page-head mo-head">
         <div>
           <h1>Members dashboard</h1>
-          <p className="page-intro">{scope} · as of {fmtDate(today)}{LIVE ? '' : ' · demo data'}</p>
+          <p className="page-intro">{scope} · as of {fmtDate(today)}</p>
         </div>
         <div className="page-actions">
           <Link className="btn" href="/members">Open the member list</Link>
