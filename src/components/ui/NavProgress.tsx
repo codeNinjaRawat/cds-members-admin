@@ -40,5 +40,9 @@ export function NavProgress() {
   }, [pathname, state]);
 
   if (state === 'idle') return null;
-  return <div className={`nav-progress is-${state}`} role="progressbar" aria-label="Opening page" aria-busy={state === 'run'}><span /></div>;
+  return (<>
+    <div className={`nav-progress is-${state}`} role="progressbar" aria-label="Opening page" aria-busy={state === 'run'}><span /></div>
+    {/* a page that takes more than a moment also gets a visible "Loading…" pill (it only appears after 300 ms) */}
+    {state === 'run' && <div className="nav-wait" role="status"><i className="spinner" aria-hidden="true" />Loading page…</div>}
+  </>);
 }

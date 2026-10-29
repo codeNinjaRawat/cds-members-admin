@@ -42,7 +42,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   // the photo for this part of the admin (sidebar group → SECTION_ART); dashboards carry their own band
   const group = pathname === '/' ? 'Overview' : pathname.startsWith('/families') ? 'Family Trees' : (NAV_TREE.find((n) => n.href && n.href !== '/' && pathname.startsWith(n.href.split('?')[0])) ?? NAV_TREE.find((n) => n.children?.some((c) => c.href !== '#' && pathname.split('?')[0] === c.href.split('?')[0] || (c.href !== '#' && c.href.split('?')[0] !== '/' && pathname.startsWith(c.href.split('?')[0] + '/')))))?.label ?? '';
   // data and report pages (the member lists) stay plain – no section photo above the table
-  const artKey = /^\/(members|groups|families)(\/|$)/.test(pathname) ? null : SECTION_ART[group] ?? null;
+  // the sidebar section of this page (People, Masjids, Money …) – lets a whole section share one page style
+  const section = (() => { let sec = ''; for (const n of NAV_TREE) { sec = n.section ?? sec; if (n.label === group || n.children?.some((c) => c.label === group)) return sec; } return ''; })();
+  const artKey = section === 'People' || /^\/(members|groups|families)(\/|$)/.test(pathname) ? null : SECTION_ART[group] ?? null;   // the People section works without photo bands
   const artUrl = useArtUrl(artKey);
   const wallKey = WALL_PHOTOS[a.wallpaper] ?? null;
   const closed = me && (me.org.status === 'suspended' || me.org.status === 'cancelled');
@@ -143,7 +145,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </select></label>}
         </header>
         {LIVE && <LiveNotices />}
-        <main id="main" tabIndex={-1} data-art={artKey ?? undefined} style={artUrl ? ({ '--sec-img': `url("${artUrl}")` } as CSSProperties) : undefined}>
+        <main id="main" tabIndex={-1} data-section={section || undefined} data-art={artKey ?? undefined} style={artUrl ? ({ '--sec-img': `url("${artUrl}")` } as CSSProperties) : undefined}>
           {me && !work && <PlatformBanners me={me} pathname={pathname} />}
           {artKey && pathname !== '/' && !blocked && !closed && !work && <div className="sec-art" aria-hidden="true"><Photo k={artKey} priority /><span className="sec-art-name">{group}</span></div>}
           {closed ? <ClosedPanel me={me!} /> : mod && !can(mod) ? <ModuleOff label={MODULE_INFO[mod].label} plan={me!.org.plan} email={me!.supportEmail} />
