@@ -59,7 +59,7 @@ function Body({ doc }: { doc: Doc }) {
   };
   return (
     <div className={`fr${i >= 0 ? ' has-peek' : ''}`}>
-      {warns.length > 0 && <details className="notice warn-note zn-warns" open={warns.length <= 5}><summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary>
+      {warns.length > 0 && <details className="notice warn-note zn-warns"><summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary>
         <ul>{warns.map((w, k) => <li key={k}>{w.campaign ? <button type="button" className="linkish" onClick={() => setOpen(w.campaign!)}>{w.text}</button> : w.text}</li>)}</ul></details>}
       <Tabs label="Fundraising" tabs={[
         { id: 'insights', label: 'Dashboard', render: () => <Insights gifts={gifts} campaigns={doc.draft.campaigns} /> },

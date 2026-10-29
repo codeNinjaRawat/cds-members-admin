@@ -62,7 +62,7 @@ function Body({ doc }: { doc: Doc }) {
   return (
     <div className="ep">
       {warns.length > 0 && (
-        <details className="notice warn-note ep-warns" open={warns.length <= 4}>
+        <details className="notice warn-note ep-warns zn-warns">
           <summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary>
           <ul>{warns.map((w, i) => <li key={i} data-event={w.event}>{w.text}</li>)}</ul>
         </details>

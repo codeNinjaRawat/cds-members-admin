@@ -56,7 +56,7 @@ function Body({ doc }: { doc: Doc }) {
   return (
     <div className={`bn${oi >= 0 || pi >= 0 ? ' has-peek' : ''}`}>
       {warns.length > 0 && (
-        <details className="notice warn-note zn-warns bn-warns" open={warns.length <= 5}>
+        <details className="notice warn-note zn-warns bn-warns">
           <summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary>
           <ul>{warns.map((w, i) => (
             <li key={i}><button type="button" className="linkish" onClick={() => setOpen(w.offer ? { kind: 'offer', id: w.offer } : { kind: 'partner', id: w.partner! })}>{w.text}</button></li>
@@ -324,7 +324,7 @@ function Uses({ d, uses }: { d: Benefits; uses: Redemption[] }) {
         <MasjidPicker unrouted />
         <select className="in pill-select" aria-label="Filter by offer" value={offer} onChange={(e) => setOffer(e.target.value)}><option value="">Every offer</option>{d.offers.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}</select>
         <select className="in pill-select" aria-label="Filter by way" value={via} onChange={(e) => setVia(e.target.value)}><option value="">Every way</option>{Object.entries(VIA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-        <button type="button" className="btn" onClick={csv}>Download CSV</button>
+        <button type="button" className="btn sm ghost" onClick={csv} aria-label="Download CSV" title="Download CSV"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> CSV</button>
         <button type="button" className="btn primary" onClick={() => setDlg(true)}>Record a use</button>
       </div>
       <p className="muted small">Only the member ID is kept – no names or contact details. Saved as it happens (no need to publish).</p>

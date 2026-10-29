@@ -40,7 +40,7 @@ function Body({ doc }: { doc: Doc }) {
   return (
     <div className="zn">
       {warns.length > 0 && (
-        <details className="notice warn-note zn-warns" open={warns.length <= 4}>
+        <details className="notice warn-note zn-warns">
           <summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary>
           <ul>{warns.map((w, i) => <li key={i} data-zone={w.zone} data-center={w.center}>{w.text}</li>)}</ul>
         </details>

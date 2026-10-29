@@ -824,3 +824,7 @@
 .gr-list .cv-people li:hover .linkish, .gr-list .cv-people li .linkish:focus-visible { opacity: 1; }
 .gr-list .cv-people .row-actions .btn { min-height: 28px; font-size: .76rem; }
 @media (max-width: 1000px) { .gr-list .cv-edit { grid-template-columns: 1fr; } .gr-list .cv-people li .linkish { opacity: 1; } }
+/* ledger columns: payee gets the room, amount/status stay tight */
+.fn-table th:nth-child(1) { width: 8.5rem; } .fn-table th:nth-child(2) { width: 36%; }
+.fn-table th:nth-child(5), .fn-table th:nth-child(6) { width: 1%; white-space: nowrap; }
+.fn-table .zk-name { text-align: left; }

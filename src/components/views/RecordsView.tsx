@@ -46,7 +46,7 @@ function Body({ doc }: { doc: Doc }) {
   const blank = (): RecordItem => ({ id: '', title: '', category: 'minutes', center: mf.masjid && mf.masjid !== '~none' ? mf.masjid : mf.lockedMasjid || '', date: todayCT(), audience: 'members', url: '', summary: '', source: 'link', archived: false });
   return (
     <div className="rc">
-      {warns.length > 0 && <details className="notice warn-note zn-warns" open={warns.length <= 4}><summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary><ul>{warns.map((w) => <li key={w}>{w}</li>)}</ul></details>}
+      {warns.length > 0 && <details className="notice warn-note zn-warns"><summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary><ul>{warns.map((w) => <li key={w}>{w}</li>)}</ul></details>}
       <div className="bn-bar rc-bar">
         <MasjidPicker className="chip-select" />
         <select className="in pill-select" aria-label="Category" value={cat} onChange={(e) => setCat(e.target.value as '' | RecordCategory)}><option value="">All categories</option>{Object.entries(RECORD_CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>

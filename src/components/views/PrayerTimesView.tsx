@@ -48,7 +48,7 @@ function Body({ doc }: { doc: Doc }) {
   const warns = useMemo(() => prayerWarnings(doc.draft, today, 120).filter((w) => mine.includes(w.center)), [doc.draft, today, mine.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="pt">
-      {warns.length > 0 && <details className="notice warn-note zn-warns" open={warns.length <= 4}><summary><b>{warns.length} iqamah problem{warns.length === 1 ? '' : 's'} in the next 4 months</b></summary><ul>{warns.map((w, i) => <li key={i}>{w.text}</li>)}</ul></details>}
+      {warns.length > 0 && <details className="notice warn-note zn-warns"><summary><b>{warns.length} iqamah problem{warns.length === 1 ? '' : 's'} in the next 4 months</b></summary><ul>{warns.map((w, i) => <li key={i}>{w.text}</li>)}</ul></details>}
       <Tabs label="Prayer times" tabs={[
         { id: 'today', label: 'Today', render: () => <Today s={doc.draft} centers={mine} jumuah={jumuah} map={map} /> },
         { id: 'month', label: 'Monthly timetable', render: () => <Month s={doc.draft} centers={mine} jumuah={jumuah} /> },

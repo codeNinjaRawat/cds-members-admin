@@ -362,7 +362,7 @@ main[data-section] :is(.cm-table, .pp-table, .zk-table) td { padding: .42rem .6r
 main[data-section] :is(.cm-table, .pp-table, .zk-table) small { font-size: .72rem; line-height: 1.25; }
 main[data-section] .cm-table td.num:nth-child(3) { min-width: 9.5rem; }
 main[data-section] .cm-table td:first-child small.block { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22rem; }
-main[data-section] .page > .page-head:not(.cc-head) .page-status { flex: 0 1 auto; margin: 0; min-width: 0; max-width: 30ch; display: flex; align-items: center; gap: .35rem; font-size: .74rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+main[data-section] .page > .page-head:not(.cc-head) .page-status { flex: 0 1 auto; margin: 0; min-width: 0; max-width: 30ch; display: block; font-size: .74rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 main[data-section] .page > .page-head:not(.cc-head) .page-status .pill { font-size: .68rem; flex: none; }
 
 /* dashboard filter bar (2026-10-29): no panel, small period chips, Export on the right; inside a dashboard header it sits on the title row */
@@ -386,3 +386,25 @@ details.fold-panel[open] > summary { margin-bottom: .6rem; }
 main[data-section] section.panel:not(:has(> .panel-h, > .panel-intro, > :not(.sf-switch-row))) { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem 1.8rem; padding: .5rem .9rem; }
 main[data-section] section.panel:not(:has(> .panel-h, > .panel-intro, > :not(.sf-switch-row))) .sf-switch-row { padding: 0; }
 main[data-section] section.panel:not(:has(> .panel-h, > .panel-intro, > :not(.sf-switch-row))) .sf-hint { padding-left: 3.4rem; margin: 0; font-size: .72rem; }
+/* buttons inside pages: one quieter size (34px) – page-head buttons are 30px, .sm / .xs keep theirs */
+main[data-section] .btn:not(.sm):not(.xs):not(.icon-only) { min-height: 34px; padding-inline: .95rem; font-size: .84rem; }
+main[data-section] dialog .btn:not(.sm):not(.xs) { min-height: 38px; font-size: .9rem; }
+
+/* in-page filter rows (gifts, cases, offers, campaigns…): one slim row – 32px controls, search takes the slack */
+main[data-section] :is(.zk-filters, .bn-bar, .cv-bar) { gap: .4rem; }
+main[data-section] :is(.zk-filters, .bn-bar, .cv-bar) :is(.pill-select, select.in, .m-search .in) { min-height: 32px; font-size: .82rem; padding-block: .2rem; }
+main[data-section] :is(.zk-filters, .bn-bar, .cv-bar) .pill-select { max-width: 9rem; }
+main[data-section] .zk-filters .m-search { flex: 1 1 160px; min-width: 140px; }
+main[data-section] :is(.zk-filters, .bn-bar) .check { font-size: .82rem; white-space: nowrap; }
+main[data-section] :is(.zk-filters, .bn-bar) .btn.sm { min-height: 30px; font-size: .8rem; padding-inline: .7rem; }
+main[data-section] .m-count { margin: .35rem 0 .3rem; font-size: .8rem; }
+main[data-section] .page > .page-head:not(.cc-head) .page-status .dot { display: inline-block; vertical-align: middle; margin-right: .35rem; }
+main[data-section] .page > .page-head:not(.cc-head) .page-status:hover { max-width: none; white-space: normal; }
+/* "N things to look at": closed by default – one slim line, the list stays first */
+main[data-section] details.zn-warns { padding: .35rem .8rem; margin-block: 0 .7rem; font-size: .82rem; }
+main[data-section] details.zn-warns[open] { padding-bottom: .55rem; }
+main[data-section] details.zn-warns summary { cursor: pointer; }
+main[data-section] details.zn-warns ul { margin: .35rem 0 0; }
+main[data-section] .bn-bar input[type=search] { flex: 0 1 220px; min-width: 120px; min-height: 32px; font-size: .82rem; }
+main[data-section] .bn-bar h2 { font-size: 1rem; }
+main[data-section] :is(.zk-table, .cm-table, .pp-table) .pill { white-space: nowrap; }

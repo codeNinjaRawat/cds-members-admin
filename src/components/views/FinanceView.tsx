@@ -128,7 +128,7 @@ function List({ s, txs, onOpen, places }: { s: FinanceSettings; txs: Tx[]; onOpe
         <select className="in pill-select" aria-label="Fund" value={fund} onChange={(e) => setFund(e.target.value)}><option value="">Every fund</option>{s.funds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select>
         <select className="in pill-select" aria-label="Center" value={center} onChange={(e) => setCenter(e.target.value)}><option value="*">Every place</option>{places.map((c) => <option key={c} value={c}>{where(c)}</option>)}</select>
         <select className="in pill-select" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Every status</option>{Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-        <button type="button" className="btn" onClick={csv}>Download CSV</button>
+        <button type="button" className="btn sm ghost" onClick={csv} aria-label="Download CSV" title="Download CSV"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> CSV</button>
       </div>
       <div className="table-wrap"><table className="t-plain zk-table fn-table">
         <thead><tr><th>Date</th><th>Payee / payer</th><th>Fund</th><th>Place</th><th className="num">Amount</th><th>Status</th></tr></thead>
@@ -218,7 +218,7 @@ function Reports({ s, txs, statements, centers, canMark, showFunds }: { s: Finan
   return (
     <div className="fn-reports">
       {showFunds && <section className="glass-pane zk-list" aria-label="Activity by fund">
-        <div className="bn-bar"><h2>Activity by fund, {s.year}</h2><label className="muted small">up to <input className="in" type="date" aria-label="Report up to" value={upTo} onChange={(e) => e.target.value && setUpTo(e.target.value)} /></label><button type="button" className="btn" onClick={csv}>Download CSV</button></div>
+        <div className="bn-bar"><h2>Activity by fund, {s.year}</h2><label className="muted small">up to <input className="in" type="date" aria-label="Report up to" value={upTo} onChange={(e) => e.target.value && setUpTo(e.target.value)} /></label><button type="button" className="btn sm ghost" onClick={csv} aria-label="Download CSV" title="Download CSV"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> CSV</button></div>
         <div className="table-wrap"><table className="t-plain zk-table fn-act">
           <thead><tr><th>Fund</th><th className="num">January 1</th><th className="num">Income</th><th className="num">Spent</th><th className="num">Transfers</th><th className="num">Balance</th></tr></thead>
           <tbody>{funds.map((f) => <tr key={f.id}><td>{f.name}{f.restricted && <small className="block">Restricted</small>}</td><td className="num">{usd(f.openingCents)}</td><td className="num">{usd(f.incomeCents)}</td><td className="num">{usd(f.spentCents)}</td><td className="num">{usd(transfers(f.id))}</td><td className="num"><b>{usd(f.balanceCents)}</b></td></tr>)}

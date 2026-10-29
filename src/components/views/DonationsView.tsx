@@ -108,7 +108,7 @@ function Gifts({ list, s, onOpen }: { list: Donation[]; s: DonationSettings; onO
         <select className="in pill-select" aria-label="How given" value={plat} onChange={(e) => setPlat(e.target.value)}><option value="">Every way</option>{(Object.keys(PLATFORMS) as Platform[]).map((p) => <option key={p} value={p}>{PLATFORMS[p]}</option>)}</select>
         <select className="in pill-select" aria-label="State" value={state} onChange={(e) => setState(e.target.value)}><option value="">Any state</option>{(Object.keys(RECON_LABEL) as ReconState[]).map((k) => <option key={k} value={k}>{RECON_LABEL[k]}</option>)}</select>
         <label className="check"><input type="checkbox" checked={receipt} onChange={(e) => setReceipt(e.target.checked)} /> <span>Receipt to send</span></label>
-        <button type="button" className="btn sm ghost" onClick={csv} disabled={!rows.length}>Download CSV</button>
+        <button type="button" className="btn sm ghost" onClick={csv} disabled={!rows.length} aria-label="Download CSV" title="Download CSV"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> CSV</button>
       </div>
       <p className="m-count">{rows.length} gift{rows.length === 1 ? '' : 's'} · {usd(rows.reduce((t, d) => t + (d.refunded ? 0 : d.amountCents), 0))}</p>
       <div className="table-wrap"><table className="t-plain zk-table">

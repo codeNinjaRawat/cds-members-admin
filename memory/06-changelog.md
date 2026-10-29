@@ -565,3 +565,4 @@ Everything is configuration with the client's values as a preset; nothing is wir
 - 2026-10-25 (later): home back to the previous editorial look; membership-only menu kept. Spotlight/Pop remain optional in admin, not active.
 - 2026-10-25 (evening): theme files + mock config + home/icons contracts copied from web; flag label "Try colors"; Home page › "Highlights slider" tab.
 - 2026-10-25 (night): site-config schema copied (menu link icon), mock config with ISGH branding and new menus, public/brand/isgh.
+- 2026-10-29 Module 3 (Money): page buttons 34px, filter rows one slim line (32px controls), compact CSV buttons, ledger columns sized, "things to look at" folded by default, page-status ellipsis fixed.
