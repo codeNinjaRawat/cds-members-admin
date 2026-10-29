@@ -266,3 +266,18 @@ i.s1 { background: var(--s1); } i.s2 { background: var(--s2); }
 @media (max-width: 820px) { .cc-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .cc .d-head { flex-wrap: wrap; } .cc-legend { flex-wrap: wrap; white-space: normal; } .yr { padding-top: 1rem; } }
 .cc-trend .chart-box svg { display: block; width: 100%; height: auto; max-height: 300px; }
+
+/* Home (2026-10-29): small plain greeting, KPI tiles in one even row */
+.cc-head { align-items: baseline; margin-bottom: .2rem; }
+.cc-head h1 { font-size: clamp(1.25rem, 1.6vw, 1.55rem); }
+.cc-head .page-intro { font-size: .85rem; margin-top: .1rem; }
+.cc-kpis { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); }
+.cc-kpi .cc-kl { min-height: 2.5em; line-height: 1.25; }   /* labels may take two lines; values stay on one baseline */
+@media (max-width: 1180px) and (min-width: 821px) { .cc-kpis { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); } }
+@media (max-width: 820px) { .cc-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cc-kpi:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+/* the two columns end on the same line: the last card of each column takes the remaining height */
+@media (min-width: 1401px) {
+  .cc-grid { align-items: stretch; }
+  .cc-main, .cc-side { display: flex; flex-direction: column; }
+  .cc-main > section.d-card:last-of-type, .cc-side > section.d-card:last-of-type { flex: 1 1 auto; }
+}

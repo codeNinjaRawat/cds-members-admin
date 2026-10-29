@@ -13,10 +13,9 @@ import { useHomeStats } from './useHomeStats';
 import { useOrg } from '@/lib/platform/use-org';
 import { LIVE } from '@/lib/live/live';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Bars, Donut, TableView } from './OverviewView';
 import { YearRibbon } from './YearRibbon';
-import { ArtBand } from '@/components/shell/Photo';
 
 const ICON = {
   members: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6',
@@ -38,7 +37,7 @@ export function CommandCenter() {
     { id: 'members', label: 'Current members', value: st.current.toLocaleString('en-US'), change: st.currentChange === null ? '' : `${st.currentChange >= 0 ? '+' : ''}${st.currentChange}%`, note: 'vs a year ago', up: (st.currentChange ?? 0) > 0, spark: st.currentSpark, icon: ICON.members },
     { id: 'apps', label: 'Waiting for approval', value: String(st.pending), change: `${st.appsThisMonth} applied this month`, note: st.appsLastMonth ? `${st.appsLastMonth} last month` : 'applications', up: st.appsThisMonth > st.appsLastMonth, spark: st.appsSpark, icon: ICON.apps },
     { id: 'renew', label: 'Renewals this month', value: st.renewMonth.toLocaleString('en-US'), change: vs(st.renewMonth, st.renewals[10]) || '—', note: st.dates.opens ? `renewals open ${st.dates.opens.slice(5).replace('-', '/')}` : 'vs last month', up: st.renewMonth > st.renewals[10], spark: st.renewals, icon: ICON.renew },
-    { id: 'fees', label: 'Membership fees this month', value: k$(st.feesMonth), change: vs(st.feesMonth, st.feesPrevMonth) || '—', note: 'dues only · vs last month', up: st.feesMonth > st.feesPrevMonth, spark: st.renewals.slice(6), icon: 'M3 7h18v10H3zM3 11h18M7 15h3' },
+    { id: 'fees', label: 'Dues this month', value: k$(st.feesMonth), change: vs(st.feesMonth, st.feesPrevMonth) || '—', note: 'dues only · vs last month', up: st.feesMonth > st.feesPrevMonth, spark: st.renewals.slice(6), icon: 'M3 7h18v10H3zM3 11h18M7 15h3' },
     { id: 'giving', label: 'Giving this month', value: k$(st.givingMonth), change: vs(st.givingMonth, st.givingPrevMonth) || '—', note: 'vs last month', up: st.givingMonth > st.givingPrevMonth, spark: st.giving6.map((g) => g.cents), icon: ICON.giving },
   ];
   const zones = st.zones;
@@ -51,8 +50,7 @@ export function CommandCenter() {
 
   return (
     <div className="page cc">
-      <header className="page-head cc-head has-art">
-        <ArtBand k="minarets-sunset" side="left" />
+      <header className="page-head cc-head">
         <div>
           <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
           <p className="page-intro">What needs you today across membership, giving and the website.</p>
@@ -64,7 +62,7 @@ export function CommandCenter() {
 
       <div className="cc-grid">
         <div className="cc-main">
-          <div className="cc-kpis">
+          <div className="cc-kpis" style={{ '--n': kpis.filter((k) => show(`cc.kpi.${k.id}`)).length } as CSSProperties}>
             {kpis.filter((k) => show(`cc.kpi.${k.id}`)).map((k, i) => (
               <section key={k.id} className={`cc-kpi glass-pane k${i}`} data-kpi={k.id}>
                 <i className="cc-ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24"><path d={k.icon} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></i>

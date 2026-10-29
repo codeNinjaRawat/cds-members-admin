@@ -29,7 +29,6 @@ import { LIVE } from '@/lib/live/live';
 import { allCases, useQueueState } from './QueuesView';
 import { SEATS, holdersAt, useOrg } from './TeamViews';
 import { YearRibbon } from './YearRibbon';
-import { ArtBand } from '@/components/shell/Photo';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: ORG_TZ });
 const n = (v: number) => v.toLocaleString('en-US');
@@ -150,7 +149,7 @@ export function MasjidHome() {
 
   return (
     <div className="page cc mh" data-masjid={m.id}>
-      <header className="page-head">
+      <header className="page-head cc-head">
         <div>
           <h1 suppressHydrationWarning>Assalamu alaikum, {firstName} <span className="cc-greet" suppressHydrationWarning>· {greet}</span></h1>
           <p className="page-intro">{role.areaScoped ? 'Your ZIP codes' : 'Your masjid'} at a glance – members, dues, who serves and what needs you.</p>
@@ -158,8 +157,7 @@ export function MasjidHome() {
         <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: ORG_TZ })}</p>
       </header>
 
-      <section className="mh-hero glass-pane has-art" aria-label={m.name}>
-        <ArtBand k="mosque-sunset" side="left" />
+      <section className="mh-hero glass-pane" aria-label={m.name}>
         <div>
           <p className="eyebrow">{role.areaScoped ? 'My area' : 'Masjid'} · {role.name}</p>
           <h2 className="mh-name">{m.name}</h2>
