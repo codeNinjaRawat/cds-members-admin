@@ -191,16 +191,10 @@ function SideTree({ pathname, can, rail = false }: { pathname: string; can: (hre
     return now ? now === want : siblings[0]?.href === href;
   };
   const activeParent = NAV_TREE.find((n) => n.children?.some((c) => isActive(c.href)))?.label;
-  useEffect(() => {
-    let saved: string[] = [];
-    try { saved = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); } catch { /* */ }
-    setOpen(Array.from(new Set([...saved, ...(activeParent ? [activeParent] : [])])));
-  }, [activeParent]);
-  const toggle = (label: string) => setOpen((o) => {
-    const n = o.includes(label) ? o.filter((x) => x !== label) : [...o, label];
-    try { localStorage.setItem(OPEN_KEY, JSON.stringify(n)); } catch { /* */ }
-    return n;
-  });
+  // owner 2026-10-29: every menu starts collapsed (the current one is only highlighted); one menu open at a time,
+  // kept while moving between pages, collapsed again on a fresh load
+  useEffect(() => { try { localStorage.removeItem(OPEN_KEY); } catch { /* */ } }, []);
+  const toggle = (label: string) => setOpen((o) => (o.includes(label) ? [] : [label]));
   return (
     <nav className="side-tree">
       <ul className="tree">
