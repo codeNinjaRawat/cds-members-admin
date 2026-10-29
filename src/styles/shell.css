@@ -235,3 +235,9 @@ main { overflow-x: clip; }
 :root:not([data-nav="rail"]) .tree .sub { margin: 1px 0 4px 1.55rem; gap: 0; }
 :root:not([data-nav="rail"]) .sub-link { padding: .28rem .6rem; font-size: .85rem; line-height: 1.3; }
 :root:not([data-nav="rail"]) .side-sec { margin: .7rem 0 .15rem; }
+
+/* masjid picker in the top bar (2026-10-29): one place to narrow every page to a zone or masjid */
+.top .top-masjid { flex: none; max-width: 200px; min-height: 32px; font-size: .8rem; }
+.top .top-masjid:not(:has(option[value=""]:checked)) { border-color: var(--accent-ink); color: var(--ink); background-color: color-mix(in srgb, var(--accent-ink) 12%, var(--field)); }
+.top .dbar-lock.top-masjid { display: inline-flex; align-items: center; padding: 0 .7rem; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 720px) { .top .top-masjid { max-width: 120px; } }

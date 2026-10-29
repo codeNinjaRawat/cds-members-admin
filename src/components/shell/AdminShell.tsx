@@ -5,7 +5,7 @@
  */
 import { Photo, useArtUrl } from './Photo';
 import { SECTION_ART, WALL_PHOTOS } from '@/lib/images';
-import { ViewingChip } from './MasjidPicker';
+import { MasjidPicker } from './MasjidPicker';
 import { IdleLock } from './IdleLock';
 import { MemberSearch } from './MemberSearch';
 import { DataLoading } from './DataLoading';
@@ -113,7 +113,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <header className="top glass-nav">
           <button className="icon-btn menu-btn" aria-label="Open menu" aria-expanded={drawer} onClick={() => setDrawer(true)}><Icon name="menu" /></button>
           <MemberSearch />
-          <ViewingChip />
+          <MasjidPicker className="xs top-masjid" label="Masjid – filters every page" />
           {LIVE && <span className="env live" title="Connected to the API – changes are saved to the database">Live</span>}
           <a className="top-link" href={site} target="_blank" rel="noopener noreferrer">Open Website<span className="sr-only"> (opens in a new tab)</span></a>
           <button className={`icon-btn work-btn${work ? ' on' : ''}`} aria-label={work ? 'Leave work mode (Esc)' : 'Work mode – full page (Ctrl+Shift+F)'} aria-pressed={work} title={work ? 'Leave work mode (Esc)' : 'Work mode: the whole screen for the page (Ctrl+Shift+F)'} onClick={() => update({ work: work ? 'off' : 'on' })}>

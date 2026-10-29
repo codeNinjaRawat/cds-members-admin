@@ -65,7 +65,11 @@ export function MembersView({ search = '' }: { search?: string }) {
   useEffect(() => { const on = () => setQState(readQ()); window.addEventListener('popstate', on); window.addEventListener('isgh:tab', on);
     return () => { window.removeEventListener('popstate', on); window.removeEventListener('isgh:tab', on); }; }, []);
   // the shared "Viewing" masjid fills the zone / center filters when the address has none; choices here are shared back
-  useEffect(() => { if (mf.narrowed && !q.zone && !q.center) setQ({ zone: mf.zone, center: mf.masjid === UNROUTED ? '' : mf.masjid }); }, [mf.zone, mf.masjid]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the top-bar masjid picker and this list stay in step both ways (owner 2026-10-29: one picker filters every page)
+  useEffect(() => {
+    if (mf.narrowed) { const center = mf.masjid === UNROUTED ? '' : mf.masjid; if (q.zone !== mf.zone || q.center !== center) setQ({ zone: mf.zone as Q['zone'], center }); }
+    else if (q.zone || q.center) setQ({ zone: '', center: '' });
+  }, [mf.zone, mf.masjid]); // eslint-disable-line react-hooks/exhaustive-deps
   const setQ = useCallback((patch: Partial<Q>) => setQState((cur) => {
     const next = { ...cur, ...patch, page: 'page' in patch ? patch.page! : 1 };
     const u = new URL(window.location.href); u.search = '';
@@ -80,7 +84,9 @@ export function MembersView({ search = '' }: { search?: string }) {
   const contact = access.can('members.contact');
   // nothing is listed until the signed-in person's scope is known – a zone or area role must never see the whole list for a moment
   const rows: Row[] = useMemo(() => (access.ready ? (members ?? []) : []).filter((m) => access.inScope(m.zone, centerOf(m), m.zip)).map((m) => { const lp = lastPayment(m); return { m, status: statusOf(m), vote: eligibility(m), paid: lp?.paidOn ?? '' }; }), [members, access.ready, access.me?.id, access.dashIndex]);
-  const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, rows.filter(v.test).length])) as Record<ViewId, number>, [rows]);
+  // counts and the header total follow the masjid / zone / plan / status filters (not the search), so they match the list
+  const base = useMemo(() => rows.filter((r) => (!q.zone || r.m.zone === q.zone) && (!q.plan || r.m.plan === q.plan) && (!q.status || r.status === q.status) && (!q.center || centerOf(r.m) === q.center)), [rows, q.zone, q.plan, q.status, q.center]);
+  const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, base.filter(v.test).length])) as Record<ViewId, number>, [base]);
 
   const filtered = useMemo(() => {
     const view = VIEWS.find((v) => v.id === q.view)!;
@@ -130,7 +136,7 @@ export function MembersView({ search = '' }: { search?: string }) {
     <div className={`page members${peekRow ? ' has-peek' : ''}`}>
       <header className="page-head m-head-row ph-line">
         <div>
-          <h1>Members <span className="m-total">{members ? rows.filter((r) => r.status !== 'archived').length.toLocaleString('en-US') : ''}</span></h1>
+          <h1>Members <span className="m-total">{members ? base.filter((r) => r.status !== 'archived').length.toLocaleString('en-US') : ''}</span></h1>
           <p className="page-intro">Record date {fmtDate(recordDate(YEAR))}</p>
         </div>
         <div className="page-actions">
