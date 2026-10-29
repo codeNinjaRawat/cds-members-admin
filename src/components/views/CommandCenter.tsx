@@ -54,7 +54,7 @@ export function CommandCenter() {
         <div>
           <p className="cc-date" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: ORG_TZ })}</p>
           <h1 suppressHydrationWarning>Assalamu alaikum, {firstName}<span className="cc-greet" suppressHydrationWarning> · {greet}</span></h1>
-          <p className="page-intro">What needs you today across membership, giving and the website.</p>
+          <p className="page-intro">What needs you today</p>
         </div>
       </header>
 
