@@ -84,8 +84,8 @@ export function FamiliesView({ search = '' }: { search?: string }) {
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M20 20l-4-4" stroke="currentColor" strokeWidth="2" /></svg>
             <span className="sr-only">Find a member</span>
             <input className="in" type="search" placeholder="Find a member by name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
-            <MasjidPicker />
           </label>
+          <MasjidPicker />
           {hits.length > 0 && <ul className="fam-hits" aria-label="Matches">{hits.map((h) => <li key={h.id}><button type="button" onClick={() => pick(h.id)}><b>{memberName(h)}</b><small>{h.id} · {ZONES[h.zone]}</small></button></li>)}</ul>}
           <h2 className="wq-h3">Families to reach</h2>
           <p className="muted fam-small">Members with relatives who could join now or turn 18 before the record date.</p>

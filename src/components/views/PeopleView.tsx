@@ -17,7 +17,8 @@ import { AddMemberDialog } from './AddMemberDialog';
 import { currentOrg } from '@/lib/access/masjid-filter';
 
 /** Center id (`aqsa-katy`) → its name; unknown ids are shown as they are. */
-const masjidName = (id: string | null) => (id ? currentOrg().centers.find((c) => c.id === id)?.name ?? id : '');
+/** A masjid id, or (older rows) a masjid name or a zone id – shown as a name, never a bare code. */
+const masjidName = (id: string | null) => { if (!id) return ''; const o = currentOrg(); const c = o.centers.find((x) => x.id === id || x.name === id); if (c) return c.name; const z = o.zones.find((x) => x.id === id); return z ? (/zone$/i.test(z.name) ? z.name : `${z.name} zone`) : id; };
 
 type Person = { contactId: string; masjidId: string | null; firstName: string; lastName: string; email: string; phone: string; source: string; note: string; tags: string[]; createdAt: string; lastSeenAt: string;
   stage: 'contact' | 'applicant' | 'member' | 'donor' | 'applicant+donor' | 'member+donor'; becameMemberAt: string | null; firstGiftAt: string | null;
@@ -103,16 +104,15 @@ export function PeopleView() {
         </div>
         {list === null ? <p className="muted">Loading people…</p> : !shown.length ? <p className="muted">Nobody {q ? 'matches' : 'here yet'}.</p> : (
           <div className="table-wrap"><table className="t-plain zk-table cm-table pp-table">
-            <thead><tr><th>Person</th><th>Stage</th><th>Mobile</th><th>Masjid</th><th>Giving</th><th>Since</th><th>Tags · note</th><th /></tr></thead>
+            <thead><tr><th>Person</th><th>Stage</th><th>Masjid</th><th>Giving</th><th>Since</th><th>Tags · note</th><th /></tr></thead>
             <tbody>{shown.map((p) => (
               <tr key={p.contactId}>
-                <td><strong>{p.firstName} {p.lastName}</strong><br /><a href={`mailto:${p.email}`}>{p.email}</a><br /><small className="muted">{SOURCE[p.source] ?? p.source}{p.events ? ` · ${p.events} event${p.events === 1 ? '' : 's'}` : ''}</small></td>
-                <td><span className={`pill ${STAGE[p.stage].cls}`}>{STAGE[p.stage].label}</span>{p.member && <><br /><Link href={`/members/${encodeURIComponent(p.member.id)}`}>{p.member.id}</Link>{p.member.status ? <small className="muted"> · {p.member.status}</small> : null}</>}</td>
-                <td>{p.phone ? <a href={`tel:${p.phone}`}>{phone(p.phone)}</a> : <span className="muted">—</span>}</td>
-                <td>{p.masjidId ? masjidName(p.masjidId) : <span className="muted">—</span>}</td>
-                <td>{p.giving.count ? <>{usd(p.giving.cents)}<br /><small className="muted">{p.giving.count} gift{p.giving.count === 1 ? '' : 's'} · last {when(p.giving.lastOn)}</small></> : <span className="muted">—</span>}</td>
-                <td>{when(p.createdAt)}{p.lastSeenAt.slice(0, 10) !== p.createdAt.slice(0, 10) && <><br /><small className="muted">seen {when(p.lastSeenAt)}</small></>}</td>
-                <td>{editing?.id === p.contactId ? (
+                <td><strong>{p.firstName} {p.lastName}</strong><br /><a href={`mailto:${p.email}`}>{p.email}</a>{p.phone && <> · <a href={`tel:${p.phone}`}>{phone(p.phone)}</a></>}<br /><small className="muted">{SOURCE[p.source] ?? p.source}{p.events ? ` · ${p.events} event${p.events === 1 ? '' : 's'}` : ''}</small></td>
+                <td data-label="Stage"><span className={`pill ${STAGE[p.stage].cls}`}>{STAGE[p.stage].label}</span>{p.member && <><br /><Link href={`/members/${encodeURIComponent(p.member.id)}`}>{p.member.id}</Link>{p.member.status ? <small className="muted"> · {p.member.status}</small> : null}</>}</td>
+                <td data-label="Masjid">{p.masjidId ? masjidName(p.masjidId) : <span className="muted">—</span>}</td>
+                <td data-label="Giving">{p.giving.count ? <>{usd(p.giving.cents)}<br /><small className="muted">{p.giving.count} gift{p.giving.count === 1 ? '' : 's'} · last {when(p.giving.lastOn)}</small></> : <span className="muted">—</span>}</td>
+                <td data-label="Since">{when(p.createdAt)}{p.lastSeenAt.slice(0, 10) !== p.createdAt.slice(0, 10) && <><br /><small className="muted">seen {when(p.lastSeenAt)}</small></>}</td>
+                <td data-label="Tags · note">{editing?.id === p.contactId ? (
                   <span className="row-edit"><input className="in sm" value={editing.tags} onChange={(e) => setEditing({ ...editing, tags: e.target.value })} aria-label="Tags, comma separated" placeholder="tags, comma separated" />
                     <input className="in sm" value={editing.note} onChange={(e) => setEditing({ ...editing, note: e.target.value })} aria-label="Note" placeholder="note" />
                     <button type="button" className="btn sm primary" onClick={() => void save(p)}>Save</button> <button type="button" className="btn sm" onClick={() => setEditing(null)}>Cancel</button></span>
@@ -121,7 +121,7 @@ export function PeopleView() {
                   {canEdit && editing?.id !== p.contactId && <button type="button" className="btn sm" onClick={() => setEditing({ id: p.contactId, note: p.note, tags: p.tags.join(', ') })}>Tag / note<span className="sr-only"> for {p.firstName}</span></button>}
                   {!p.member && canEdit && LIVE && <button type="button" className="btn sm primary" onClick={() => setAdding(p)}>Make a member</button>}
                   {!p.member && canMessage && LIVE && <button type="button" className="btn sm" onClick={() => setMessage(p)}>Email</button>}
-                  {canEdit && <button type="button" className="btn sm danger" onClick={() => void remove(p)}>Remove<span className="sr-only"> {p.firstName}</span></button>}
+                  {canEdit && <button type="button" className="btn sm ghost pp-remove" onClick={() => void remove(p)}>Remove<span className="sr-only"> {p.firstName}</span></button>}
                 </td>
               </tr>
             ))}</tbody>

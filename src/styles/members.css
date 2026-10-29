@@ -312,11 +312,14 @@ code { font-size: .8rem; }
 /* D10 – Members › Check-o-matic */
 .cm-kpis { margin-bottom: 1rem; }
 .cm-search { margin-left: auto; min-width: 220px; }
-.cm-table td { vertical-align: top; }
+.cm-table td { vertical-align: middle; }
+.cm-table .pill { white-space: nowrap; }
+.cm-table .cm-mark { width: 9rem; min-width: 0; flex: none; min-height: 30px; font-size: .8rem; }
+.cm-table td:first-child { min-width: 12rem; }
 .cm-meter { height: 4px; border-radius: 999px; background: var(--line); margin-top: .35rem; overflow: hidden; max-width: 140px; }
 .cm-meter i { display: block; height: 100%; background: var(--accent-ink); }
 .cm-table tr.is-unknown td:first-child b { color: var(--ink); }
-.cm-table .row-actions { display: flex; gap: .3rem; flex-wrap: wrap; justify-content: flex-end; }
+.cm-table .row-actions { display: flex; gap: .4rem; flex-wrap: nowrap; justify-content: flex-end; align-items: center; white-space: nowrap; }
 
 /* Add a member (dialog) */
 .modal.modal-wide { width: min(880px, calc(100vw - 32px)); }
@@ -351,4 +354,26 @@ code { font-size: .8rem; }
   .m-contact > a, .m-zone { white-space: nowrap; }
   .m-zone small { white-space: normal; }
   .m-contact small { display: inline; margin-left: .4rem; max-width: none; }
+}
+
+/* People list (2026-10-29): one line per value, quiet remove, actions side by side */
+.pp-table td a[href^="tel:"] { white-space: nowrap; }
+.pp-table td.actions { white-space: nowrap; text-align: right; }
+.pp-table td:nth-child(3), .pp-table td:nth-child(5) { white-space: nowrap; }   /* masjid, since */
+.pp-table td:nth-child(4) { min-width: 7.5rem; }   /* giving */
+.pp-table td:nth-child(6) { min-width: 8rem; }   /* tags and note */
+.pp-table td.actions .btn + .btn { margin-left: .3rem; }
+.pp-table .pp-remove { color: var(--bad, #c0392b); border-color: transparent; background: transparent; }
+.pp-table .pp-remove:hover { background: color-mix(in srgb, var(--bad, #c0392b) 12%, transparent); }
+
+/* phones: Check-o-matic and People rows become cards (labels from data-label) */
+@media (max-width: 760px) {
+  .cm-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .cm-table, .cm-table tbody, .cm-table tr, .cm-table td { display: block; width: 100%; min-width: 0 !important; }
+  .cm-table tr { padding: .7rem .2rem; border-bottom: 1px solid var(--line); }
+  .cm-table td, .cm-table td.num { border: 0 !important; padding: .15rem 0; text-align: left !important; white-space: normal; }
+  .cm-table td[data-label]:not([data-label="Giver"])::before { content: attr(data-label) ": "; color: var(--ink-3); font-size: .78rem; }
+  .cm-table td small.block { display: inline; margin-left: .3rem; }
+  .cm-table td.row-actions, .pp-table td.actions { justify-content: flex-start; text-align: left; padding-top: .4rem; }
+  .pp-table td:first-child br + small { display: block; }
 }

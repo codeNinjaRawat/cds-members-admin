@@ -61,10 +61,12 @@ export type Rule = z.infer<typeof RuleSchema>;
 
 /** Facts about one member that rules can test (built by the admin / BE from the member record). */
 export type Facts = { id: string; zone: string; center: string; plan: string; status: string; renewal?: string; voting: 'yes' | 'no'; payment: string; age: number; joinedYear: number };
+/** "North" and "North Zone" are the same zone – organizations name their zones either way. */
+const norm = (field: string, v: string) => { const x = v.trim().toLowerCase(); return field === 'zone' ? x.replace(/\s+zone$/, '') : x; };
 export function ruleMatches(r: Rule, f: Facts) {
-  const v = f[r.field]; const want = r.value.trim().toLowerCase();
+  const v = f[r.field]; const want = norm(r.field, r.value);
   if (r.op === 'atLeast' || r.op === 'atMost') { const n = Number(v), w = Number(r.value); if (!Number.isFinite(n) || !Number.isFinite(w)) return false; return r.op === 'atLeast' ? n >= w : n <= w; }
-  const eq = String(v).toLowerCase() === want;
+  const eq = norm(r.field, String(v)) === want;
   return r.op === 'is' ? eq : !eq;
 }
 /** Archived member records are never in a group. Automatic: exceptions first, then all / any rules. */
@@ -113,7 +115,7 @@ export function ruleIssues(g: Group, choices: RuleChoices): { rule: number; mess
   const out: { rule: number; message: string }[] = [];
   g.rules.forEach((r, i) => {
     const list = (choices as Record<string, string[]>)[r.field];
-    if (list && !list.some((v) => v.toLowerCase() === r.value.trim().toLowerCase())) out.push({ rule: i, message: `No ${RULE_LABEL[r.field].toLowerCase()} is called "${r.value}". Use one of: ${list.slice(0, 8).join(', ')}${list.length > 8 ? '…' : ''}.` });
+    if (list && !list.some((v) => norm(r.field, v) === norm(r.field, r.value))) out.push({ rule: i, message: `No ${RULE_LABEL[r.field].toLowerCase()} is called "${r.value}". Use one of: ${list.slice(0, 8).join(', ')}${list.length > 8 ? '…' : ''}.` });
   });
   if (g.match === 'all') {
     const isRules = g.rules.filter((r) => r.op === 'is');

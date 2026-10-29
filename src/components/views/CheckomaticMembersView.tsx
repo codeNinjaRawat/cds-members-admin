@@ -129,17 +129,19 @@ export function CheckomaticMembersView() {
             const t = tags[g.key];
             return (
               <tr key={g.key} data-giver={g.key} className={g.member ? 'is-member' : 'is-unknown'}>
-                <td>{g.member ? <Link href={`/members/${g.member.id}`}><b>{g.name}</b></Link> : <b>{g.name}</b>}<small className="block">{g.email || 'no email'} · {g.center.replace(' Islamic Center', ' IC') || 'center unknown'} · last gift {fmtDate(g.lastOn)}</small></td>
-                <td className="num">{g.monthly ? usd(g.monthly) : '—'}</td>
-                <td className="num"><b>{usd(g.yearTotal)}</b><small className="block">{g.gifts.length} gift{g.gifts.length === 1 ? '' : 's'}{g.yearTotal !== g.total ? ` · ${usd(g.total)} counted by ${md(rule.cutoff)}` : ''}</small></td>
-                <td>{g.ok ? <span className="pill good">Qualifies by {fmtDate(g.by)}</span> : <span className="pill warn">{usd(g.needed)} short</span>}<div className="cm-meter" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round((g.total / Math.max(1, rule.totalCents)) * 100))}%` }} /></div></td>
-                <td>{g.member ? <span className="pill good">Member · {g.member.id}</span> : <span className="pill">Not in the system</span>}</td>
-                <td>{t ? <span className={`pill ${t.kind === 'application' ? 'good' : ''}`} title={`${t.by} · ${new Date(t.at).toLocaleDateString('en-US')}`}>{TAG_LABEL[t.kind]}</span> : <span className="muted small">—</span>}</td>
+                <td data-label="Giver">{g.member ? <Link href={`/members/${g.member.id}`}><b>{g.name}</b></Link> : <b>{g.name}</b>}<small className="block">{g.email || 'no email'} · {g.center.replace(' Islamic Center', ' IC') || 'center unknown'} · last gift {fmtDate(g.lastOn)}</small></td>
+                <td className="num" data-label="Monthly">{g.monthly ? usd(g.monthly) : '—'}</td>
+                <td className="num" data-label={`Given in ${YEAR}`}><b>{usd(g.yearTotal)}</b><small className="block">{g.gifts.length} gift{g.gifts.length === 1 ? '' : 's'}{g.yearTotal !== g.total ? ` · ${usd(g.total)} by ${md(rule.cutoff).replace(/^(\w{3})\w*/, '$1')}` : ''}</small></td>
+                <td data-label="Rule">{g.ok ? <span className="pill good" title={`Reached ${formatUSD(rule.totalCents)} on ${fmtDate(g.by)}`}>Qualifies · {fmtDate(g.by).slice(0, 5)}</span> : <span className="pill warn">{usd(g.needed)} short</span>}<div className="cm-meter" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round((g.total / Math.max(1, rule.totalCents)) * 100))}%` }} /></div></td>
+                <td data-label="Membership">{g.member ? <span className="pill good">Member · {g.member.id}</span> : <span className="pill">Not in the system</span>}</td>
+                <td data-label="Tag">{!g.member && canAct && t?.kind !== 'application'
+                  ? <select className="in sm pill-select cm-mark" aria-label={`Tag ${g.name}`} title={t ? `${t.by} · ${new Date(t.at).toLocaleDateString('en-US')}` : undefined} value={t?.kind ?? ''} onChange={(e) => { if (e.target.value) tag(g.key, e.target.value as Tag['kind']); }}>
+                      {!t && <option value="">Not tagged</option>}<option value="contacted">Contacted</option><option value="eligible-no-info">Eligible, no information</option><option value="not-interested">Not interested</option>
+                    </select>
+                  : t ? <span className={`pill ${t.kind === 'application' ? 'good' : ''}`} title={`${t.by} · ${new Date(t.at).toLocaleDateString('en-US')}`}>{TAG_LABEL[t.kind]}</span> : <span className="muted small">—</span>}</td>
                 <td className="row-actions">
                   {g.member && canAct && <button type="button" className="btn sm" onClick={() => noteMember(g)}>Note on the record<span className="sr-only"> {g.name}</span></button>}
                   {!g.member && canAct && <>
-                    <button type="button" className="btn sm" onClick={() => tag(g.key, 'contacted')}>Contacted<span className="sr-only"> {g.name}</span></button>
-                    <button type="button" className="btn sm" onClick={() => tag(g.key, 'eligible-no-info')}>Eligible, no information<span className="sr-only"> {g.name}</span></button>
                     {g.ok && t?.kind !== 'application' && <button type="button" className="btn sm primary" onClick={() => startApplication(g)}>Start application<span className="sr-only"> {g.name}</span></button>}
                   </>}
                 </td>

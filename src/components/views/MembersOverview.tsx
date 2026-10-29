@@ -38,6 +38,10 @@ export function MembersOverview() {
   const card = o.methods.find((m) => m.id === 'card')!;
   const payTotal = o.methods.reduce((s, m) => s + m.count, 0);
   const scope = sc.label;
+  // the voting-list card only means something for imported records; with it, status and voting sit side by side
+  const showLists = o.voteLists.some((g) => g.id !== 'not-imported');
+  const plans = o.plans.filter((p) => p.count > 0);
+  const ages = o.ages.filter((a) => a.band !== 'Not given' || a.count > 0);
 
   return (
     <div className="page mo">
@@ -60,16 +64,16 @@ export function MembersOverview() {
           <StatTile id="total" hero label="Members" value={n(o.total)} note={`${n(o.joinedThisYear)} joined in ${YEAR}`} spark={o.joins.map((j) => j.count)} />
           <StatTile id="voters" label={`Can vote in ${YEAR}`} value={n(o.voters)} note={`${pct(o.voters, o.total)}% of members`} meter={{ value: o.voters, of: o.total }} />
           <StatTile id="renewed" label={`Renewed for ${YEAR}`} value={`${pct(o.renewal.renewed, o.renewal.due)}%`} note={`${n(o.renewal.renewed)} of ${n(o.renewal.due)} due · ${n(o.renewal.due - o.renewal.renewed)} still to renew`} meter={{ value: o.renewal.renewed, of: o.renewal.due }} />
-          <StatTile id="dues" label={`Membership fee collected for ${YEAR}`} value={money(o.duesCents)} tone={dueDiff >= 0 ? 'up' : 'down'}
+          <StatTile id="dues" label={`Dues collected ${YEAR}`} value={money(o.duesCents)} tone={dueDiff >= 0 ? 'up' : 'down'}
             note={`${money(Math.abs(dueDiff))} ${dueDiff >= 0 ? 'more' : 'less'} than ${YEAR - 1} by ${fmtDate(today).slice(0, 5)}`} spark={o.cumulativeCents} />
         </div>}
 
-        {show('mo.status') && <ChartCard id="status" className="mo-status" title="Where members stand" note={<><b>{n(o.pending)}</b> applications wait for the Board · <Link href="/members?view=not-renewed">see who has not renewed</Link>{o.noMasjid > 0 && <> · <Link href="/members?view=no-masjid"><b>{n(o.noMasjid)}</b> with no masjid</Link> (ZIP code belongs to no masjid)</>}</>}
+        {show('mo.status') && <ChartCard id="status" className={showLists ? 'mo-half' : 'mo-status'} title="Where members stand" note={<><b>{n(o.pending)}</b> applications wait for the Board · <Link href="/members?view=not-renewed">see who has not renewed</Link>{o.noMasjid > 0 && <> · <Link href="/members?view=no-masjid"><b>{n(o.noMasjid)}</b> with no masjid</Link> (ZIP code belongs to no masjid)</>}</>}
           table={{ head: ['Status', 'Members'], rows: o.statuses.map((s) => [s.label, s.count]) }}>
           <ShareBar label="Members by status" items={o.statuses.map((s) => ({ id: s.id, label: s.label, value: s.count }))} />
         </ChartCard>}
 
-        {show('mo.status') && <ChartCard id="votelists" className="mo-status" title={`Voting lists ${YEAR} (Wild Apricot)`}
+        {show('mo.status') && showLists && <ChartCard id="votelists" className="mo-half" title={`Voting lists ${YEAR} (Wild Apricot)`}
           note={<>Every member is in one group – they add up to <b>{n(o.total)}</b>.{o.voteLists.some((g) => g.id === 'both') && <> <Link href="/members?view=vote-check">See who is on both lists</Link>.</>}</>}
           table={{ head: ['List', 'Members', `Can vote in ${YEAR}`], rows: [...o.voteLists.map((g) => [g.label, g.count, g.voters] as (string | number)[]), ['Total', o.total, o.voters]] }}>
           <ShareBar label="Members by voting list" items={o.voteLists.map((g) => ({ id: g.id, label: g.label, value: g.count }))} />
@@ -84,8 +88,8 @@ export function MembersOverview() {
         </ChartCard>}
 
         {show('mo.plans') && <ChartCard id="plans" className="mo-side" title="Membership plans" note={<>{topPlan.label} is the most common plan.</>}
-          table={{ head: ['Plan', 'Members'], rows: o.plans.map((p) => [p.label, p.count]) }}>
-          <Donut label="Members by plan" centerLabel="members" items={o.plans.map((p) => ({ id: p.id, label: p.label, value: p.count }))} />
+          table={{ head: ['Plan', 'Members'], rows: plans.map((p) => [p.label, p.count]) }}>
+          <Donut label="Members by plan" centerLabel="members" items={plans.map((p) => ({ id: p.id, label: p.label, value: p.count }))} />
         </ChartCard>}
 
         {show('mo.zones') && <ChartCard id="zones" className="mo-half" title="Members and voters by zone" note={<>{topZone.label} has the most members ({n(topZone.voters + topZone.others)}).</>}
@@ -95,8 +99,8 @@ export function MembersOverview() {
         </ChartCard>}
 
         {show('mo.ages') && <ChartCard id="ages" className="mo-half" title="Age groups" note={<>The largest group is <b>{biggestAge.band}</b> ({n(biggestAge.count)} members).</>}
-          table={{ head: ['Age', 'Members'], rows: o.ages.map((a) => [a.band, a.count]) }}>
-          <Columns label="Members by age group" items={o.ages.map((a) => ({ label: a.band, value: a.count }))} />
+          table={{ head: ['Age', 'Members'], rows: ages.map((a) => [a.band, a.count]) }}>
+          <Columns label="Members by age group" items={ages.map((a) => ({ label: a.band, value: a.count }))} />
         </ChartCard>}
 
         {show('mo.joins') && <ChartCard id="joins" className="mo-wide" title="New members by year joined" note={<>Members still on record, by the year they joined. {n(o.joinedThisYear)} so far in {YEAR}.</>}
