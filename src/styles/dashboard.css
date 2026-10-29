@@ -364,3 +364,12 @@ main[data-section="People"] .cm-table td.num:nth-child(3) { min-width: 9.5rem; }
 main[data-section="People"] .cm-table td:first-child small.block { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22rem; }
 main[data-section="People"] .page > .page-head:not(.cc-head) .page-status { flex: 0 1 auto; margin: 0; min-width: 0; max-width: 30ch; display: flex; align-items: center; gap: .35rem; font-size: .74rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 main[data-section="People"] .page > .page-head:not(.cc-head) .page-status .pill { font-size: .68rem; flex: none; }
+
+/* dashboard filter bar (2026-10-29): no panel, small period chips, Export on the right; inside a dashboard header it sits on the title row */
+.dbar.dbar-slim { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: 0; margin: 0 0 .7rem; background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; min-height: 0; }
+.dbar.dbar-slim .dbar-filters { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.dbar.dbar-slim .dbar-actions { display: flex; align-items: center; gap: .35rem; margin-left: auto; }
+.dbar.dbar-slim .seg { padding: 2px; }
+.dbar.dbar-slim .seg button { min-height: 26px; padding: 0 .65rem; font-size: .76rem; }
+.dbar.dbar-slim .mo-chip { font-size: .74rem; }
+.dash-head .page-actions .dbar.dbar-slim { margin: 0; }

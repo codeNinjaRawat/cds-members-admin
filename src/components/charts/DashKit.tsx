@@ -14,7 +14,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAccess } from '@/lib/access/use-access';
 import { logAudit } from '@/lib/access/audit';
 import { useMasjidFilter } from '@/lib/access/masjid-filter';
-import { MasjidPicker } from '@/components/shell/MasjidPicker';
 
 export type Period = '30d' | '90d' | 'year' | '12m' | 'all';
 export const PERIODS: Record<Period, string> = { '30d': 'Last 30 days', '90d': 'Last 3 months', year: 'This year', '12m': 'Last 12 months', all: 'All time' };
@@ -77,7 +76,7 @@ export function DashBar({ s, show, report, onExport, extra }: {
   report?: { href: string; label: string }; onExport?: () => void; extra?: ReactNode;
 }) {
   return (
-    <div className="dbar glass-pane" role="toolbar" aria-label="Filters and exports">
+    <div className="dbar dbar-slim" role="toolbar" aria-label="Filters and exports">
       <div className="dbar-filters">
         {show.period && (
           <div className="seg dbar-period" role="radiogroup" aria-label="Time">
@@ -86,7 +85,7 @@ export function DashBar({ s, show, report, onExport, extra }: {
             ))}
           </div>
         )}
-        {(show.zone || show.masjid) && <MasjidPicker f={s.filter} />}
+        {/* masjid / zone: the picker in the top bar filters every page (2026-10-29) */}
         {extra}
       </div>
       <div className="dbar-actions"><ExportMenu report={report} onExport={onExport} /></div>
@@ -116,8 +115,7 @@ export function ExportMenu({ report, onExport }: { report?: { href: string; labe
 export function DashPage({ title, intro, bar, children, className = '' }: { title: string; intro: ReactNode; bar: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={`page mo dash ${className}`}>
-      <header className="page-head mo-head"><div><h1>{title}</h1><p className="page-intro">{intro}</p></div></header>
-      {bar}
+      <header className="page-head mo-head ph-line dash-head"><div><h1>{title}</h1><p className="page-intro">{intro}</p></div><div className="page-actions">{bar}</div></header>
       <div className="mo-grid">{children}</div>
     </div>
   );
