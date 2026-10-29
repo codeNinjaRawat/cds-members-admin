@@ -217,3 +217,12 @@ main { overflow-x: clip; }
 @media (max-width: 720px) { .msearch kbd { display: none; } .msearch-pop { position: fixed; left: 12px; right: 12px; top: 64px; min-width: 0; } }
 .top .msearch { min-width: 2.75rem; flex: 1 1 0; }
 @media (max-width: 560px) { .top .msearch { padding-right: .6rem; } .top .msearch .msearch-in::placeholder { color: transparent; } }
+/* shorter top bar (2026-10-29): 44px instead of 56px, less space below it */
+.top { padding: .25rem .4rem .25rem .55rem; margin-bottom: .9rem; gap: .5rem; }
+.top .msearch { min-height: 34px; }
+.top .icon-btn { width: 32px; height: 32px; min-width: 32px; min-height: 32px; }
+.top .avatar { width: 28px; height: 28px; font-size: .72rem; }
+.top .me { padding-block: 1px; }
+.top .pill-select, .top select.in { min-height: 32px; }
+.top .msearch kbd { font-size: .68rem; }
+.pf-banner { padding: .4rem .8rem; font-size: .84rem; }   /* slimmer notice strip */
