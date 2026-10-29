@@ -7,6 +7,7 @@ import { Photo, useArtUrl } from './Photo';
 import { SECTION_ART, WALL_PHOTOS } from '@/lib/images';
 import { ViewingChip } from './MasjidPicker';
 import { IdleLock } from './IdleLock';
+import { MemberSearch } from './MemberSearch';
 import { useAccess, setActing, setDashboard } from '@/lib/access/use-access';
 import { LIVE, signOut } from '@/lib/live/live';
 import { useOrgBrand } from '@/lib/brand/use-org-brand';
@@ -76,7 +77,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
   useEffect(() => { setDrawer(false); }, [pathname]);
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((p) => !p); }
       if (e.key === 'Escape' && !(e.target as HTMLElement | null)?.closest('dialog') && readAppearance().work === 'on') update({ work: 'off' });   // Esc leaves work mode
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); update({ work: readAppearance().work === 'on' ? 'off' : 'on' }); }
     };
@@ -110,10 +110,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <div className="main-col">
         <header className="top glass-nav">
           <button className="icon-btn menu-btn" aria-label="Open menu" aria-expanded={drawer} onClick={() => setDrawer(true)}><Icon name="menu" /></button>
-          <button className="search" onClick={() => setPalette(true)} aria-keyshortcuts="Control+K">
-            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M20 20l-4-4" stroke="currentColor" strokeWidth="2" /></svg>
-            <span>Find a setting or page</span><kbd>Ctrl K</kbd>
-          </button>
+          <MemberSearch />
           <ViewingChip />
           {LIVE && <span className="env live" title="Connected to the API – changes are saved to the database">Live</span>}
           <a className="top-link" href={site} target="_blank" rel="noopener noreferrer">Open website<span className="sr-only"> (opens in a new tab)</span></a>
