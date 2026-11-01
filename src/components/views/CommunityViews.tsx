@@ -14,13 +14,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { DocEditor } from '@/components/editor/DocEditor';
 import { Panel, SwitchRow, Tabs, countIssues } from '@/components/editor/bits';
 import { SchemaForm } from '@/components/forms/SchemaForm';
-import { CATEGORY_LABEL, EventSchema, fmtRange, registrationState, spotsLeft, type EventItem, type EventsDoc } from '@/lib/community/events';
+import { CATEGORY_LABEL, EventSchema, fmtRange, newEvent, registrationState, spotsLeft, type EventItem, type EventsDoc } from '@/lib/community/events';
 import { FIXED_VALUES, GroupSchema, RULE_LABEL, badEventGroups, groupUsage, membersOf, ruleIssues, type Facts, type Group, type GroupsDoc, type RuleChoices } from '@/lib/community/groups';
 import { ALWAYS_ON, CommunicationShape, MACROS, SAMPLE_VALUES, SYSTEM_EMAILS, SYSTEM_EMAIL_KEYS, TemplateSchema, contextOf, render, renewalEmailDates, renewalEmailWarnings, type CommunicationDoc, type SystemEmailKey } from '@/lib/community/communication';
 import { DEFAULT_LIFECYCLE, type MembershipSettings } from '@/lib/content/membership';
 import type { Recipient } from '@/lib/community/campaigns';
 import { CampaignsView, fmtWhen, readCampaigns } from './CampaignsView';
 import { EventAttendees, useLiveEventCounts } from './EventAttendees';
+import { EventBuilder } from './EventBuilder';
 import { useAccess } from '@/lib/access/use-access';
 import { OrgConfigShape, PAY_LABEL, codeStatus, payMethods, securityWarnings, type OrgConfig } from '@/lib/community/org-config';
 import { buildReceipt, checkoutTotal, invoiceNumber, dueDate } from '@/lib/community/payments';
@@ -61,12 +62,54 @@ function EventsBody({ doc }: { doc: { draft: EventsDoc; setDraft: (f: (d: Events
     const id = uid('new-event', d.events.map((e) => e.id));
     const home = (mf.masjid && mf.masjid !== UNROUTED ? mf.masjid : '') || (access.role?.centerScoped ? access.me?.centers[0] ?? '' : ''); // the event belongs to the masjid being viewed
     const day = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
-    set((x) => { x.events.push({ id, title: 'New event', summary: '', category: 'community', status: 'draft', start: `${day}T18:00`, end: `${day}T20:00`, location: { name: home ? home : 'ISGH Main Center', address: '', ...(home ? { center: home } : {}) }, visibility: 'public', groupIds: [],
-      registration: { enabled: true, capacity: 0, waitlist: false, guests: { allowed: false, max: 0 }, cancellation: { policy: 'until', daysBefore: 1, refund: 'full', feeCents: 0 }, types: [{ id: 'general', name: 'General admission', priceCents: 0, guestPriceCents: 0, availability: 'everyone', planIds: [], limit: 0, enabled: true }] },
-      reminders: [x.defaultReminderDays], registered: 0, waiting: 0, typeCounts: {}, sample: false, approval: { state: 'none', requestedBy: '', by: '', on: '', note: '' }, promotion: { featured: false, email: { audience: 'none', sendOn: '', sent: false }, sms: { enabled: false, sendOn: '' }, social: '' } }); });
+    set((x) => { x.events.push(newEvent(id, day, { name: home || 'ISGH Main Center', center: home || undefined }, x.defaultReminderDays)); });
     setView('drafts'); setOpen(id);
   };
   const lc = useLiveEventCounts();   // live: the real counts
+  // ?event=<id> opens the builder directly (links from dashboards); the builder's "Repeat" makes dated copies
+  useEffect(() => { const id = new URLSearchParams(window.location.search).get('event'); if (id && d.events.some((e) => e.id === id)) setOpen(id); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const on = (ev: Event) => { const { id, dates } = (ev as CustomEvent<{ id: string; dates: string[] }>).detail;
+      set((x) => { const src = x.events.find((y) => y.id === id); if (!src) return; const at = x.events.indexOf(src);
+        dates.forEach((day, k) => { const c = structuredClone(src); const shift = (v?: string) => (v ? `${day}${v.slice(10)}` : v); const len = Date.parse(src.end) - Date.parse(src.start);
+          c.id = uid(`${src.id}-${day}`, x.events.map((y) => y.id)); c.start = `${day}${src.start.slice(10)}`; c.end = new Date(Date.parse(`${c.start}:00Z`) + len).toISOString().slice(0, 16);
+          c.registration.opens = undefined; c.registration.closes = shift(src.registration.closes && src.registration.closes.slice(0, 10) === src.start.slice(0, 10) ? src.registration.closes : undefined);
+          c.status = 'draft'; c.approval = { state: 'none', requestedBy: '', by: '', on: '', note: '' }; c.registered = 0; c.waiting = 0; c.typeCounts = {}; c.addOnCounts = {}; c.optionCounts = {}; c.raisedCents = 0; c.sample = false;
+          c.discounts = c.discounts.map((z) => ({ ...z, used: 0 })); x.events.splice(at + 1 + k, 0, c); }); });
+      setView('drafts'); };
+    window.addEventListener('isgh:event-repeat', on); return () => window.removeEventListener('isgh:event-repeat', on);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+  const editing = open ? d.events.findIndex((e) => e.id === open) : -1;
+  if (editing >= 0) {
+    const e = d.events[editing]; const i = editing;
+    const acts = (
+      <>
+        {e.status !== 'published' && (needsApproval
+          ? (e.approval.state === 'pending' ? <span className="muted small">Sent for approval</span> : <button type="button" className="btn xs primary" onClick={() => set((x) => { x.events[i].approval = { state: 'pending', requestedBy: access.me?.name ?? '', by: '', on: new Date().toISOString().slice(0, 10), note: '' }; })}>Send for approval</button>)
+          : <button type="button" className="btn xs primary" onClick={() => set((x) => { x.events[i].status = 'published'; if (x.events[i].approval.state === 'pending') x.events[i].approval = { ...x.events[i].approval, state: 'approved', by: access.me?.name ?? '', on: new Date().toISOString().slice(0, 10) }; })}>Put on the website</button>)}
+        {e.approval.state === 'changes' && <span className="pill bad" title={e.approval.note}>Changes asked</span>}
+        <details className="xmenu">
+          <summary className="btn xs" aria-label="More actions">More ▾</summary>
+          <div className="xmenu-pop glass-float" role="menu">
+            {e.status === 'published' && <button type="button" role="menuitem" onClick={() => set((x) => { x.events[i].status = 'draft'; })}>Back to draft</button>}
+            {e.status !== 'cancelled' && <button type="button" role="menuitem" onClick={() => set((x) => { x.events[i].status = 'cancelled'; })}>Cancel event</button>}
+            <button type="button" role="menuitem" onClick={() => { const c = structuredClone(e); c.id = uid(`${c.id}-copy`, d.events.map((y) => y.id)); c.title += ' (copy)'; c.status = 'draft'; c.approval = { state: 'none', requestedBy: '', by: '', on: '', note: '' }; c.registered = 0; c.waiting = 0; c.typeCounts = {}; c.sample = false; set((x) => { x.events.splice(i + 1, 0, c); }); setOpen(c.id); }}>Duplicate</button>
+            <button type="button" role="menuitem" className="danger" onClick={() => { set((x) => { x.events.splice(i, 1); }); setOpen(null); }}>Delete</button>
+          </div>
+        </details>
+      </>
+    );
+    return (
+      <div className="cv">
+        <EventBuilder e={e} index={i} issues={doc.issues} groups={(groupsDoc?.groups ?? []).map((g) => ({ id: g.id, name: g.name }))} onClose={() => setOpen(null)} actions={acts}
+          onChange={(v) => set((x) => { x.events[i] = v; if (v.id !== e.id) setOpen(v.id); })} />
+        {e.visibility === 'groups' && groupsDoc && badEventGroups(e.groupIds, groupsDoc).length > 0 && (
+          <p className="notice warn-note ev-group-warn" role="alert">Check the groups: {badEventGroups(e.groupIds, groupsDoc).map((b) => `${b.id} (${b.why})`).join(', ')}. Nobody in those can see this event.</p>
+        )}
+        {e.registration.enabled && e.status !== 'draft' && <details className="eb-guests glass-pane"><summary>Guest list and check-in</summary><EventAttendees e={e} now={now} /></details>}
+      </div>
+    );
+  }
   return (
     <div className="cv">
       <Panel>
@@ -86,7 +129,7 @@ function EventsBody({ doc }: { doc: { draft: EventsDoc; setDraft: (f: (d: Events
           const bad = countIssues(doc.issues, [`events.${i}`]);
           return (
             <li key={e.id} className={`cv-item${open === e.id ? ' open' : ''}${bad ? ' has-err' : ''}`} data-event={e.id}>
-              <button type="button" className="cv-row" aria-expanded={open === e.id} onClick={() => setOpen(open === e.id ? null : e.id)}>
+              <button type="button" className="cv-row" onClick={() => setOpen(e.id)} aria-label={`Edit ${e.title}`}>
                 <span className="cv-date">{fmtRange(e)}</span>
                 <b>{e.title}</b>
                 <span className="cv-meta">{CATEGORY_LABEL[e.category]} · {e.location.center ?? e.location.name} · {e.visibility === 'public' ? 'Everyone' : e.visibility === 'members' ? 'Members only' : 'Groups only'}</span>
@@ -96,29 +139,6 @@ function EventsBody({ doc }: { doc: { draft: EventsDoc; setDraft: (f: (d: Events
                 {e.registration.enabled && <span className="cv-count">{(lc?.[e.id] ?? e).registered}{e.registration.capacity ? ` / ${e.registration.capacity}` : ''} registered{(lc?.[e.id] ?? e).waiting ? ` · ${(lc?.[e.id] ?? e).waiting} waiting` : ''}</span>}
                 {bad > 0 && <span className="sf-badge">{bad}</span>}
               </button>
-              {open === e.id && (
-                <div className="cv-edit">
-                  <div className="row-actions">
-                    {e.status !== 'published' && (needsApproval
-                      ? (e.approval.state === 'pending' ? <span className="muted">Sent for approval – the organization decides.</span> : <button type="button" className="btn sm primary" onClick={() => set((x) => { x.events[i].approval = { state: 'pending', requestedBy: access.me?.name ?? '', by: '', on: new Date().toISOString().slice(0, 10), note: '' }; })}>Send for approval</button>)
-                      : <button type="button" className="btn sm primary" onClick={() => set((x) => { x.events[i].status = 'published'; if (x.events[i].approval.state === 'pending') x.events[i].approval = { ...x.events[i].approval, state: 'approved', by: access.me?.name ?? '', on: new Date().toISOString().slice(0, 10) }; })}>Publish on the website</button>)}
-                    {e.approval.state === 'changes' && <span className="pill bad" title={e.approval.note}>Changes asked: {e.approval.note}</span>}
-                    {e.status === 'published' && <button type="button" className="btn sm" onClick={() => set((x) => { x.events[i].status = 'draft'; })}>Back to draft</button>}
-                    {e.status !== 'cancelled' && <button type="button" className="btn sm" onClick={() => set((x) => { x.events[i].status = 'cancelled'; })}>Cancel event</button>}
-                    <button type="button" className="btn sm" onClick={() => set((x) => { const c = structuredClone(x.events[i]); c.id = uid(`${c.id}-copy`, x.events.map((y) => y.id)); c.title += ' (copy)'; c.status = 'draft'; c.approval = { state: 'none', requestedBy: '', by: '', on: '', note: '' }; c.registered = 0; c.waiting = 0; c.typeCounts = {}; c.sample = false; x.events.splice(i + 1, 0, c); })}>Duplicate</button>
-                    <button type="button" className="btn sm danger-ghost" onClick={() => { set((x) => { x.events.splice(i, 1); }); setOpen(null); }}>Delete</button>
-                  </div>
-                  <p className="cv-state" role="status">
-                    {e.registration.enabled ? (st.open ? (st.waitlist ? `Full – new registrations join the waitlist.` : `Registration is open${left !== Infinity ? ` – ${left} spots left` : ''}.`) : st.reason) : 'No registration – just come.'}
-                    {' '}· Page: <code>/events/{e.id}</code>
-                  </p>
-                  {e.visibility === 'groups' && groupsDoc && badEventGroups(e.groupIds, groupsDoc).length > 0 && (
-                    <p className="notice warn-note ev-group-warn" role="alert">Check the groups: {badEventGroups(e.groupIds, groupsDoc).map((b) => `${b.id} (${b.why})`).join(', ')}. Nobody in those can see this event.</p>
-                  )}
-                  {e.registration.enabled && e.status !== 'draft' && <EventAttendees e={e} now={now} />}
-                  <SchemaForm schema={EventSchema} value={e} path={['events', i]} issues={doc.issues} omit={['approval', 'promotion']} onChange={(v) => set((x) => { x.events[i] = v as EventItem; })} />
-                </div>
-              )}
             </li>
           );
         })}
