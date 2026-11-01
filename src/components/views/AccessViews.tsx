@@ -41,7 +41,7 @@ function AdminsBody({ doc }: { doc: ADoc }) {
   const warns = accessWarnings(doc.draft, today(), org.centers.filter((c) => c.active).map((c) => c.name));
   return (
     <div className="cv">
-      {warns.length > 0 && <ul className="notice warn-note acc-warns" role="note">{warns.map((w) => <li key={w}>{w}</li>)}</ul>}
+      {warns.length > 0 && <details className="notice warn-note acc-warns zn-warns" role="note"><summary><b>{warns.length} thing{warns.length === 1 ? '' : 's'} to look at</b></summary><ul>{warns.map((w) => <li key={w}>{w}</li>)}</ul></details>}
       <Tabs label="Admins and roles" tabs={[
         { id: 'admins', label: 'Admins', badge: countIssues(doc.issues, ['admins']), render: () => <Admins doc={doc} /> },
         { id: 'roles', label: 'Roles', badge: countIssues(doc.issues, ['roles']), render: () => <Roles doc={doc} /> },

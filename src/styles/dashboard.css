@@ -408,3 +408,14 @@ main[data-section] details.zn-warns ul { margin: .35rem 0 0; }
 main[data-section] .bn-bar input[type=search] { flex: 0 1 220px; min-width: 120px; min-height: 32px; font-size: .82rem; }
 main[data-section] .bn-bar h2 { font-size: 1rem; }
 main[data-section] :is(.zk-table, .cm-table, .pp-table) .pill { white-space: nowrap; }
+
+/* Admins: invite form on one row (name, email, role, ZIP, buttons) so the admin list comes up the page */
+main[data-section] .acc-invite { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; margin-bottom: .7rem; }
+main[data-section] .acc-invite .sf-field { flex: 1 1 170px; margin: 0; min-width: 0; }
+main[data-section] .acc-invite .acc-zip { flex: 0 1 150px; }
+main[data-section] .acc-invite .acc-zip small { font-size: .7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+main[data-section] .acc-invite :is(.in, select.in) { min-height: 34px; font-size: .84rem; }
+main[data-section] .acc-invite .btn { flex: none; }
+/* Theme: the Colors / Logo / Visitor switch as a slim segmented row */
+main[data-section] nav.subnav { padding: .2rem; margin-bottom: .6rem; gap: .2rem; }
+main[data-section] nav.subnav button { min-height: 30px; padding: .2rem .8rem; font-size: .82rem; }
